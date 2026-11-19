@@ -3,7 +3,8 @@
 - 1인 청약 한도: 3,000만 원과 발행액 5% 중 작은 금액
 - 펀딩 개설 조건: 파일럿 4주 열람자 ≥ '4년 안 원금 회수에 필요한 월 열람자'의 50%
 - 목표 금액 상한: 예상 월 투자자 몫(세후) × 48개월
-- 회수 우선 배분: 누적 세전 분배금 ≥ 발행액이 된 다음 분기부터 '회수 후' 비율
+- 회수 우선 배분: 원천징수 후 누적 분배금 ≥ 발행액이 된 다음 분기부터 '회수 후' 비율
+  (세전 기준이면 투자자가 세후로 원금을 돌려받기 전에 몫이 줄어든다)
 - 만기 없음. 종료: 완결 후 3년, 또는 분기 순매출 < 발행액 0.5% 가 2분기 연속
 - 작가 매입 옵션: 최근 4분기 보유자 분배금 합계 × 3 으로 전량 매입
 
@@ -12,7 +13,7 @@
 import math
 from datetime import timedelta
 
-from sqlalchemy import distinct, func, select
+from sqlalchemy import String, cast, distinct, func, literal, select
 from sqlalchemy.orm import Session
 
 from app.core import clock
@@ -107,7 +108,74 @@ def check_funding_gate(db: Session, work_id: int, target_amount: int) -> dict:
     return g
 
 
+# ───────────────────────────── 투자 지표 카드 (청약 화면) ─────────────────────────────
+
+SCENARIOS = {  # (결제율 bps, 월 구매 회차) — 기획서 v4.0 5장
+    "conservative": (1000, 3),
+    "base": (1500, 4),
+    "optimistic": (2000, 5),
+}
+
+
+def payback_months(target_amount: int, monthly_readers: int, pay_bps: int, episodes: int,
+                   holder_bps: int | None = None) -> int | None:
+    """세후 분배금 누적이 원금에 닿는 달 (월 단위 올림). 열람자가 없으면 None."""
+    if monthly_readers <= 0:
+        return None
+    holder = (holder_bps or settings.royalty_holder_bps) / BPS
+    per_month = monthly_readers * (pay_bps / BPS) * episodes * settings.default_preview_price_coin \
+        * (1 - settings.inapp_fee_bps / BPS) * holder * (1 - settings.dividend_tax_bps / BPS)
+    return math.ceil(target_amount / per_month)
+
+
+def indicators(db: Session, f: Funding) -> dict:
+    """발행 전 투자 지표: 수요(찜·열람·연독) → 예상 열람자 → 원금 회수 기간 범위."""
+    now = clock.now()
+    viewer = func.coalesce(literal("u") + cast(ContentEvent.user_id, String), literal("a") + ContentEvent.anon_id)
+    from app.models import Dib, Episode
+
+    def uniq(event: EventType, episode_id: int | None = None, since=None) -> int:
+        q = select(func.count(distinct(viewer))).where(ContentEvent.work_id == f.work_id,
+                                                       ContentEvent.event_type == event)
+        if episode_id is not None:
+            q = q.where(ContentEvent.episode_id == episode_id)
+        if since is not None:
+            q = q.where(ContentEvent.occurred_at >= since)
+        return int(db.scalar(q) or 0)
+
+    eps = list(db.scalars(select(Episode).where(Episode.work_id == f.work_id,
+                                                Episode.no <= settings.pilot_free_episodes).order_by(Episode.no)))
+    first = uniq(EventType.VIEW_COMPLETE, eps[0].id) if eps else 0
+    last = uniq(EventType.VIEW_COMPLETE, eps[-1].id) if eps else 0
+    dibs = int(db.scalar(select(func.count()).where(Dib.work_id == f.work_id)) or 0)
+    dibs_7d = int(db.scalar(select(func.count()).where(Dib.work_id == f.work_id,
+                                                       Dib.created_at >= now - timedelta(days=7))) or 0)
+    gate = funding_gate(db, f.work_id, f.target_amount)
+    expected = gate["expected_monthly_readers"]
+    payback = {}
+    for name, (pay, eps_n) in SCENARIOS.items():
+        m = payback_months(f.target_amount, expected, pay, eps_n, f.royalty_holder_bps)
+        payback[name] = round(m / 12, 1) if m else None
+    return {
+        "funding_id": f.id,
+        "dibs_total": dibs,
+        "dibs_7d": dibs_7d,
+        "pilot_readers_4w": gate["pilot_readers_4w"],
+        "pilot_read_through": round(last / first, 3) if first else None,
+        "expected_monthly_readers": expected,
+        "gate_threshold": gate["gate_threshold"],
+        "passes_gate": gate["passes_gate"],
+        "target_cap": gate["target_cap"],
+        "payback_years": payback,
+        "note": "수익을 보장하지 않는 추정 범위예요. 결제율·월 구매 회차 가정에 따라 크게 달라져요.",
+    }
+
+
 # ───────────────────────────── 회수 우선 배분 ─────────────────────────────
+
+def after_tax(amount: int) -> int:
+    return amount * (BPS - settings.dividend_tax_bps) // BPS
+
 
 def cumulative_holder_gross(db: Session, f: Funding, before_period: str | None = None) -> int:
     q = select(func.coalesce(func.sum(DividendRun.holder_pool), 0)).where(DividendRun.funding_id == f.id)
@@ -135,8 +203,9 @@ def recoup_status(db: Session, f: Funding) -> dict:
         "phase": "AFTER_RECOUP" if after else "BEFORE_RECOUP",
         "recouped_period": f.recouped_period,
         "cumulative_holder_gross": cum,
+        "cumulative_holder_net": after_tax(cum),
         "issuance_amount": f.target_amount,
-        "progress_pct": round(min(cum * 100 / f.target_amount, 100), 1) if f.target_amount else 0.0,
+        "progress_pct": round(min(after_tax(cum) * 100 / f.target_amount, 100), 1) if f.target_amount else 0.0,
         "holder_bps_now": f.royalty_holder_after_bps if after else f.royalty_holder_bps,
         "holder_bps_before": f.royalty_holder_bps,
         "holder_bps_after": f.royalty_holder_after_bps,

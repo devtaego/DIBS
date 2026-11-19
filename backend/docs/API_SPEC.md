@@ -97,6 +97,7 @@
 | `POST` | `/fundings/{funding_id}/subscriptions` | 조각 청약 (예치금 묶임) | 회원 | SubscribeIn | SubscriptionOut |
 | `GET` | `/fundings/{funding_id}/breakeven` | 손익분기 독자 규모 (청약 전 공시) | 공개 |  | BreakevenOut |
 | `GET` | `/works/{work_id}/funding-gate` | 펀딩 개설 조건·목표 금액 상한 (파일럿 4주 열람자 기준) | 공개 |  | FundingGateOut |
+| `GET` | `/fundings/{funding_id}/indicators` | 투자 지표 카드 (찜 속도·파일럿 연독률·원금 회수 기간 범위) | 회원 |  | FundingIndicatorsOut |
 | `GET` | `/fundings/{funding_id}/buyback-quote` | 종료 규칙 상태와 작가 매입가 (상장 후) | 공개 |  | TerminationOut |
 | `POST` | `/fundings/{funding_id}/buyback` | 작가 매입 옵션 실행 (작가 본인, 전량 매입 후 권리 종료) | 창작자 |  |  |
 | `GET` | `/fundings/{funding_id}/subscriptions/me` | 내 청약 조회 | 회원 |  | SubscriptionOut |

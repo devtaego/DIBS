@@ -16,6 +16,7 @@ from app.schemas.funding import (
     BreakevenOut,
     FundingApplyIn,
     FundingGateOut,
+    FundingIndicatorsOut,
     FundingCardOut,
     FundingDetailOut,
     FundingOut,
@@ -128,6 +129,15 @@ def funding_gate(work_id: int, target_amount: int = Query(default=50_000_000, gt
     content_svc.get_work(db, work_id)
     return FundingGateOut(work_id=work_id, target_amount=target_amount,
                           **product.funding_gate(db, work_id, target_amount))
+
+
+@router.get("/fundings/{funding_id}/indicators", response_model=FundingIndicatorsOut,
+            summary="투자 지표 카드 (찜 속도·파일럿 연독률·원금 회수 기간 범위)")
+def funding_indicators(funding_id: int, db: Session = Depends(get_db)):
+    f = svc.get_funding(db, funding_id)
+    if f.status not in PUBLIC_STATUSES:
+        raise NotFound("FUNDING_NOT_FOUND", "펀딩을 찾을 수 없어요")
+    return FundingIndicatorsOut(**product.indicators(db, f))
 
 
 @router.get("/fundings/{funding_id}/buyback-quote", response_model=TerminationOut,

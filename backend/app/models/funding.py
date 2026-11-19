@@ -55,7 +55,7 @@ class Funding(TimestampMixin, Base):
     royalty_platform_after_bps: Mapped[int] = mapped_column(Integer, default=settings.royalty_platform_after_bps)
     royalty_creator_after_bps: Mapped[int] = mapped_column(Integer, default=settings.royalty_creator_after_bps)
     royalty_holder_after_bps: Mapped[int] = mapped_column(Integer, default=settings.royalty_holder_after_bps)
-    # 회수 판정: 누적 세전 분배금이 발행액에 닿은 분기. 다음 분기부터 '회수 후' 비율
+    # 회수 판정: 원천징수 후 누적 분배금이 발행액에 닿은 분기. 다음 분기부터 '회수 후' 비율
     recouped_period: Mapped[str | None] = mapped_column(String(7))
 
     # 배정 방식 (v4.0: 균등 20 / 비례 80, 균등분 중 발행량 10%는 초기 독자 우선)

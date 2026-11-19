@@ -119,6 +119,12 @@ export type FundingDetail = FundingCard & {
 export type Recoup = { phase: 'BEFORE_RECOUP' | 'AFTER_RECOUP'; recouped_period: string | null; cumulative_holder_gross: number; issuance_amount: number; progress_pct: number; holder_bps_now: number; holder_bps_before: number; holder_bps_after: number };
 /** 만기 없음. 완결 후 3년 또는 저매출 2분기 연속이면 종료, 작가 매입가 = 최근 4분기 분배금 × 3 */
 export type Termination = { completed_at: string | null; terminate_due_at: string | null; low_revenue_threshold: number; low_revenue_streak: number; eligible: boolean; reason: string | null; buyback_price: number | null };
+/** 발행 전 투자 지표 카드: 수요 → 예상 열람자 → 원금 회수 기간 범위 */
+export type Indicators = {
+  funding_id: number; dibs_total: number; dibs_7d: number; pilot_readers_4w: number; pilot_read_through: number | null;
+  expected_monthly_readers: number; gate_threshold: number; passes_gate: boolean; target_cap: number;
+  payback_years: { conservative: number | null; base: number | null; optimistic: number | null }; note: string;
+};
 export type Breakeven = { lines: { goal: string; holder_dividend_per_year: number; paid_unlocks_per_month: number; buyers_per_episode: number; monthly_readers: number }[]; price_coin: number; monthly_episodes: number };
 export type Subscription = { id: number; funding_id: number; units: number; status: string; allocated_units: number | null; requested_tier_id: number | null; assigned_tier_id: number | null };
 export type MySubscription = Subscription & { work_title: string; unit_price: number; funding_status: string; close_at: string | null; requested_tier_title: string | null; assigned_tier_title: string | null; tracking_no: string | null };

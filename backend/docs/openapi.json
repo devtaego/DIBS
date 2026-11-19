@@ -5025,6 +5025,98 @@
         }
       }
     },
+    "/fundings/{funding_id}/indicators": {
+      "get": {
+        "tags": [
+          "fundings"
+        ],
+        "summary": "투자 지표 카드 (찜 속도·파일럿 연독률·원금 회수 기간 범위)",
+        "operationId": "funding_indicators_fundings__funding_id__indicators_get",
+        "parameters": [
+          {
+            "name": "funding_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Funding Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FundingIndicatorsOut"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/fundings/{funding_id}/buyback-quote": {
       "get": {
         "tags": [
@@ -14341,6 +14433,81 @@
         "title": "FundingGateOut",
         "description": "펀딩 개설 조건과 목표 금액 상한 (v4.0)."
       },
+      "FundingIndicatorsOut": {
+        "properties": {
+          "funding_id": {
+            "type": "integer",
+            "title": "Funding Id"
+          },
+          "dibs_total": {
+            "type": "integer",
+            "title": "Dibs Total"
+          },
+          "dibs_7d": {
+            "type": "integer",
+            "title": "Dibs 7D",
+            "description": "최근 7일 찜 (찜 속도)"
+          },
+          "pilot_readers_4w": {
+            "type": "integer",
+            "title": "Pilot Readers 4W",
+            "description": "최근 4주 파일럿 열람자"
+          },
+          "pilot_read_through": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pilot Read Through",
+            "description": "파일럿 연독률 (마지막 무료 회차 완독 ÷ 1화 완독)"
+          },
+          "expected_monthly_readers": {
+            "type": "integer",
+            "title": "Expected Monthly Readers",
+            "description": "파일럿 열람자 × 유료화 후 남는 비율 70%"
+          },
+          "gate_threshold": {
+            "type": "integer",
+            "title": "Gate Threshold"
+          },
+          "passes_gate": {
+            "type": "boolean",
+            "title": "Passes Gate"
+          },
+          "target_cap": {
+            "type": "integer",
+            "title": "Target Cap"
+          },
+          "payback_years": {
+            "$ref": "#/components/schemas/PaybackRange",
+            "description": "원금 회수 기간 범위 (세후, 월 단위 올림)"
+          },
+          "note": {
+            "type": "string",
+            "title": "Note"
+          }
+        },
+        "type": "object",
+        "required": [
+          "funding_id",
+          "dibs_total",
+          "dibs_7d",
+          "pilot_readers_4w",
+          "pilot_read_through",
+          "expected_monthly_readers",
+          "gate_threshold",
+          "passes_gate",
+          "target_cap",
+          "payback_years",
+          "note"
+        ],
+        "title": "FundingIndicatorsOut",
+        "description": "발행 전 투자 지표 카드 (청약 화면)."
+      },
       "FundingOut": {
         "properties": {
           "id": {
@@ -15641,6 +15808,53 @@
         ],
         "title": "OrderStatus"
       },
+      "PaybackRange": {
+        "properties": {
+          "conservative": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Conservative",
+            "description": "보수: 결제율 10%, 월 3화"
+          },
+          "base": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Base",
+            "description": "기준: 결제율 15%, 월 4화"
+          },
+          "optimistic": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Optimistic",
+            "description": "낙관: 결제율 20%, 월 5화"
+          }
+        },
+        "type": "object",
+        "required": [
+          "conservative",
+          "base",
+          "optimistic"
+        ],
+        "title": "PaybackRange"
+      },
       "PayoutIn": {
         "properties": {
           "bps": {
@@ -16080,6 +16294,11 @@
             "title": "Cumulative Holder Gross",
             "description": "누적 세전 분배금 (투자자 전체)"
           },
+          "cumulative_holder_net": {
+            "type": "integer",
+            "title": "Cumulative Holder Net",
+            "description": "원천징수 후 누적 분배금 — 회수 판정 기준"
+          },
           "issuance_amount": {
             "type": "integer",
             "title": "Issuance Amount"
@@ -16106,6 +16325,7 @@
           "phase",
           "recouped_period",
           "cumulative_holder_gross",
+          "cumulative_holder_net",
           "issuance_amount",
           "progress_pct",
           "holder_bps_now",

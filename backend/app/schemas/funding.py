@@ -77,6 +77,7 @@ class RecoupOut(BaseModel):
     phase: str = Field(description="BEFORE_RECOUP | AFTER_RECOUP")
     recouped_period: str | None
     cumulative_holder_gross: int = Field(description="누적 세전 분배금 (투자자 전체)")
+    cumulative_holder_net: int = Field(description="원천징수 후 누적 분배금 — 회수 판정 기준")
     issuance_amount: int
     progress_pct: float
     holder_bps_now: int
@@ -92,6 +93,28 @@ class TerminationOut(BaseModel):
     eligible: bool
     reason: str | None
     buyback_price: int | None = Field(description="작가 매입가 = 최근 4분기 보유자 분배금 합계 × 3")
+
+
+class PaybackRange(BaseModel):
+    conservative: float | None = Field(description="보수: 결제율 10%, 월 3화")
+    base: float | None = Field(description="기준: 결제율 15%, 월 4화")
+    optimistic: float | None = Field(description="낙관: 결제율 20%, 월 5화")
+
+
+class FundingIndicatorsOut(BaseModel):
+    """발행 전 투자 지표 카드 (청약 화면)."""
+
+    funding_id: int
+    dibs_total: int
+    dibs_7d: int = Field(description="최근 7일 찜 (찜 속도)")
+    pilot_readers_4w: int = Field(description="최근 4주 파일럿 열람자")
+    pilot_read_through: float | None = Field(description="파일럿 연독률 (마지막 무료 회차 완독 ÷ 1화 완독)")
+    expected_monthly_readers: int = Field(description="파일럿 열람자 × 유료화 후 남는 비율 70%")
+    gate_threshold: int
+    passes_gate: bool
+    target_cap: int
+    payback_years: PaybackRange = Field(description="원금 회수 기간 범위 (세후, 월 단위 올림)")
+    note: str
 
 
 class FundingGateOut(BaseModel):

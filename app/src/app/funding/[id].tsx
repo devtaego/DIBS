@@ -4,7 +4,7 @@ import { View } from 'react-native';
 
 import { Cover, CtaBar, DNote, Ride } from '@/components/dibby';
 import { Badge, Button, Card, ErrorBox, H1, H2, KV, Loading, MockBadge, Muted, Row, Screen, T } from '@/components/ui';
-import { api, ApiError, track, type Breakeven, type FundingDetail, type Subscription } from '@/lib/api';
+import { api, ApiError, track, type Breakeven, type FundingDetail, type Indicators, type Subscription } from '@/lib/api';
 import { FUNDING_STATUS, SUB_STATUS, bps, dateText, won } from '@/lib/format';
 import { colors, radii, space } from '@/lib/theme';
 import { useApi } from '@/lib/useApi';
@@ -13,14 +13,18 @@ export default function FundingScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { data, error, loading, reload } = useApi(
     async () => {
-      const [f, be] = await Promise.all([api.get<FundingDetail>(`/fundings/${id}`), api.get<Breakeven>(`/fundings/${id}/breakeven`)]);
+      const [f, be, ind] = await Promise.all([
+        api.get<FundingDetail>(`/fundings/${id}`),
+        api.get<Breakeven>(`/fundings/${id}/breakeven`),
+        api.get<Indicators>(`/fundings/${id}/indicators`),
+      ]);
       let sub: Subscription | null = null;
       try {
         sub = await api.get<Subscription>(`/fundings/${id}/subscriptions/me`);
       } catch (e) {
         if ((e as ApiError).status !== 404) throw e;
       }
-      return { f, be, sub };
+      return { f, be, sub, ind };
     },
     [id],
     30_000, // 모집 중 달성률 30초마다 갱신
@@ -32,7 +36,8 @@ export default function FundingScreen() {
 
   if (loading && !data) return <Screen><Loading /></Screen>;
   if (!data) return <Screen><ErrorBox error={error} onRetry={reload} /></Screen>;
-  const { f, be, sub } = data;
+  const { f, be, sub, ind } = data;
+  const yr = (v: number | null) => (v === null ? '-' : `${v}년`);
   const t = f.terms;
   const isOpen = f.status === 'OPEN';
   const locked = f.lock_at ? new Date(f.lock_at) <= new Date(Date.now() + 9 * 3600e3) : false;
@@ -75,6 +80,25 @@ export default function FundingScreen() {
       ) : null}
 
       {isOpen && locked ? <Muted>마감 1시간 전이라 감액·취소는 할 수 없어요 (증액은 가능)</Muted> : null}
+
+      <H2>투자 지표</H2>
+      <Card>
+        <KV k="찜" v={`${ind.dibs_total.toLocaleString('ko-KR')}명 · 최근 7일 ${ind.dibs_7d.toLocaleString('ko-KR')}명`} />
+        <KV k="파일럿 4주 열람자" v={`${ind.pilot_readers_4w.toLocaleString('ko-KR')}명`} />
+        <KV k="파일럿 연독률 (1→3화)" v={ind.pilot_read_through === null ? '-' : `${Math.round(ind.pilot_read_through * 100)}%`} />
+        <KV k="예상 월 열람자" v={`${ind.expected_monthly_readers.toLocaleString('ko-KR')}명`} />
+        <KV
+          k="펀딩 개설 기준선"
+          v={`${ind.gate_threshold.toLocaleString('ko-KR')}명 · ${ind.passes_gate ? '통과' : '미달'}`}
+          vColor={ind.passes_gate ? colors.text : colors.danger}
+        />
+        <KV k="목표 금액 상한" v={won(ind.target_cap)} />
+        <T weight="700" style={{ marginTop: space(3) }}>원금 회수 기간 (세후)</T>
+        <T size={18} weight="700" color={colors.accent} style={{ marginTop: space(1) }}>
+          보수 {yr(ind.payback_years.conservative)} · 기준 {yr(ind.payback_years.base)} · 낙관 {yr(ind.payback_years.optimistic)}
+        </T>
+        <Muted size={12} style={{ marginTop: space(1) }}>{ind.note}</Muted>
+      </Card>
 
       <H2>목표를 넘으면 이렇게 나눠요</H2>
       <Card>

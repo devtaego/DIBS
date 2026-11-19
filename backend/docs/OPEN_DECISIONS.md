@@ -13,6 +13,7 @@
 | 청약 | 발행 단위: 작품별 증권, 작품당 3,000만 원 이상 | `min_target_amount 30_000_000` | `services/funding.py::_validate_terms` |
 | 청약 | 공모 회차: 같은 달 공모 작품은 신고·법률·회계 검토를 함께 진행 (증권은 작품별) | `fundings.offering_round` (기본: 모집 시작 달) | `GET /fundings?offering_round=2027-03` |
 | 청약 | 목표 금액 상한 = 예상 월 투자자 몫(세후) × 48 | 결제율 15%, 월 4화, 남는 비율 70% (가정값) | `services/product.py::target_cap` |
+| 청약 | 투자 지표 카드: 찜·최근 7일 찜, 파일럿 4주 열람자·연독률, 예상 열람자, 기준선, 원금 회수 기간 범위(보수·기준·낙관, 세후·월 올림) | `SCENARIOS` | `GET /fundings/{id}/indicators` |
 | 청약 | 초과청약 배정 균등 20 / 비례 80. 비례분은 원래 청약 수량 기준, 균등분이 참여자보다 적으면 공개 추첨 | `default_equal_ratio_bps 2000`, `lottery_seed` = 펀딩 번호 | `services/allocation.py::EqualThenProRata` |
 | 청약 | 초기 독자 우선: 균등분 중 발행량 10% 먼저. 자격 = 모집 7일 전까지 찜 + 모집 전 완독 1회 + 본인인증 | `default_early_reader_bps 1000`, `early_reader_dib_days_before 7` | `services/funding.py::early_readers`, `EqualThenProRata` |
 | 청약 | 1인 한도 min(3,000만 원, 발행액 5%) | `max_subscription_amount`, `max_subscription_bps 500` | `services/product.py::per_user_cap_units` |
@@ -20,7 +21,7 @@
 | 발행 | 모금액 작가 80 / 발행 실비 12 / DIBS 8 | `creator_bps 8000`, `issuance_cost_bps 1200`, `platform_fee_bps 800` | `services/funding.py::_list_security` |
 | 발행 | 작가 지급 상장 40 · 10화 30 · 20화(완결) 30, 중단 시 미지급분 보유자 분배 | `default_payout_schedule` | `services/funding.py::_pay`, `discontinue` |
 | 상장 후 | 배당 재원 회수 전 작가 30 / 투자자 45 / DIBS 25 → 회수 후 40 / 35 / 25 | `royalty_*_bps`, `royalty_*_after_bps` | `services/product.py::split_for`, `services/dividend.py::calculate` |
-| 상장 후 | 회수 판정: 누적 세전 분배금 ≥ 발행액이 된 다음 분기부터, 모든 보유자 동시 | `fundings.recouped_period` | `services/dividend.py::calculate` |
+| 상장 후 | 회수 판정: 원천징수 후 누적 분배금 ≥ 발행액이 된 다음 분기부터, 모든 보유자 동시 (세전 기준이면 세후 원금 회수 전에 몫이 줄어 회수가 4.4년 → 4.6년으로 늦어짐) | `fundings.recouped_period`, `product.after_tax` | `services/dividend.py::calculate` |
 | 상장 후 | 순매출 = 미리보기·광고·굿즈 − 인앱 30% − 굿즈 원가 + 독점 12개월 뒤 외부 수익 작가 몫의 20% | `inapp_fee_bps 3000`, `exclusive_months 12`, `external_share_bps 2000` | `services/dividend.py::add_revenue` |
 | 상장 후 | 분기 배당, 다음 달 10일, 원천징수 15.4% | `dividend_pay_day 10`, `dividend_tax_bps 1540` | `services/dividend.py` |
 | 상장 후 | 거래 수수료 0.015%, 거래소·증권사 몫 (배당 재원 아님) | `trade_fee_ppm 150` → `SYS_BROKER_FEE` | `services/market/mock_exchange.py` |

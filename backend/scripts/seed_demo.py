@@ -4,6 +4,7 @@
     DIBS_DATABASE_URL=sqlite:///./demo.db python -m scripts.seed_demo
 
 만들어지는 것
+- 파일럿 열람 이벤트: A 3.2만 명, B 2만 명 (지표 카드·펀딩 개설 조건이 실제 규모로 보이게)
 - 작품 A 「악녀인데 남주들이 나를 숭배한다」: 펀딩 모집 중, 목표 5,000조각(5,000만 원)에 7,020조각 청약 (140%)
   · 1인 한도 250조각 (3,000만 원과 발행액 5% 중 작은 금액), reader1~3 은 모집 전 찜한 초기 독자
   · 파일럿 1~3화 무료, 4화부터 유료 미리보기 300원 (공개 21일 뒤 무료)
@@ -11,12 +12,38 @@
 - 계정: admin@ / creator@ / reader1~30@dibs.dev  (POST /auth/dev-login 으로 토큰 발급)
   reader30 은 아무것도 청약하지 않은 계정 → 시연에서 새로 청약해 보기용
 """
+import random
 from datetime import timedelta
 
 from fastapi.testclient import TestClient
 
 from app.core import clock
+from app.core.db import SessionLocal
 from app.main import app
+from app.models import ContentEvent, Episode
+from app.models.enums import EventType
+
+
+def seed_pilot_events(work_id: int, readers: int, finish_1: float, finish_3: float) -> None:
+    """파일럿 1~3화 열람 이벤트 (최근 4주, 비로그인 기기 기준). 지표 카드·펀딩 개설 조건 시연용."""
+    rnd = random.Random(work_id)
+    now = clock.now()
+    db = SessionLocal()
+    eps = list(db.query(Episode).filter(Episode.work_id == work_id, Episode.no <= 3).order_by(Episode.no))
+    rows = []
+    for i in range(readers):
+        anon, at = f"w{work_id}-d{i}", now - timedelta(minutes=rnd.randint(60, 27 * 24 * 60))
+        rows.append(dict(anon_id=anon, event_type=EventType.VIEW_START, work_id=work_id, episode_id=eps[0].id,
+                         occurred_at=at, props={}))
+        if rnd.random() < finish_1:
+            rows.append(dict(anon_id=anon, event_type=EventType.VIEW_COMPLETE, work_id=work_id,
+                             episode_id=eps[0].id, occurred_at=at, props={}))
+            if rnd.random() < finish_3 / finish_1:
+                rows.append(dict(anon_id=anon, event_type=EventType.VIEW_COMPLETE, work_id=work_id,
+                                 episode_id=eps[2].id, occurred_at=at + timedelta(minutes=20), props={}))
+    db.bulk_insert_mappings(ContentEvent, rows)
+    db.commit()
+    db.close()
 
 SUB = {"agree_risk_notice": True, "agree_termination_rule": True}
 
@@ -70,6 +97,7 @@ def main() -> None:
 
         # 작품 A: 모집 중 842%
         a = make_work("악녀인데 남주들이 나를 숭배한다", "로맨스 판타지", 14)
+        seed_pilot_events(a, 32_000, 0.85, 0.55)  # 예상 월 열람자 약 2.2만 명 → 목표 5,000만 원 개설 가능
         for r in readers[:3]:
             call(r, "put", f"/works/{a}/dib")
         call("creator", "patch", "/me", json={"bio": "로맨스 판타지를 그리는 신인 작가"})
@@ -83,6 +111,7 @@ def main() -> None:
 
         # 작품 B: 상장 + 거래
         b = make_work("검을 거둔 아이", "무협", 8)
+        seed_pilot_events(b, 20_000, 0.8, 0.5)
         for r in readers[3:6]:
             call(r, "put", f"/works/{b}/dib")  # 모집 전 찜 → 초기 독자 우선 배정
         fb = make_funding(b, 3000, [])

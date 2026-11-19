@@ -267,3 +267,35 @@ def test_review_metrics_flags_no_read_dibs(api, published_work, now):
     assert m["eligible_dibs"] == 0
     assert set(m["flags"]) == {"NO_READ_DIBS_HIGH", "NEW_ACCOUNT_DIBS_HIGH"}
     assert m["episodes"][0]["verified_completes"] == 1
+
+
+def test_indicator_card(api, published_work, now):
+    """지표 카드: 찜·파일럿 열람·연독률 → 예상 열람자 → 원금 회수 기간 범위."""
+    wid = published_work["id"]
+    eps = api.ok(None, "get", f"/works/{wid}/episodes")
+    events = []
+    for i in range(10):
+        events.append({"event_type": "VIEW_START", "work_id": wid, "episode_id": eps[0]["id"],
+                       "occurred_at": now.isoformat(), "anon_id": f"dev{i}"})
+        events.append({"event_type": "VIEW_COMPLETE", "work_id": wid, "episode_id": eps[0]["id"],
+                       "occurred_at": now.isoformat(), "anon_id": f"dev{i}"})
+        if i < 6:
+            events.append({"event_type": "VIEW_COMPLETE", "work_id": wid, "episode_id": eps[2]["id"],
+                           "occurred_at": now.isoformat(), "anon_id": f"dev{i}"})
+    api.ok(None, "post", "/events", json={"events": events})
+    api.login("a")
+    api.ok("a", "put", f"/works/{wid}/dib")
+    f = open_funding(api, wid, now, target_units=100)
+    card = api.ok(None, "get", f"/fundings/{f['id']}/indicators")
+    assert (card["pilot_readers_4w"], card["pilot_read_through"], card["dibs_total"], card["dibs_7d"]) == (10, 0.6, 1, 1)
+    assert card["expected_monthly_readers"] == 7
+    pb = card["payback_years"]
+    assert pb["conservative"] > pb["base"] > pb["optimistic"]
+
+
+def test_payback_months_matches_plan():
+    """기획서 v4.0: 5,000만 원·월 2만 명 → 보수 8.8년 / 기준 4.4년 / 낙관 2.7년 (세후, 월 단위 올림)."""
+    from app.services.product import SCENARIOS, payback_months
+
+    got = {k: round(payback_months(50_000_000, 20_000, *v) / 12, 1) for k, v in SCENARIOS.items()}
+    assert got == {"conservative": 8.8, "base": 4.4, "optimistic": 2.7}

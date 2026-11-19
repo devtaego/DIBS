@@ -3,7 +3,7 @@
 재원 (v4.0): 순매출 = 유료 미리보기·광고·굿즈 − 인앱 수수료 − 굿즈 원가
             + 선공개 독점 12개월 뒤 외부 연재·영상화 수익 중 작가 몫 × 20%
 배분 (회수 우선): 회수 전 작가 30 / 투자자 45 / DIBS 25
-                → 누적 세전 분배금 ≥ 발행액이 된 분기의 다음 분기부터 40 / 35 / 25 (모든 보유자 동시)
+                → 원천징수 후 누적 분배금 ≥ 발행액이 된 분기의 다음 분기부터 40 / 35 / 25 (모든 보유자 동시)
 거래 수수료는 거래소·증권사 몫이라 배당 재원에 넣지 않는다.
 주주 몫: 기준일(분기 말일 24:00) 보유 조각 수 비례, 원 단위 절사 → 잔여는 플랫폼 귀속
 지급: 다음 달 10일 예치금, 배당소득세 15.4% 원천징수
@@ -131,8 +131,9 @@ def calculate(db: Session, f: Funding, period: str, force: bool = False) -> Divi
         paid += gross
         db.add(DividendPayment(run_id=run.id, user_id=user_id, units=units, gross=gross, tax=tax, net=gross - tax))
     run.residual = holder_pool - paid
-    # 회수 판정: 이번 분기까지 누적 세전 분배금이 발행액에 닿으면 다음 분기부터 회수 후 비율
-    if not f.recouped_period and product.cumulative_holder_gross(db, f, period) + holder_pool >= f.target_amount:
+    # 회수 판정: 이번 분기까지 원천징수 후 누적 분배금이 발행액에 닿으면 다음 분기부터 회수 후 비율
+    cum_gross = product.cumulative_holder_gross(db, f, period) + holder_pool
+    if not f.recouped_period and product.after_tax(cum_gross) >= f.target_amount:
         f.recouped_period = period
         run.recouped_now = True
     db.flush()

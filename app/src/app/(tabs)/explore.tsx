@@ -1,34 +1,27 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { Pressable, RefreshControl, ScrollView, StyleSheet, TextInput, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { TextInput, View } from 'react-native';
 
-import { Cover } from '@/components/dibby';
-import { ExploreCard } from '@/components/ExploreCard';
-import { Empty, ErrorBox, Loading, T } from '@/components/ui';
-import { api, type FundingCard, type WorkCard } from '@/lib/api';
-import { colors, radii, screenPadding, space, type as ts } from '@/lib/theme';
+import { ErrorBox, Loading } from '@/components/ui';
+import {
+  ChipRow, DisclosureBar, DScreen, Empty, Icon, InvestSummary, Section, Segmented, TopAppBar, Txt, WorkCard,
+  color, radius, spacing, textStyle,
+} from '@/ds';
+import { api, type FundingCard, type WorkCard as Work } from '@/lib/api';
+import { ddayText, fundingStatus, fundingToCard, manwon, typeLabel } from '@/lib/cards';
 import { useApi } from '@/lib/useApi';
 
-type Tab = 'recommend' | 'ranking' | 'new';
-const TABS: { key: Tab; label: string }[] = [
-  { key: 'recommend', label: '추천' },
-  { key: 'ranking', label: '랭킹' },
-  { key: 'new', label: '신작' },
-];
+type Tab = 'recommend' | 'rank' | 'new';
 
-// 디자인 '06 탐색' 화면
+// V2 05 탐색 (추천 · 랭킹 · 신작)
 export default function Explore() {
   const [tab, setTab] = useState<Tab>('recommend');
-  const [searching, setSearching] = useState(false);
   const [q, setQ] = useState('');
-  const [refreshing, setRefreshing] = useState(false);
-
+  const [genre, setGenre] = useState('전체');
   const { data, error, loading, reload } = useApi(
     async () => {
       const [works, fundings] = await Promise.all([
-        api.get<WorkCard[]>('/works', { sort: tab === 'new' ? 'latest' : 'dibs', limit: 40, q: q.trim() || undefined }),
+        api.get<Work[]>('/works', { sort: tab === 'new' ? 'latest' : 'dibs', limit: 60, q: q.trim() || undefined }),
         api.get<FundingCard[]>('/fundings', { status: 'OPEN' }),
       ]);
       return { works, fundings };
@@ -36,145 +29,94 @@ export default function Explore() {
     [tab, q],
   );
 
-  const pctByFunding = useMemo(() => new Map(data?.fundings.map((f) => [f.id, f.progress.achievement_pct]) ?? []), [data]);
-  const works = useMemo(() => {
-    const list = [...(data?.works ?? [])];
-    // 추천: 지금 청약 중인 작품을 먼저, 그다음 찜 많은 순
+  const fundingByWork = useMemo(() => new Map((data?.fundings ?? []).map((f) => [f.work_id, f])), [data]);
+  const genres = useMemo(() => ['전체', ...Array.from(new Set((data?.works ?? []).map((w) => w.genre).filter(Boolean))).slice(0, 6)], [data]);
+  const works = (data?.works ?? []).filter((w) => genre === '전체' || w.genre === genre);
+  const ranked = useMemo(() => {
+    const list = [...works];
     if (tab === 'recommend') list.sort((a, b) => Number(b.funding_status === 'OPEN') - Number(a.funding_status === 'OPEN'));
     return list;
-  }, [data, tab]);
-  const banner = data?.fundings[0];
+  }, [works, tab]);
+  const hero = [...(data?.fundings ?? [])].sort((a, b) => b.progress.achievement_pct - a.progress.achievement_pct)[0];
+  const heroWork = hero ? data?.works.find((w) => w.id === hero.work_id) : undefined;
 
-  const statOf = (w: WorkCard) => {
-    if (w.funding_status === 'OPEN' && w.funding_id && pctByFunding.has(w.funding_id)) {
-      return { stat: `모집 ${pctByFunding.get(w.funding_id)!.toLocaleString('ko-KR')}%`, icon: 'trending-up' as const };
-    }
-    if (w.funding_status === 'LISTED') return { stat: '상장', icon: 'stats-chart' as const };
-    return { stat: `관심 ${w.dib_count.toLocaleString('ko-KR')}`, icon: 'star' as const };
+  const cardOf = (w: Work) => {
+    const f = fundingByWork.get(w.id);
+    if (f) return fundingToCard(f, w);
+    return { id: w.id, title: w.title, genre: w.genre, format: typeLabel(w.type), likes: w.dib_count, pct: 0, raised: '', status: fundingStatus(w.funding_status), dday: w.funding_status === 'LISTED' ? '상장' : '', coverUrl: w.cover_url };
   };
+  const open = (w: Work) => (w.funding_id ? router.push(w.funding_status === 'LISTED' ? `/security/${w.funding_id}` : `/funding/${w.funding_id}`) : router.push(`/work/${w.id}`));
 
   return (
-    <SafeAreaView style={s.screen} edges={['top']}>
-      <View style={s.header}>
-        <View role="tablist" style={s.tabs}>
-          {TABS.map((t) => (
-            <Pressable key={t.key} role="tab" aria-selected={tab === t.key} onPress={() => setTab(t.key)}>
-              <T size={ts.title3.fontSize} weight="700" color={tab === t.key ? colors.labelStrong : colors.labelAssistive}>{t.label}</T>
-            </Pressable>
-          ))}
-        </View>
-        <Pressable accessibilityLabel="검색" onPress={() => setSearching((v) => !v)} style={s.iconBtn}>
-          <Ionicons name={searching ? 'close' : 'search-outline'} size={24} color={colors.labelStrong} />
-        </Pressable>
-        <Pressable accessibilityLabel="알림" onPress={() => router.push('/notifications')} style={s.iconBtn}>
-          <Ionicons name="notifications-outline" size={24} color={colors.labelStrong} />
-        </Pressable>
+    <DScreen header={<TopAppBar type="Main" />} onRefresh={reload} tabBar gap={spacing.gap2xl}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.gapM, height: 48, paddingHorizontal: spacing.insetL, borderRadius: radius.chip, backgroundColor: color.bgAlternative }}>
+        <Icon name="search" size={20} c={color.labelAlternative} />
+        <TextInput
+          value={q}
+          onChangeText={setQ}
+          placeholder="작품·작가 검색"
+          placeholderTextColor={color.labelAssistive}
+          returnKeyType="search"
+          style={[textStyle('body2'), { flex: 1, color: color.labelStrong }]}
+          accessibilityLabel="검색"
+        />
       </View>
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+        <Segmented value={tab} onChange={setTab} options={[{ key: 'recommend', label: '추천' }, { key: 'rank', label: '랭킹' }, { key: 'new', label: '신작' }]} />
+        <Txt v="caption1" w="medium" c={color.labelAlternative}>실시간 청약 {data?.fundings.length ?? 0}건</Txt>
+      </View>
+      <ChipRow items={genres} value={genre} onChange={setGenre} />
+      <ErrorBox error={error} onRetry={reload} />
+      {loading && !data ? <Loading /> : null}
 
-      <ScrollView
-        contentContainerStyle={s.body}
-        refreshControl={
-          <RefreshControl
-            tintColor={colors.primary}
-            refreshing={refreshing}
-            onRefresh={async () => {
-              setRefreshing(true);
-              await reload();
-              setRefreshing(false);
+      {tab === 'recommend' && hero ? (
+        <Section title="오늘의 대표 작품">
+          <InvestSummary
+            compact
+            id={hero.work_id}
+            title={hero.work_title}
+            by={heroWork ? `${typeLabel(heroWork.type)} · ${heroWork.genre}` : undefined}
+            status="Recruiting"
+            statusText={ddayText(hero) ? `청약 중 · ${ddayText(hero)}` : '청약 중'}
+            mainValue={`${Math.round(hero.progress.achievement_pct).toLocaleString('ko-KR')}%`}
+            mainSub={`${manwon(hero.progress.raised_amount)} / 목표 ${manwon(hero.target_amount)}`}
+            progress={hero.progress.achievement_pct}
+            coverUrl={heroWork?.cover_url}
+            stats={[
+              { label: '1조각 공모가', value: `${hero.unit_price.toLocaleString('ko-KR')}원` },
+              { label: '정산 주기', value: '분기' },
+              { label: '위험 등급', value: '매우 높음' },
+            ]}
+            actions={{
+              left: { label: '1분 쇼츠 보기', icon: 'play', onPress: () => router.push('/shorts') },
+              right: { label: '자세히 보기', icon: 'chev', onPress: () => router.push(`/funding/${hero.id}`) },
             }}
           />
-        }>
-        {searching ? (
-          <TextInput
-            autoFocus
-            value={q}
-            onChangeText={setQ}
-            placeholder="작품 제목"
-            placeholderTextColor={colors.labelAssistive}
-            returnKeyType="search"
-            style={s.search}
-          />
-        ) : null}
+        </Section>
+      ) : null}
 
-        {banner && !searching ? (
-          <Pressable onPress={() => router.push(`/funding/${banner.id}`)} style={s.banner}>
-            <View style={{ gap: space(3), maxWidth: '64%' }}>
-              <T size={ts.heading1.fontSize} weight="700">{'지금, 청약이\n열렸어요'}</T>
-              <View style={s.bannerCta}>
-                <T size={13} weight="700" color={colors.onPrimary}>청약 보러 가기</T>
-                <Ionicons name="chevron-forward" size={14} color={colors.onPrimary} />
+      {tab === 'rank' ? (
+        <Section title="찜 많은 순" count={`${ranked.length}작품`}>
+          {ranked.map((w, i) => (
+            <View key={w.id} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.gapL }}>
+              <Txt v="headline1" w="bold" c={i < 3 ? color.highlight : color.labelAlternative} style={{ width: 24, textAlign: 'center' }} tabular>{i + 1}</Txt>
+              <View style={{ flex: 1 }}><WorkCard data={cardOf(w)} last={i === ranked.length - 1} onPress={() => open(w)} /></View>
+            </View>
+          ))}
+        </Section>
+      ) : (
+        <Section title={tab === 'new' ? '새로 올라온 작품' : '추천 작품'}>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', columnGap: spacing.gapL, rowGap: spacing.gap2xl }}>
+            {ranked.map((w) => (
+              <View key={w.id} style={{ width: '48%' }}>
+                <WorkCard layout="Grid" data={cardOf(w)} onPress={() => open(w)} />
               </View>
-            </View>
-            <View style={s.fan} pointerEvents="none">
-              {(works.length ? works.slice(0, 3) : []).map((w, i) => (
-                <Cover
-                  key={w.id}
-                  id={w.id}
-                  title={w.title}
-                  coverUrl={w.cover_url}
-                  small
-                  style={[s.fanCover, { transform: [{ rotate: `${[-8, 2, 10][i]}deg` }, { translateY: [6, 0, 8][i] }] }]}
-                />
-              ))}
-            </View>
-            <View style={s.bannerPct}>
-              <T size={11} weight="600" color="#FFFFFF">{banner.progress.achievement_pct.toLocaleString('ko-KR')}% · {banner.days_left !== null ? `D-${banner.days_left}` : '모집 중'}</T>
-            </View>
-          </Pressable>
-        ) : null}
-
-        <ErrorBox error={error} onRetry={reload} />
-        {loading && !data ? <Loading /> : null}
-        {data && works.length === 0 ? <Empty text={q ? '찾는 작품이 없어요' : '공개된 작품이 아직 없어요'} /> : null}
-
-        <View style={s.grid}>
-          {works.map((w, i) => {
-            const st = statOf(w);
-            return (
-              <View key={w.id} style={s.cell}>
-                <ExploreCard
-                  id={w.id}
-                  title={w.title}
-                  meta={[w.genre, w.type === 'WEBNOVEL' ? '웹소설' : '웹툰'].filter(Boolean).join(' · ')}
-                  stat={st.stat}
-                  statIcon={st.icon}
-                  coverUrl={w.cover_url}
-                  isNew={tab === 'new' && i < 3}
-                  rank={tab === 'ranking' ? i + 1 : undefined}
-                  onPress={() => router.push(`/work/${w.id}`)}
-                />
-              </View>
-            );
-          })}
-        </View>
-      </ScrollView>
-    </SafeAreaView>
+            ))}
+          </View>
+        </Section>
+      )}
+      {data && !ranked.length ? <Empty title="찾는 작품이 없어요" text="다른 검색어나 장르로 찾아보세요." /> : null}
+      <DisclosureBar />
+    </DScreen>
   );
 }
-
-const s = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.bg },
-  header: { height: 56, flexDirection: 'row', alignItems: 'center', gap: space(4), paddingLeft: screenPadding, paddingRight: space(2) },
-  tabs: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: space(4) },
-  iconBtn: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
-  body: { paddingHorizontal: screenPadding, paddingTop: space(1), paddingBottom: 120, gap: space(4) },
-  search: { height: 44, borderRadius: radii.control, backgroundColor: colors.bgAlternative, paddingHorizontal: space(4), fontSize: 15, color: colors.labelStrong },
-  banner: {
-    height: 144,
-    borderRadius: radii.card,
-    backgroundColor: colors.elevatedStrong,
-    borderWidth: 1,
-    borderColor: colors.line,
-    paddingHorizontal: space(5),
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    overflow: 'hidden',
-  },
-  bannerCta: { alignSelf: 'flex-start', height: 32, paddingHorizontal: space(3), borderRadius: radii.chip, backgroundColor: colors.primary, flexDirection: 'row', alignItems: 'center', gap: 2 },
-  fan: { position: 'absolute', right: -6, top: 14, flexDirection: 'row' },
-  fanCover: { width: 72, height: 108, borderRadius: radii.thumb, marginLeft: -18, borderWidth: 2, borderColor: colors.elevatedStrong },
-  bannerPct: { position: 'absolute', right: space(3), bottom: space(3), height: 20, paddingHorizontal: space(2), borderRadius: radii.chip, backgroundColor: colors.dimmer, justifyContent: 'center' },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', marginHorizontal: -space(1.5), rowGap: space(5) },
-  cell: { width: '50%', paddingHorizontal: space(1.5) },
-});

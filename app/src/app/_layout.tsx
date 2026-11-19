@@ -1,3 +1,4 @@
+import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -6,6 +7,14 @@ import { SessionProvider } from '@/lib/session';
 import { colors, MODE } from '@/lib/theme';
 
 export default function RootLayout() {
+  // Pretendard (v2.0 글꼴). 웹에서도 동작하도록 런타임 로딩
+  const [fontsLoaded, fontError] = useFonts({
+    'Pretendard-Regular': require('../../assets/fonts/Pretendard-Regular.otf'),
+    'Pretendard-Medium': require('../../assets/fonts/Pretendard-Medium.otf'),
+    'Pretendard-SemiBold': require('../../assets/fonts/Pretendard-SemiBold.otf'),
+    'Pretendard-Bold': require('../../assets/fonts/Pretendard-Bold.otf'),
+  });
+  if (!fontsLoaded && !fontError) return null;
   return (
     <SafeAreaProvider>
       <SessionProvider>
@@ -14,7 +23,7 @@ export default function RootLayout() {
           screenOptions={{
             headerStyle: { backgroundColor: colors.bg },
             headerTintColor: colors.text,
-            headerTitleStyle: { fontWeight: '700' },
+            headerTitleStyle: { fontFamily: 'Pretendard-SemiBold', fontSize: 16 },
             headerShadowVisible: false,
             contentStyle: { backgroundColor: colors.bg },
             headerBackButtonDisplayMode: 'minimal',

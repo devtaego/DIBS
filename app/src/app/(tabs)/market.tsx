@@ -1,98 +1,85 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
-import { useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { useMemo, useState } from 'react';
+import { View } from 'react-native';
 
-import { Sparkline } from '@/components/charts';
-import { Chip, DEmpty, MiniWork, SecH } from '@/components/dibby';
-import { ErrorBox, Loading, Screen, T, changeColor } from '@/components/ui';
-import { api, type Candle, type Holding, type SecurityItem, type Wallet } from '@/lib/api';
-import { FUNDING_STATUS, pct, won } from '@/lib/format';
-import { colors, radii, space } from '@/lib/theme';
+import { ErrorBox, Loading } from '@/components/ui';
+import { ChipRow, DisclosureBar, DScreen, Empty, IndexChart, MarketCell, PageTitle, Segmented, TopAppBar, color, spacing } from '@/ds';
+import { api, type Candle, type Holding, type SecurityItem, type WorkCard } from '@/lib/api';
+import { marketIndex, signedPct, trendOf, typeLabel } from '@/lib/cards';
+import { useSession } from '@/lib/session';
 import { useApi } from '@/lib/useApi';
 
-// 프로토타입 S.market: 예치금 카드 + 조각 마켓
-export default function Securities() {
-  const [sort, setSort] = useState<'change' | 'latest'>('change');
-  const { data, error, loading, reload } = useApi(async () => {
-    const [wallet, holdings, list] = await Promise.all([
-      api.get<Wallet>('/wallet'),
-      api.get<Holding[]>('/me/holdings'),
-      api.get<SecurityItem[]>('/market/securities', { sort }),
-    ]);
-    const charts = await Promise.all(list.map((x) => api.get<Candle[]>(`/market/securities/${x.funding_id}/chart`, { days: 14 }).catch(() => [] as Candle[])));
-    return { wallet, holdings, list, charts };
-  }, [sort]);
+type Sort = 'change' | 'volume' | 'price';
 
-  if (loading && !data) return <Screen><Loading /></Screen>;
-  const units = data?.holdings.reduce((a, h) => a + h.units, 0) ?? 0;
-  const evalTotal = data?.holdings.reduce((a, h) => a + h.eval_amount, 0) ?? 0;
+// V2 12 조각 마켓
+export default function Market() {
+  const { me } = useSession();
+  const [sort, setSort] = useState<Sort>('change');
+  const [chip, setChip] = useState('전체');
+  const { data, error, loading, reload } = useApi(async () => {
+    const [list, works, holdings] = await Promise.all([
+      api.get<SecurityItem[]>('/market/securities', { sort }),
+      api.get<WorkCard[]>('/works', { limit: 100 }),
+      me ? api.get<Holding[]>('/me/holdings') : Promise.resolve([] as Holding[]),
+    ]);
+    const charts = await Promise.all(list.slice(0, 12).map((x) => api.get<Candle[]>(`/market/securities/${x.funding_id}/chart`, { days: 14 }).catch(() => [] as Candle[])));
+    return { list, works, holdings, charts };
+  }, [sort, me?.id]);
+
+  const typeOf = useMemo(() => new Map((data?.works ?? []).map((w) => [w.id, typeLabel(w.type)])), [data]);
+  const mine = new Set((data?.holdings ?? []).map((h) => h.funding_id));
+  const list = (data?.list ?? []).filter((x) => chip === '전체' || (chip === '보유' ? mine.has(x.funding_id) : typeOf.get(x.work_id) === chip));
+  const idx = marketIndex(data?.list ?? []);
+  // 지수 흐름: 종목별 일봉 종가 ÷ 공모가의 날짜별 평균
+  const series = useMemo(() => {
+    if (!data) return [];
+    const byDate = new Map<string, number[]>();
+    data.charts.forEach((cs, i) => cs.forEach((c) => {
+      const r = c.close / (data.list[i]?.unit_price || 1);
+      byDate.set(c.date, [...(byDate.get(c.date) ?? []), r]);
+    }));
+    return [...byDate.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([, rs]) => (rs.reduce((a, b) => a + b, 0) / rs.length) * 1000);
+  }, [data]);
 
   return (
-    <Screen onRefresh={reload}>
-      <ErrorBox error={error} onRetry={reload} />
+    <DScreen header={<TopAppBar type="Main" />} onRefresh={reload} tabBar>
+      <PageTitle title="조각 마켓" sub="상장된 작품 조각을 사고팔 수 있어요 (모의 거래)" />
       {data ? (
-        <Pressable onPress={() => router.push('/portfolio')} style={s.inverse}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-            <T size={12} weight="500" color={colors.bg} style={{ opacity: 0.7 }}>{data.wallet.mode === 'MOCK' ? '모의 예치금' : '예치금'}</T>
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <T size={12} weight="600" color={colors.bg} style={{ opacity: 0.8 }}>내 자산</T>
-              <Ionicons name="chevron-forward" size={14} color={colors.bg} style={{ opacity: 0.8 }} />
-            </View>
-          </View>
-          <T size={28} weight="700" color={colors.bg} style={{ marginTop: 4 }}>{won(data.wallet.deposit_available)}</T>
-          <T size={12} weight="500" color={colors.bg} style={{ opacity: 0.7, marginTop: 6 }}>
-            보유 조각 {units.toLocaleString('ko-KR')}개 · 평가 {won(evalTotal)}
-          </T>
-        </Pressable>
+        <IndexChart
+          name="조각 마켓 지수"
+          value={idx.value.toFixed(2)}
+          change={`${idx.change >= 0 ? '+' : '−'}${Math.abs(idx.change).toFixed(2)} (${signedPct(idx.changePct, 2)})`}
+          asof="공모가 = 1,000 기준"
+          values={series.length > 1 ? series : [1000, idx.value]}
+          up={idx.change >= 0}
+        />
       ) : null}
-
-      <SecH title="조각 마켓" right={<Chip label="모의" tone="pink" />} />
-      <View style={{ flexDirection: 'row', gap: space(2), marginBottom: space(3) }}>
-        {([['change', '등락률 순'], ['latest', '최근 상장']] as const).map(([k, label]) => (
-          <Pressable key={k} onPress={() => setSort(k)} style={[s.sortChip, { backgroundColor: sort === k ? colors.labelStrong : colors.fillNormal }]}>
-            <T size={13} weight="600" color={sort === k ? colors.bg : colors.labelNeutral}>{label}</T>
-          </Pressable>
-        ))}
-      </View>
-
-      {data && !data.list.length ? <DEmpty pose="peek" title="상장된 종목이 아직 없어요" text="펀딩이 끝나고 발행되면 여기서 거래할 수 있어요." /> : null}
-      {data?.list.length ? (
-        <View style={s.listCard}>
-          {data.list.map((sec, i) => {
-            const closes = data.charts[i].map((c) => c.close);
-            const up = (sec.change_pct ?? 0) >= 0;
-            return (
-              <Pressable key={sec.funding_id} onPress={() => router.push(`/security/${sec.funding_id}`)} style={[s.li, i === data.list.length - 1 && { borderBottomWidth: 0 }]}>
-                <MiniWork
-                  id={sec.work_id}
-                  title={sec.work_title}
-                  line2={sec.status === 'LISTED' ? `공모가 ${won(sec.unit_price)}` : FUNDING_STATUS[sec.status]}
-                  right={
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: space(2) }}>
-                      <Sparkline values={closes} up={up} />
-                      <View style={{ alignItems: 'flex-end', minWidth: 72 }}>
-                        <T size={14} weight="700">{won(sec.last_price)}</T>
-                        <T size={12} weight="600" color={changeColor(sec.change_pct)}>{pct(sec.change_pct, 2)}</T>
-                      </View>
-                    </View>
-                  }
-                />
-              </Pressable>
-            );
-          })}
+      <View style={{ gap: spacing.gapL }}>
+        <ChipRow items={['전체', '웹툰', '웹소설', '보유']} value={chip} onChange={setChip} />
+        <Segmented size="Small" value={sort} onChange={setSort} options={[{ key: 'change', label: '등락률' }, { key: 'volume', label: '거래량' }, { key: 'price', label: '가격' }]} />
+        <ErrorBox error={error} onRetry={reload} />
+        {loading && !data ? <Loading /> : null}
+        <View>
+          {list.map((x, i) => (
+            <MarketCell
+              key={x.funding_id}
+              id={x.work_id}
+              title={x.work_title}
+              meta={`${typeOf.get(x.work_id) ?? '웹툰'} · 공모가 ${x.unit_price.toLocaleString('ko-KR')}원${x.status === 'SUSPENDED' ? ' · 거래 정지' : ''}`}
+              price={(x.last_price ?? x.unit_price).toLocaleString('ko-KR')}
+              change={signedPct(x.change_pct)}
+              trend={trendOf(x.change_pct)}
+              favorite={mine.has(x.funding_id)}
+              last={i === list.length - 1}
+              onPress={() => router.push(`/security/${x.funding_id}`)}
+            />
+          ))}
+          {data && !list.length ? <Empty title="조건에 맞는 종목이 없어요" /> : null}
         </View>
-      ) : null}
-      <T size={12} color={colors.labelAssistive} style={{ marginTop: space(3) }}>
-        같은 가격끼리만 체결되는 지정가 거래예요. 가격제한폭은 기준가 ±30%. 실제 주문은 인가된 금융기관을 통해 이뤄지는 구조를 가정해요.
-      </T>
-    </Screen>
+      </View>
+      <DisclosureBar text="모의 거래 · 실제 체결은 장외거래소 개장 후 · 가격제한폭 ±30%" />
+    </DScreen>
   );
 }
 
-const s = StyleSheet.create({
-  inverse: { borderRadius: radii.card, backgroundColor: colors.labelStrong, padding: space(5) },
-  sortChip: { paddingHorizontal: space(3), paddingVertical: space(1.5), borderRadius: radii.chip },
-  listCard: { borderRadius: radii.card, backgroundColor: colors.card, paddingHorizontal: space(4) },
-  li: { paddingVertical: space(3), borderBottomWidth: 1, borderBottomColor: colors.line },
-});
+export const marketColor = color.rise;

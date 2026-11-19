@@ -25,15 +25,15 @@ export default function TabsLayout() {
         headerStyle: { backgroundColor: colors.bg },
         headerTintColor: colors.text,
         headerShadowVisible: false,
-        headerTitleStyle: { fontWeight: '700', fontSize: 20 },
+        headerTitleStyle: { fontFamily: 'Pretendard-Bold', fontSize: 20 },
         headerTitleAlign: 'left',
         sceneStyle: { backgroundColor: colors.bg },
       }}>
       <Tabs.Screen name="index" options={{ title: '홈', headerShown: false }} />
       <Tabs.Screen name="explore" options={{ title: '탐색', headerShown: false }} />
-      <Tabs.Screen name="shorts" options={{ title: '숏츠' }} />
-      <Tabs.Screen name="market" options={{ title: '증권' }} />
-      <Tabs.Screen name="my" options={{ title: 'MY' }} />
+      <Tabs.Screen name="shorts" options={{ title: '쇼츠', headerShown: false }} />
+      <Tabs.Screen name="market" options={{ title: '증권', headerShown: false }} />
+      <Tabs.Screen name="my" options={{ title: 'MY', headerShown: false }} />
     </Tabs>
   );
 }

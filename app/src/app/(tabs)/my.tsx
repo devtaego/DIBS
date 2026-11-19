@@ -1,133 +1,100 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
-import { router, type Href } from 'expo-router';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { router } from 'expo-router';
+import { View } from 'react-native';
 
-import { Chip, DEmpty, Greet, MiniWork, SecH } from '@/components/dibby';
-import { Button, KV, Screen, T } from '@/components/ui';
-import { api, type Holding, type MySubscription } from '@/lib/api';
-import { SUB_STATUS, won } from '@/lib/format';
+import { ErrorBox } from '@/components/ui';
+import { Button, DScreen, GroupLabel, Icon, ListCell, Panel, TopAppBar, Txt, color, radius, spacing } from '@/ds';
+import { api, type Holding, type MySubscription, type Wallet } from '@/lib/api';
 import { useSession } from '@/lib/session';
-import { colors, radii, space } from '@/lib/theme';
 import { useApi } from '@/lib/useApi';
 
-const RISK: Record<string, string> = { STABLE: '안정형', NEUTRAL: '중립형', AGGRESSIVE: '공격형' };
-const ROLE: Record<string, string> = { READER: '독자·투자자', CREATOR: '창작자', ADMIN: '운영자' };
+const RISK: Record<string, string> = { STABLE: '안정형', NEUTRAL: '위험중립형', ACTIVE: '적극투자형', AGGRESSIVE: '공격투자형' };
 
-// 프로토타입 S.my
+// V2 13 MY
 export default function My() {
-  const { me, logout, baseUrl, refreshMe } = useSession();
-  const { data, reload } = useApi(async () => {
-    const [holdings, subs] = await Promise.all([api.get<Holding[]>('/me/holdings'), api.get<MySubscription[]>('/me/subscriptions')]);
-    return { holdings: holdings.filter((h) => h.units > 0), subs };
-  });
-  if (!me) return null;
+  const { me, logout, baseUrl } = useSession();
+  const { data, error, reload } = useApi(async () => {
+    if (!me) return null;
+    const [wallet, holdings, subs] = await Promise.all([
+      api.get<Wallet>('/wallet'), api.get<Holding[]>('/me/holdings'), api.get<MySubscription[]>('/me/subscriptions'),
+    ]);
+    return { wallet, holdings, subs };
+  }, [me?.id]);
 
-  const units = data?.holdings.reduce((a, h) => a + h.units, 0) ?? 0;
-  const full = units > 0 || (data?.subs.length ?? 0) > 0;
-  const menu: [string, string, Href, React.ComponentProps<typeof Ionicons>['name']][] = [
-    ['지갑', '코인 · 예치금 · 입출금 내역', '/wallet', 'wallet-outline'],
-    ['정산 리포트', '분기 배당 내역과 실입금액', '/dividends', 'document-text-outline'],
-    ['알림', '배정 결과 · 상장 · 배당 · 만기', '/notifications', 'notifications-outline'],
-    ['투자성향', me.risk_level ? RISK[me.risk_level] : '확인 필요', '/risk-profile', 'shield-checkmark-outline'],
-  ];
+  if (!me) {
+    return (
+      <DScreen header={<TopAppBar type="Main" />} tabBar>
+        <Panel>
+          <Txt v="headline1" w="bold" c={color.labelStrong}>로그인하고 내 조각을 모아 보세요</Txt>
+          <Button label="로그인" onPress={() => router.push('/login')} />
+        </Panel>
+      </DScreen>
+    );
+  }
+
+  const active = (data?.subs ?? []).filter((x) => x.status === 'ACTIVE');
+  const activeAmt = active.reduce((a, x) => a + x.units * x.unit_price, 0);
+  const deposit = data?.wallet.deposit_available ?? 0;
 
   return (
-    <Screen
-      onRefresh={async () => {
-        await Promise.all([refreshMe(), reload()]);
-      }}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: space(2) }}>
-        <T size={22} weight="700">{me.nickname}</T>
-        <Chip label={ROLE[me.role]} tone="pink" />
-      </View>
-      <T size={13} color={colors.labelAlternative}>{me.email}</T>
-
-      <Greet
-        pose={full ? 'puff' : 'hello'}
-        title={`볼주머니가 ${full ? '든든해요' : '아직 비어 있어요'}`}
-        text={`보유 조각 ${units.toLocaleString('ko-KR')}개 · 청약 ${data?.subs.length ?? 0}건`}
-      />
-
-      <SecH
-        title="보유 조각"
-        right={
-          <Pressable onPress={() => router.push('/portfolio')} style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <T size={13} weight="500" color={colors.labelAlternative}>내 자산</T>
-            <Ionicons name="chevron-forward" size={16} color={colors.labelAlternative} />
-          </Pressable>
-        }
-      />
-      <View style={s.listCard}>
-        {data?.holdings.length ? (
-          data.holdings.map((h, i) => (
-            <Pressable key={h.funding_id} onPress={() => router.push(`/security/${h.funding_id}`)} style={[s.li, i === data.holdings.length - 1 && { borderBottomWidth: 0 }]}>
-              <MiniWork id={h.funding_id} title={h.work_title} line2={`${h.units}조각 · 평가 ${won(h.eval_amount)}`} right={<Ionicons name="chevron-forward" size={20} color={colors.labelAssistive} />} />
-            </Pressable>
-          ))
-        ) : (
-          <DEmpty pose="peek" title="아직 조각이 없어요" text="마음에 드는 작품의 조각을 모아 보세요." cta="작품 둘러보기" onPress={() => router.push('/explore')} />
-        )}
-      </View>
-
-      {data?.subs.length ? (
-        <>
-          <SecH title="청약 신청" />
-          <View style={s.listCard}>
-            {data.subs.slice(0, 5).map((sub, i, arr) => (
-              <Pressable key={sub.id} onPress={() => router.push(`/funding/${sub.funding_id}`)} style={[s.li, i === arr.length - 1 && { borderBottomWidth: 0 }]}>
-                <MiniWork
-                  id={sub.funding_id}
-                  title={sub.work_title}
-                  line2={sub.allocated_units !== null ? `신청 ${sub.units}조각 → ${sub.allocated_units}조각 배정` : `${sub.units}조각 · ${won(sub.units * sub.unit_price)}`}
-                  right={<Chip label={SUB_STATUS[sub.status] ?? sub.status} tone="pink" />}
-                />
-              </Pressable>
-            ))}
-          </View>
-        </>
-      ) : null}
-
-      <SecH title="계정" />
-      <View style={s.listCard}>
-        <KV k="본인인증" v={me.kyc_verified ? '완료' : '필요'} vColor={me.kyc_verified ? colors.ok : colors.danger} />
-        <KV k="증권 계좌" v={me.broker_name ? `${me.broker_name} ${me.broker_account_masked}` : '연결 전 (모의)'} />
-      </View>
-      <View style={[s.listCard, { marginTop: space(3) }]}>
-        {menu.map(([title, sub, href, icon], i) => (
-          <Pressable key={title} onPress={() => router.push(href)} style={[s.li, { flexDirection: 'row', alignItems: 'center', gap: space(3) }, i === menu.length - 1 && { borderBottomWidth: 0 }]}>
-            <Ionicons name={icon} size={22} color={colors.labelNeutral} />
-            <View style={{ flex: 1 }}>
-              <T size={14} weight="700">{title}</T>
-              <T size={12} color={colors.labelAlternative}>{sub}</T>
+    <DScreen header={<TopAppBar type="Main" />} onRefresh={reload} tabBar gap={spacing.gapXl} padTop={spacing.insetS}>
+      <ErrorBox error={error} onRetry={reload} />
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.gapL }}>
+        <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: '#FDEBF1', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#F6D3DF' }}>
+          <Txt v="headline1" w="bold" c={color.highlight}>{me.nickname.slice(0, 1)}</Txt>
+        </View>
+        <View style={{ flex: 1, gap: spacing.gapXs }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.gapS }}>
+            <Txt v="headline1" w="bold" c={color.labelStrong}>{me.nickname}</Txt>
+            <View style={{ height: 20, paddingHorizontal: spacing.insetS, borderRadius: radius.chip, borderWidth: 1, borderColor: color.lineNormal, justifyContent: 'center' }}>
+              <Txt v="caption2" w="bold" c={color.labelNeutral}>{me.risk_level ? RISK[me.risk_level] ?? me.risk_level : '투자성향 미확인'}</Txt>
             </View>
-            <Ionicons name="chevron-forward" size={20} color={colors.labelAssistive} />
-          </Pressable>
+          </View>
+          <Txt v="caption1" c={color.labelAlternative}>{me.email}</Txt>
+        </View>
+      </View>
+
+      <View style={{ flexDirection: 'row', paddingVertical: spacing.insetM }}>
+        {[
+          [`${data?.holdings.length ?? 0}종목`, '보유 조각'],
+          [activeAmt ? `${(activeAmt / 10000).toLocaleString('ko-KR', { maximumFractionDigits: 1 })}만` : '0', '진행 중 펀딩'],
+          [`${active.length}건`, '청약 신청'],
+        ].map(([v, l], i) => (
+          <View key={l} style={[{ flex: 1, alignItems: 'center', gap: spacing.gap2xs }, i > 0 && { borderLeftWidth: 1, borderLeftColor: color.lineAlternative }]}>
+            <Txt v="body1" w="bold" c={color.labelStrong}>{v}</Txt>
+            <Txt v="caption1" w="medium" c={color.labelAlternative}>{l}</Txt>
+          </View>
         ))}
       </View>
 
-      {me.role === 'ADMIN' ? (
-        <Pressable onPress={() => router.push('/admin')} style={[s.listCard, s.admin]}>
-          <T size={14} weight="700" color={colors.primary}>시연용 운영자 패널</T>
-          <T size={12} color={colors.labelAlternative}>펀딩 마감 · 발행·상장 · 배당 실행을 폰에서</T>
-        </Pressable>
-      ) : null}
+      <Panel style={{ borderColor: color.lineNormal }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.gapS }}>
+          <Icon name="cCoin" size={20} />
+          <Txt v="label2" w="semibold" c={color.labelStrong}>예치금</Txt>
+          <Txt v="caption1" w="medium" c={color.labelAlternative}>{data?.wallet.mode === 'MOCK' ? '모의 계좌' : '연결 계좌'}</Txt>
+        </View>
+        <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' }}>
+          <Txt v="title2" w="bold" c={color.labelStrong} tabular>{deposit.toLocaleString('ko-KR')}원</Txt>
+          <View style={{ flexDirection: 'row', gap: spacing.gapS }}>
+            <Button label="출금" tone="Assistive" size="Small" fill={false} onPress={() => router.push('/wallet')} />
+            <Button label="충전" tone="Inverse" size="Small" fill={false} onPress={() => router.push('/wallet')} />
+          </View>
+        </View>
+      </Panel>
 
-      <T size={12} color={colors.labelAssistive} style={{ marginTop: space(6) }}>서버: {baseUrl}</T>
-      <Button
-        title="로그아웃"
-        kind="ghost"
-        onPress={async () => {
-          await logout();
-          router.replace('/login');
-        }}
-        style={{ marginTop: space(3) }}
-      />
-    </Screen>
+      <View>
+        <GroupLabel>투자</GroupLabel>
+        <ListCell title="내 펀딩" icon="heart" trailing="Value" value={`${active.length}건 진행 중`} onPress={() => router.push('/portfolio')} />
+        <ListCell title="투자·거래 내역" icon="doc" onPress={() => router.push('/portfolio')} />
+        <ListCell title="정산 리포트" icon="chart" trailing="Badge" badge="분기" onPress={() => router.push('/dividends')} divider={false} />
+      </View>
+      <View>
+        <GroupLabel>혜택 · 도움</GroupLabel>
+        <ListCell title="투자성향 다시 확인" icon="shield" onPress={() => router.push('/risk-profile')} />
+        <ListCell title="알림" icon="bell" onPress={() => router.push('/notifications')} />
+        {me.role === 'ADMIN' ? <ListCell title="시연용 운영자 패널" icon="gear" onPress={() => router.push('/admin')} divider={false} /> : null}
+      </View>
+      <Txt v="caption2" c={color.labelAssistive}>서버: {baseUrl}</Txt>
+      <Button label="로그아웃" variant="Outlined" tone="Assistive" size="Medium" onPress={async () => { await logout(); router.replace('/login'); }} />
+    </DScreen>
   );
 }
-
-const s = StyleSheet.create({
-  listCard: { borderRadius: radii.card, backgroundColor: colors.card, paddingHorizontal: space(4) },
-  li: { paddingVertical: space(3), borderBottomWidth: 1, borderBottomColor: colors.line },
-  admin: { marginTop: space(3), paddingVertical: space(4), borderWidth: 1, borderColor: colors.primary },
-});

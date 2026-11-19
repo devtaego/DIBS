@@ -1,18 +1,19 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 
-import { CtaBar, DNote, Dibby, MiniWork, ModeFlag, Ride } from '@/components/dibby';
-import { Button, Check, ErrorBox, KV, Loading, Screen, Stepper, T } from '@/components/ui';
+import { ErrorBox, Loading } from '@/components/ui';
+import {
+  AgreementRow, Button, Callout, Chip, DScreen, Keypad, KV, PageTitle, Panel, TopAppBar, Txt, color, radius, spacing,
+} from '@/ds';
 import { api, ApiError, type FundingDetail, type Handoff, type Limits, type PublicConfig, type Subscription, type Wallet } from '@/lib/api';
+import { manwon } from '@/lib/cards';
 import { showDone } from '@/lib/done';
-import { dateText, won } from '@/lib/format';
+import { dateText } from '@/lib/format';
 import { useSession } from '@/lib/session';
-import { colors, radii, space, type as ts } from '@/lib/theme';
 import { useDibbyTask } from '@/lib/useDibbyTask';
 
-// 프로토타입 S.subscribe
+// V2 09 펀딩 금액 → V2 05 약관·위험 동의 → V2 10 완료
 export default function SubscribeScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { me } = useSession();
@@ -20,34 +21,25 @@ export default function SubscribeScreen() {
   const [f, setF] = useState<FundingDetail | null>(null);
   const [wallet, setWallet] = useState<Wallet | null>(null);
   const [limits, setLimits] = useState<Limits | null>(null);
+  const [cfg, setCfg] = useState<PublicConfig | null>(null);
   const [existing, setExisting] = useState<Subscription | null>(null);
-  const [units, setUnits] = useState(10);
+  const [amountText, setAmountText] = useState('100000');
+  const [step, setStep] = useState<'amount' | 'terms'>('amount');
   const [tier, setTier] = useState<number | null>(null);
   const [agreeRisk, setAgreeRisk] = useState(false);
   const [agreeTerm, setAgreeTerm] = useState(false);
   const [error, setError] = useState<ApiError | null>(null);
-  const [cfg, setCfg] = useState<PublicConfig | null>(null);
 
   useEffect(() => {
     (async () => {
       try {
         const [fd, w, l, c] = await Promise.all([
-          api.get<FundingDetail>(`/fundings/${id}`),
-          api.get<Wallet>('/wallet'),
-          api.get<Limits>(`/fundings/${id}/limits`),
-          api.get<PublicConfig>('/config/public'),
+          api.get<FundingDetail>(`/fundings/${id}`), api.get<Wallet>('/wallet'), api.get<Limits>(`/fundings/${id}/limits`), api.get<PublicConfig>('/config/public'),
         ]);
-        setCfg(c);
-        setF(fd);
-        setWallet(w);
-        setLimits(l);
+        setF(fd); setWallet(w); setLimits(l); setCfg(c);
         try {
           const s = await api.get<Subscription>(`/fundings/${id}/subscriptions/me`);
-          if (s.status === 'ACTIVE') {
-            setExisting(s);
-            setUnits(s.units);
-            setTier(s.requested_tier_id);
-          }
+          if (s.status === 'ACTIVE') { setExisting(s); setAmountText(String(s.units * fd.unit_price)); setTier(s.requested_tier_id); }
         } catch {
           /* 청약 없음 */
         }
@@ -57,73 +49,70 @@ export default function SubscribeScreen() {
     })();
   }, [id]);
 
+  const header = <TopAppBar type="Sub" title={step === 'amount' ? '펀딩 금액' : '투자 전 확인'} onBack={step === 'terms' ? () => setStep('amount') : undefined} />;
+
   if (!me?.risk_level) {
     return (
-      <Screen>
-        <View style={{ alignItems: 'center', paddingVertical: space(8) }}>
-          <Dibby pose="careful" size={96} />
-          <T size={17} weight="700" style={{ marginTop: space(4) }}>청약 전에 투자성향을 확인해야 해요</T>
-          <T size={13} color={colors.labelAlternative} style={{ marginTop: space(2), textAlign: 'center' }}>검증 전 신작에 투자하는 고위험 상품이라 5문항으로 먼저 확인해요.</T>
-          <Button title="투자성향 확인하기" onPress={() => router.push('/risk-profile')} style={{ marginTop: space(6), alignSelf: 'stretch' }} />
-        </View>
-      </Screen>
+      <DScreen header={header} footer={<Button label="투자성향 확인하기" onPress={() => router.push('/risk-profile')} />}>
+        <Stack.Screen options={{ headerShown: false }} />
+        <PageTitle title="청약 전에 투자성향을 확인해야 해요" sub="검증 전 작품에 투자하는 매우 높은 위험 상품이라 5문항으로 먼저 확인해요." />
+      </DScreen>
     );
   }
-  if (!f || !wallet || !limits) return <Screen>{error ? <ErrorBox error={error} /> : <Loading />}</Screen>;
+  if (!f || !wallet || !limits) {
+    return (
+      <DScreen header={header}>
+        <Stack.Screen options={{ headerShown: false }} />
+        {error ? <ErrorBox error={error} /> : <Loading />}
+      </DScreen>
+    );
+  }
 
-  const amount = units * f.unit_price;
-  const delta = existing ? amount - existing.units * f.unit_price : amount;
-  const max = f.per_user_cap_units;
-  const tierObj = f.reward_tiers.find((r) => r.id === tier);
-  const agreed = agreeRisk && agreeTerm;
-  const equalPct = (f.terms.allocation_params.equal_ratio_bps ?? 2000) / 100;
-  const earlyPct = (f.terms.allocation_params.early_reader_bps ?? 0) / 100;
-
-  // B안: 청약은 증권사 화면에서. DIBS는 서명된 넘김 토큰만 만들고 키움 청약 화면(시연: 모의 키움 화면)을 연다
+  const brokerName = cfg?.broker_name ?? '키움증권';
   const toBroker = async () => {
     setError(null);
     try {
       const h = await api.post<Handoff>(`/fundings/${id}/broker-handoff`);
-      // 실제 앱: Linking.openURL(h.deeplink)
       router.push({ pathname: '/kiwoom/[id]', params: { id: String(id), token: h.token } });
     } catch (e) {
       setError(e as ApiError);
     }
   };
-  const brokerName = cfg?.broker_name ?? '키움증권';
-  const isBroker = cfg?.subscription_channel === 'BROKER';
 
-  if (isBroker) {
+  // B안: 청약은 증권사 앱에서
+  if (cfg?.subscription_channel === 'BROKER') {
     return (
-      <View style={{ flex: 1, backgroundColor: colors.bg }}>
-        <Screen>
-          <MiniWork id={f.work_id} title={f.work_title} line2="시즌 수익배분권 · 작품별 토큰증권" />
-          <View style={s.card}>
-            <T size={15} weight="700">청약은 {brokerName} 앱에서 해요</T>
-            <T size={13} color={colors.labelAlternative} style={{ marginTop: space(2) }}>
-              계좌 개설·투자성향 확인·청약 대금은 {brokerName}가 처리해요. DIBS는 계좌번호를 받지 않아요.
-              {cfg?.partner_coupon_coin ? ` 처음 계좌를 열면 ${cfg.partner_coupon_coin.toLocaleString('ko-KR')}코인을 드려요.` : ''}
-            </T>
-          </View>
-          <DNote title="잠깐, 꼭 확인해 주세요" text={`위험등급: ${f.risk_grade}. 원금을 잃을 수 있고 예금자 보호 대상이 아니에요. 이 화면의 공모 안내는 ${brokerName} 준법 심사를 거친 내용이에요.`} />
-          <ErrorBox error={error} />
-        </Screen>
-        <CtaBar>
-          <Button title={`${brokerName}에서 청약하기`} onPress={toBroker} style={{ flex: 1 }} />
-        </CtaBar>
-      </View>
+      <DScreen header={header} footer={<Button label={`${brokerName}에서 청약하기`} onPress={toBroker} />}>
+        <Stack.Screen options={{ headerShown: false }} />
+        <PageTitle title={`청약은 ${brokerName} 앱에서 해요`} sub={f.work_title} />
+        <Callout title="DIBS는 계좌번호를 받지 않아요">
+          {`계좌 개설·투자성향 확인·청약 대금은 ${brokerName}가 처리해요.${cfg.partner_coupon_coin ? ` 처음 계좌를 열면 ${cfg.partner_coupon_coin.toLocaleString('ko-KR')}코인을 드려요.` : ''}`}
+        </Callout>
+        <Callout tone="Caution">{`위험 등급 ${f.risk_grade}. 원금을 잃을 수 있고 예금자 보호 대상이 아니에요.`}</Callout>
+        <ErrorBox error={error} />
+      </DScreen>
     );
   }
 
+  const unit = f.unit_price;
+  const maxAmount = Math.min(f.per_user_cap_units * unit, limits.security_remaining ?? Infinity, limits.annual_remaining);
+  const raw = Number(amountText || '0');
+  const units = Math.floor(raw / unit);
+  const amount = units * unit;
+  const delta = existing ? amount - existing.units * unit : amount;
+  const over = raw > maxAmount;
+  const short = delta > wallet.deposit_available;
+  const tierObj = f.reward_tiers.find((r) => r.id === tier);
+  const onKey = (k: string) => {
+    setError(null);
+    if (k === 'del') return setAmountText((t) => t.slice(0, -1));
+    setAmountText((t) => (t === '0' ? k.replace(/^0+/, '') : (t + k).slice(0, 9)));
+  };
+  const add = (n: number) => setAmountText((t) => String(Math.min(maxAmount, Number(t || '0') + n)));
+
   const submit = async () => {
-    if (!agreed) {
-      setError(new ApiError(0, 'CONSENT_REQUIRED', '위험 안내 두 가지를 먼저 확인해 주세요'));
-      return;
-    }
-    if (tierObj && units < tierObj.min_units) {
-      setError(new ApiError(0, 'TIER_MIN_UNITS', `${tierObj.title}은 ${tierObj.min_units}조각 이상부터 받을 수 있어요`));
-      return;
-    }
+    if (!(agreeRisk && agreeTerm)) return setError(new ApiError(0, 'CONSENT_REQUIRED', '위험 안내 두 가지를 먼저 확인해 주세요'));
+    if (tierObj && units < tierObj.min_units) return setError(new ApiError(0, 'TIER_MIN_UNITS', `${tierObj.title}은 ${tierObj.min_units}조각부터 받을 수 있어요`));
     setError(null);
     try {
       const shipping = tierObj?.requires_shipping ? { name: me.nickname, address1: '시연용 배송지' } : undefined;
@@ -132,138 +121,83 @@ export default function SubscribeScreen() {
           ? api.patch(`/fundings/${id}/subscriptions/me`, { units, reward_tier_id: tier, shipping })
           : api.post(`/fundings/${id}/subscriptions`, { units, reward_tier_id: tier, shipping, agree_risk_notice: agreeRisk, agree_termination_rule: agreeTerm }),
       );
+      const eq = (f.terms.allocation_params.equal_ratio_bps ?? 2000) / 100;
       showDone({
         pose: 'dibs',
         tag: 'MOCK SUBSCRIPTION',
-        title: existing ? '청약 수량을 바꿨어요' : '조각을 볼주머니에 쏙!',
-        sub: `${f.work_title}\n${units}조각 모의 청약을 접수했어요.`,
+        title: existing ? '청약 금액을 바꿨어요' : '펀딩에 참여했어요',
+        sub: `${f.work_title}\n${manwon(amount)} · ${units}조각 모의 청약`,
         rows: [
-          ['청약 수량', `${units.toLocaleString('ko-KR')}조각`],
+          ['청약 금액', manwon(amount)],
+          ['목표 달성 시', `${units.toLocaleString('ko-KR')}조각으로 전환`],
           ['배정 발표', f.close_at ? `${dateText(f.close_at)} 마감 후` : '마감 후'],
-          ['청약 금액', won(amount)],
         ],
-        note: `목표를 넘게 모이면 발행량의 ${equalPct}%는 고르게${earlyPct ? `(그중 ${earlyPct}%는 미리 찜하고 완독한 초기 독자 우선)` : ''}, 나머지는 청약 비율대로 배정하고 남은 금액은 돌려드려요.`,
-        aLabel: '홈으로',
-        aHref: '/',
-        bLabel: '내 청약 보기',
-        bHref: '/portfolio',
+        note: `목표를 넘게 모이면 발행량의 ${eq}%는 고르게, 나머지는 청약 비율대로 배정하고 남은 금액은 바로 돌려드려요.`,
+        aLabel: '홈으로', aHref: '/', bLabel: '내 펀딩 보기', bHref: '/portfolio',
       });
     } catch (e) {
       setError(e as ApiError);
     }
   };
 
-  return (
-    <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      <Screen>
-        <ModeFlag text="모의 청약 · 증권사 화면 대체 · 실제 거래 없음" />
-        <Button title={`${brokerName} 연결 흐름으로 청약 (B안 시연)`} kind="ghost" onPress={toBroker} style={{ marginTop: space(3), height: 44 }} />
-        <View style={{ marginTop: space(4) }}>
-          <MiniWork id={f.work_id} title={f.work_title} line2="플랫폼 매출 수익권 · 개별 작품 토큰증권" />
-        </View>
-
-        <View style={s.card}>
-          <T size={12} weight="500" color={colors.labelAlternative}>1조각 청약가</T>
-          <T size={ts.title3.fontSize + 4} weight="700" style={{ marginTop: 4, marginBottom: space(3) }}>{won(f.unit_price)}</T>
-          <View style={s.row}>
-            <T size={12} weight="600" color={colors.labelAlternative}>모집 진행률</T>
-            <T size={12} weight="600">{f.progress.achievement_pct.toLocaleString('ko-KR')}%</T>
+  if (step === 'terms') {
+    return (
+      <DScreen header={header} footer={<Button label={`${manwon(amount)} ${existing ? '수량 변경' : '펀딩하기'}`} disabled={!(agreeRisk && agreeTerm)} onPress={submit} />}>
+        <Stack.Screen options={{ headerShown: false }} />
+        <PageTitle title="투자 전에 확인해 주세요" sub={`${f.work_title} · ${units}조각 · ${manwon(amount)}`} />
+        <Panel>
+          <AgreementRow strong checked={agreeRisk && agreeTerm} onToggle={() => { const v = !(agreeRisk && agreeTerm); setAgreeRisk(v); setAgreeTerm(v); }} label="모두 확인했어요" />
+          <View style={{ height: 1, backgroundColor: color.lineAlternative }} />
+          <AgreementRow required checked={agreeRisk} onToggle={() => setAgreeRisk(!agreeRisk)} label="원금 손실 가능성·예금자 보호 대상 아님·펀딩 성공이 수익을 보장하지 않는다는 점" />
+          <AgreementRow required checked={agreeTerm} onToggle={() => setAgreeTerm(!agreeTerm)} label="원금 상환이 없고 시즌 완결 후 12개월(최소 상장 후 24개월)이 지나면 권리가 사라진다는 점" />
+        </Panel>
+        {f.reward_tiers.length ? (
+          <View style={{ gap: spacing.gapM }}>
+            <Txt v="body1" w="bold" c={color.labelStrong}>리워드 (선택)</Txt>
+            {f.reward_tiers.map((r) => {
+              const on = tier === r.id;
+              return (
+                <Pressable key={r.id} onPress={() => setTier(on ? null : r.id)} style={{ padding: spacing.insetL, borderRadius: radius.control, borderWidth: on ? 2 : 1, borderColor: on ? color.primaryNormal : color.lineNormal, gap: 2 }}>
+                  <Txt v="label1" w="semibold" c={color.labelStrong}>{r.title}</Txt>
+                  <Txt v="caption1" c={color.labelAlternative}>{r.min_units}조각부터 · {r.description}</Txt>
+                </Pressable>
+              );
+            })}
           </View>
-          <Ride pct={f.progress.achievement_pct} />
-          <View style={[s.row, { marginTop: space(2) }]}>
-            <T size={12} weight="500" color={colors.labelAlternative}>{won(f.progress.raised_amount)}</T>
-            <T size={12} weight="500" color={colors.labelAlternative}>목표 {won(f.target_amount)}</T>
-          </View>
-        </View>
-
-        <View style={[s.row, { marginTop: space(6) }]}>
-          <T size={ts.headline1.fontSize} weight="700">청약 수량</T>
-          <T size={12} weight="500" color={colors.labelAlternative}>1조각부터 · 1인 최대 {max.toLocaleString('ko-KR')}조각</T>
-        </View>
-        <View style={[s.card, { alignItems: 'center' }]}>
-          <Stepper value={units} onChange={setUnits} max={max} />
-          <View style={{ flexDirection: 'row', gap: space(2), marginTop: space(3) }}>
-            {[1, 10, 50, 100].filter((n) => n <= max).map((n) => (
-              <Pressable key={n} onPress={() => setUnits(Math.min(max, n))} style={s.quick}>
-                <T size={13} weight="500" color={colors.labelNeutral}>{n}조각</T>
-              </Pressable>
-            ))}
-          </View>
-        </View>
-        <View style={[s.row, { paddingVertical: space(3) }]}>
-          <T size={13} weight="500" color={colors.labelAlternative}>청약 예정금액</T>
-          <T size={ts.headline1.fontSize} weight="700">{won(amount)}</T>
-        </View>
-
-        <View style={s.card}>
-          <KV k="투자 가능 예치금" v={won(wallet.deposit_available)} vColor={wallet.deposit_available < delta ? colors.danger : colors.text} />
-          <KV k="이 종목 남은 한도" v={won(limits.security_remaining)} />
-          <KV k="올해 남은 한도" v={won(limits.annual_remaining)} />
-          {wallet.deposit_available < delta ? <Button title="예치금 충전하러 가기" kind="ghost" onPress={() => router.push('/wallet')} style={{ marginTop: space(2), height: 44 }} /> : null}
-        </View>
-
-        {f.reward_tiers.length ? <T size={ts.headline1.fontSize} weight="700" style={{ marginTop: space(6), marginBottom: space(3) }}>리워드 (선택)</T> : null}
-        {f.reward_tiers.map((r) => {
-          const on = tier === r.id;
-          return (
-            <Pressable key={r.id} onPress={() => setTier(on ? null : r.id)} style={[s.opt, on && { borderColor: colors.primary, backgroundColor: colors.highlightFill }]}>
-              <View style={[s.radio, on && { borderColor: colors.primary, borderWidth: 6 }]} />
-              <View style={{ flex: 1 }}>
-                <T size={14} weight="700">{r.title}</T>
-                <T size={12} color={colors.labelAlternative}>
-                  {r.min_units}조각 이상{r.limited_qty ? ` · 한정 ${r.limited_qty}개` : ''}{r.requires_shipping ? ' · 배송' : ''}
-                </T>
-                {units < r.min_units ? <T size={12} color={colors.danger}>지금 수량으로는 받을 수 없어요</T> : null}
-              </View>
-            </Pressable>
-          );
-        })}
-
-        <View style={s.card}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-            <T size={13} weight="700">받는 권리</T>
-            <Ionicons name="information-circle-outline" size={16} color={colors.labelAssistive} />
-          </View>
-          <T size={12} color={colors.labelAlternative} style={{ marginTop: 6 }}>
-            작품 순매출(유료 미리보기·광고·굿즈) 중 원금 회수 전에는 {f.terms.royalty_holder_bps / 100}%, 원천징수 후 누적 분배금이 발행액에 닿은 다음 분기부터는 {f.terms.royalty_holder_after_bps / 100}%를 보유 조각 수만큼 나눠 받는 수익 배분권이에요. 분기마다 정산해요. 한 시즌 연재와 완결 후 12개월 동안만 나눠 받고, 그 뒤 권리가 사라져요. 매출이 2분기 연속 크게 줄면 더 일찍 끝나요.{f.terms.buyback_enabled ? ' 이 펀딩은 작가가 최근 4분기 분배금의 3배로 전량 매입할 수 있어요.' : ''}
-          </T>
-        </View>
-
-        <DNote title="잠깐, 꼭 확인해 주세요" text={`위험등급: ${f.risk_grade}. 원금을 잃을 수 있고 예금자 보호 대상이 아니에요. 발행이 실패하면 전액 돌려드려요.`} />
-        <View style={{ marginTop: space(3) }}>
-          <Check checked={agreeRisk} onToggle={() => setAgreeRisk(!agreeRisk)} label="원금 손실 가능성·예금자 보호 대상 아님·펀딩 성공이 수익을 보장하지 않는다는 점을 확인했어요" />
-          <Check checked={agreeTerm} onToggle={() => setAgreeTerm(!agreeTerm)} label="원금 상환이 없고, 시즌 완결 후 12개월이 지나면(또는 저매출 2분기 연속이면) 권리가 사라진다는 점을 확인했어요" />
-        </View>
-        <T size={12} color={colors.labelAssistive} style={{ marginTop: space(2) }}>마감 1시간 전부터는 감액·취소할 수 없어요.</T>
-        <ErrorBox error={error} />
-        {existing ? (
-          <Button
-            title="청약 취소"
-            kind="danger"
-            style={{ marginTop: space(3) }}
-            onPress={async () => {
-              try {
-                await api.del(`/fundings/${id}/subscriptions/me`);
-                router.back();
-              } catch (e) {
-                setError(e as ApiError);
-              }
-            }}
-          />
         ) : null}
-      </Screen>
-      <CtaBar>
-        <Button title={`${won(amount)} ${existing ? '수량 변경' : '청약하기'}`} onPress={submit} style={{ flex: 1, opacity: agreed ? 1 : 0.55 }} />
-      </CtaBar>
-      {task.overlay}
-    </View>
+        <Callout tone="Caution">{`위험 등급 ${f.risk_grade}. 이 화면은 모의 청약이며 실제 청약은 증권사 화면에서 진행돼요.`}</Callout>
+        <Button label={`${brokerName} 연결 흐름으로 청약 (B안 시연)`} variant="Text" tone="Assistive" size="Small" onPress={toBroker} />
+        <ErrorBox error={error} />
+        {task.overlay}
+      </DScreen>
+    );
+  }
+
+  return (
+    <DScreen
+      header={header}
+      footer={<Button label={units ? `${manwon(amount)} 펀딩하기` : '금액을 입력해 주세요'} disabled={!units || over || short} onPress={() => setStep('terms')} />}
+      gap={spacing.gapXl}>
+      <Stack.Screen options={{ headerShown: false }} />
+      <PageTitle title="얼마나 펀딩할까요?" sub={`목표 달성 시 ${unit.toLocaleString('ko-KR')}원 = 1조각 · 사용 가능 ${manwon(wallet.deposit_available)}`} />
+      <View style={{ alignItems: 'center', gap: spacing.gapL, paddingVertical: spacing.inset2xl }}>
+        <Txt v="display1" w="bold" c={raw ? color.labelStrong : color.labelDisable} tabular>{raw ? `${raw.toLocaleString('ko-KR')}원` : '0원'}</Txt>
+        <View style={{ height: 28, paddingHorizontal: spacing.insetM, borderRadius: radius.chip, borderWidth: 1, borderColor: color.lineNormal, justifyContent: 'center' }}>
+          <Txt v="label2" w="semibold" c={over || short ? color.negative : color.labelNormal}>
+            {over ? `최대 ${manwon(maxAmount)}까지 펀딩할 수 있어요` : short ? '예치금이 부족해요' : `목표 달성 시 ${units.toLocaleString('ko-KR')}조각으로 전환`}
+          </Txt>
+        </View>
+        <View style={{ flexDirection: 'row', gap: spacing.gapM }}>
+          <Chip label="+1만" onPress={() => add(10_000)} />
+          <Chip label="+5만" onPress={() => add(50_000)} />
+          <Chip label="+10만" onPress={() => add(100_000)} />
+          <Chip label="최대" onPress={() => setAmountText(String(Math.min(maxAmount, wallet.deposit_available + (existing ? existing.units * unit : 0))))} />
+        </View>
+      </View>
+      {short ? <Button label="예치금 충전하러 가기" variant="Outlined" tone="Primary" size="Medium" onPress={() => router.push('/wallet')} /> : null}
+      <Keypad onKey={onKey} />
+      <KV k="1인 한도" v={`${manwon(f.per_user_cap_units * unit)} (${f.per_user_cap_units}조각)`} />
+      <ErrorBox error={error} />
+    </DScreen>
   );
 }
-
-const s = StyleSheet.create({
-  card: { borderRadius: radii.card, backgroundColor: colors.card, padding: space(4), marginTop: space(4) },
-  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  quick: { paddingHorizontal: space(3), paddingVertical: space(1.5), borderRadius: radii.chip, backgroundColor: colors.fillNormal },
-  opt: { flexDirection: 'row', gap: space(3), alignItems: 'flex-start', padding: space(3.5), borderRadius: radii.card, borderWidth: 1.5, borderColor: colors.lineStrong, marginBottom: space(2) },
-  radio: { width: 20, height: 20, borderRadius: 10, borderWidth: 1.5, borderColor: colors.labelDisable, marginTop: 1 },
-});

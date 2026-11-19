@@ -41,9 +41,11 @@ export function Screen({ children, onRefresh, edges = ['bottom'] }: { children: 
   );
 }
 
+const FONT_BY_WEIGHT: Record<string, string> = { '400': 'Pretendard-Regular', normal: 'Pretendard-Regular', '500': 'Pretendard-Medium', '600': 'Pretendard-SemiBold', '700': 'Pretendard-Bold', bold: 'Pretendard-Bold', '800': 'Pretendard-Bold' };
+
 export function T({ children, style, size = 15, weight = '400', color = colors.text, numberOfLines }: { children: ReactNode; style?: StyleProp<TextStyle>; size?: number; weight?: TextStyle['fontWeight']; color?: string; numberOfLines?: number }) {
   return (
-    <Text numberOfLines={numberOfLines} style={[{ fontSize: size, fontWeight: weight, color, lineHeight: Math.round(size * 1.45), letterSpacing: size >= 18 ? -0.02 * size : -0.01 * size }, style]}>
+    <Text numberOfLines={numberOfLines} style={[{ fontFamily: FONT_BY_WEIGHT[String(weight)] ?? 'Pretendard-Regular', fontSize: size, fontWeight: weight, color, lineHeight: Math.round(size * 1.45), letterSpacing: size >= 18 ? -0.02 * size : -0.01 * size }, style]}>
       {children}
     </Text>
   );
@@ -83,8 +85,9 @@ export function KV({ k, v, vColor }: { k: string; v: ReactNode; vColor?: string 
 }
 
 export function Button({ title, onPress, kind = 'primary', disabled, loading, style }: { title: string; onPress: () => void; kind?: 'primary' | 'ghost' | 'danger'; disabled?: boolean; loading?: boolean; style?: StyleProp<ViewStyle> }) {
-  const bg = kind === 'primary' ? colors.button : 'transparent';
-  const fg = kind === 'primary' ? colors.onPrimary : kind === 'danger' ? colors.danger : colors.text;
+  // v2.0: Solid Primary = 연한 핑크 면 + 진한 글자, 버튼은 캡슐형
+  const bg = kind === 'primary' ? '#F6A9BF' : 'transparent';
+  const fg = kind === 'primary' ? '#5B1A33' : kind === 'danger' ? colors.danger : colors.text;
   return (
     <Pressable
       disabled={disabled || loading}
@@ -191,7 +194,7 @@ export const s = StyleSheet.create({
   scroll: { padding: space(5), paddingBottom: 120 },
   row: { flexDirection: 'row', alignItems: 'center', gap: space(2) },
   card: { backgroundColor: colors.card, borderRadius: radii.card, padding: space(4), marginBottom: space(3) },
-  button: { height: 52, borderRadius: radius, alignItems: 'center', justifyContent: 'center', borderWidth: 1, paddingHorizontal: space(4) },
+  button: { height: 52, borderRadius: 999, alignItems: 'center', justifyContent: 'center', borderWidth: 1, paddingHorizontal: space(4) },
   badge: { borderRadius: radii.tag, paddingHorizontal: space(1.5), paddingVertical: 2 },
   track: { height: 6, borderRadius: 3, backgroundColor: colors.fillNormal, overflow: 'hidden', marginVertical: space(2) },
   fill: { height: 6, borderRadius: 3, backgroundColor: colors.progress },

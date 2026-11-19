@@ -99,8 +99,8 @@ export default function SecurityScreen() {
         <KV k="배당 대비 가격" v={d.price_to_dividend ? `${d.price_to_dividend}배` : '배당 전'} />
         <KV k="지금 분배 비율" v={`순매출의 ${d.royalty_holder_bps / 100}% (${d.recoup_phase === 'AFTER_RECOUP' ? '원금 회수 후' : `회수 전 · 회수 후 ${d.royalty_holder_after_bps / 100}%`})`} />
         <KV k="원금 회수 진행" v={`${d.recoup_progress_pct}%`} />
-        <KV k="작가 매입가" v={d.buyback_price ? won(d.buyback_price) : '배당 후 계산'} />
-        <KV k="만기" v={d.terminate_due_at ? `없음 · 종료 예정 ${dateText(d.terminate_due_at)}` : '없음 (완결 후 3년 또는 저매출 2분기 연속이면 종료)'} />
+        <KV k="작가 매입가" v={!d.buyback_enabled ? '매입 옵션 없음' : d.buyback_price ? won(d.buyback_price) : '배당 후 계산'} />
+        <KV k="권리 종료" v={d.terminate_due_at ? `${dateText(d.terminate_due_at)} (완결 후 12개월)` : '완결 후 12개월 (저매출 2분기 연속이면 더 일찍)'} />
         {d.volume_7d < 10 ? <Muted style={{ marginTop: space(1) }}>거래량이 적어 원하는 때 팔지 못할 수 있어요.</Muted> : null}
       </Card>
 

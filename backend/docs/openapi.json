@@ -17239,6 +17239,12 @@
             "type": "integer",
             "title": "Royalty Holder After Bps"
           },
+          "buyback_enabled": {
+            "type": "boolean",
+            "title": "Buyback Enabled",
+            "description": "작가 매입 옵션 선택 여부",
+            "default": false
+          },
           "buyback_price": {
             "anyOf": [
               {
@@ -17249,7 +17255,7 @@
               }
             ],
             "title": "Buyback Price",
-            "description": "작가 매입가 (최근 4분기 보유자 분배금 × 3)"
+            "description": "작가 매입가 (최근 4분기 보유자 분배금 × 3, 선택한 펀딩만)"
           },
           "terminate_due_at": {
             "anyOf": [

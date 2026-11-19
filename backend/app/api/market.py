@@ -82,7 +82,7 @@ def security_detail(funding_id: int, db: Session = Depends(get_db), user: User |
         volume_7d=int(vol), trades_7d=cnt, dividend_4q_per_unit=div4,
         price_to_dividend=round(price / div4, 1) if div4 else None,
         recoup_phase=rec["phase"], recoup_progress_pct=rec["progress_pct"],
-        royalty_holder_after_bps=f.royalty_holder_after_bps, buyback_price=term["buyback_price"],
+        royalty_holder_after_bps=f.royalty_holder_after_bps, buyback_price=term["buyback_price"], buyback_enabled=term["buyback_enabled"],
         terminate_due_at=term["terminate_due_at"],
         my_units=mine.units if mine else (0 if user else None), my_avg_price=mine.avg_price if mine else None,
     )

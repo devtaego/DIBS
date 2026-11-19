@@ -113,17 +113,30 @@ export type FundingDetail = FundingCard & {
     royalty_platform_bps: number; royalty_creator_bps: number; royalty_holder_bps: number;
     royalty_platform_after_bps: number; royalty_creator_after_bps: number; royalty_holder_after_bps: number;
     exclusive_months: number; exclusive_until: string | null; external_share_bps: number;
+    buyback_enabled: boolean;
   };
 };
 /** 회수 우선 배분: 누적 세전 분배금이 발행액에 닿은 다음 분기부터 투자자 몫 45% → 35% */
 export type Recoup = { phase: 'BEFORE_RECOUP' | 'AFTER_RECOUP'; recouped_period: string | null; cumulative_holder_gross: number; issuance_amount: number; progress_pct: number; holder_bps_now: number; holder_bps_before: number; holder_bps_after: number };
-/** 만기 없음. 완결 후 3년 또는 저매출 2분기 연속이면 종료, 작가 매입가 = 최근 4분기 분배금 × 3 */
-export type Termination = { completed_at: string | null; terminate_due_at: string | null; low_revenue_threshold: number; low_revenue_streak: number; eligible: boolean; reason: string | null; buyback_price: number | null };
-/** 발행 전 투자 지표 카드: 수요 → 예상 열람자 → 원금 회수 기간 범위 */
+/** 시즌 단위 (v5.0). 완결 후 12개월 또는 저매출 2분기 연속이면 종료. 작가 매입은 선택한 펀딩만 (최근 4분기 분배금 × 3) */
+export type Termination = { completed_at: string | null; terminate_due_at: string | null; low_revenue_threshold: number; low_revenue_streak: number; eligible: boolean; reason: string | null; buyback_enabled: boolean; buyback_price: number | null };
+export type Scenario = { fan_ratio: number; multiple: number | null; payback_months: number | null };
+/** 발행 전 투자 지표 카드: 수요 → 유료 팬 → 시나리오별 총회수 배수와 원금 회수 달 (연 수익률은 표시하지 않음) */
 export type Indicators = {
   funding_id: number; dibs_total: number; dibs_7d: number; pilot_readers_4w: number; pilot_read_through: number | null;
-  expected_monthly_readers: number; gate_threshold: number; passes_gate: boolean; target_cap: number;
-  payback_years: { conservative: number | null; base: number | null; optimistic: number | null }; note: string;
+  pilot_paying_fans_4w: number; paying_fans_needed: number; gate_threshold: number; passes_gate: boolean; target_cap: number;
+  season_months: number; tail_months: number;
+  scenarios: { downside: Scenario; conservative: Scenario; base: Scenario; optimistic: Scenario };
+  per_user_cap_amount: number; per_user_max_loss_downside: number; note: string;
+};
+export type Reconciliation = { period: string; unlock_gross: number; trust_inflow: number; recorded_gross: number | null; leaked_unlocks: number; matched: boolean; ledger_hash: string; records: number };
+/** 공시: 투자금 쓰임·매출 배분·상품 기간·분기별 정산 대사와 원장 해시 */
+export type Disclosure = {
+  funding_id: number;
+  cost_per_100: { creator: number; issuance_cost: number; dibs: number };
+  term: { season_months: number; after_completion_months: number; principal_repayment: boolean };
+  per_user_cap_amount: number; buyback_enabled: boolean; settlement_basis: string; verification: string[];
+  reconciliation: Reconciliation[];
 };
 export type Breakeven = { lines: { goal: string; holder_dividend_per_year: number; paid_unlocks_per_month: number; buyers_per_episode: number; monthly_readers: number }[]; price_coin: number; monthly_episodes: number };
 export type Subscription = { id: number; funding_id: number; units: number; status: string; allocated_units: number | null; requested_tier_id: number | null; assigned_tier_id: number | null };
@@ -134,7 +147,7 @@ export type SecurityItem = { funding_id: number; work_id: number; work_title: st
 export type SecurityDetail = SecurityItem & {
   security_code: string | null; total_units: number; price_band: { min: number | null; max: number | null };
   volume_7d: number; trades_7d: number; dividend_4q_per_unit: number; price_to_dividend: number | null;
-  recoup_phase: 'BEFORE_RECOUP' | 'AFTER_RECOUP'; recoup_progress_pct: number; royalty_holder_after_bps: number; buyback_price: number | null; terminate_due_at: string | null;
+  recoup_phase: 'BEFORE_RECOUP' | 'AFTER_RECOUP'; recoup_progress_pct: number; royalty_holder_after_bps: number; buyback_enabled: boolean; buyback_price: number | null; terminate_due_at: string | null;
   my_units: number | null; my_avg_price: number | null; royalty_holder_bps: number;
 };
 export type BookLevel = { price: number; units: number; orders: number };

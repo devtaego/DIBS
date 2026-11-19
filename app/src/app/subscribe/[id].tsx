@@ -185,14 +185,14 @@ export default function SubscribeScreen() {
             <Ionicons name="information-circle-outline" size={16} color={colors.labelAssistive} />
           </View>
           <T size={12} color={colors.labelAlternative} style={{ marginTop: 6 }}>
-            작품 순매출(유료 미리보기·광고·굿즈) 중 원금 회수 전에는 {f.terms.royalty_holder_bps / 100}%, 원천징수 후 누적 분배금이 발행액에 닿은 다음 분기부터는 {f.terms.royalty_holder_after_bps / 100}%를 보유 조각 수만큼 나눠 받는 수익 배분권이에요. 분기마다 정산해요. 만기는 없고, 완결 후 3년 또는 매출이 2분기 연속 크게 줄면 권리가 끝나요. 작가는 최근 4분기 분배금의 3배로 전량 매입할 수 있어요.
+            작품 순매출(유료 미리보기·광고·굿즈) 중 원금 회수 전에는 {f.terms.royalty_holder_bps / 100}%, 원천징수 후 누적 분배금이 발행액에 닿은 다음 분기부터는 {f.terms.royalty_holder_after_bps / 100}%를 보유 조각 수만큼 나눠 받는 수익 배분권이에요. 분기마다 정산해요. 한 시즌 연재와 완결 후 12개월 동안만 나눠 받고, 그 뒤 권리가 사라져요. 매출이 2분기 연속 크게 줄면 더 일찍 끝나요.{f.terms.buyback_enabled ? ' 이 펀딩은 작가가 최근 4분기 분배금의 3배로 전량 매입할 수 있어요.' : ''}
           </T>
         </View>
 
         <DNote title="잠깐, 꼭 확인해 주세요" text={`위험등급: ${f.risk_grade}. 원금을 잃을 수 있고 예금자 보호 대상이 아니에요. 발행이 실패하면 전액 돌려드려요.`} />
         <View style={{ marginTop: space(3) }}>
           <Check checked={agreeRisk} onToggle={() => setAgreeRisk(!agreeRisk)} label="원금 손실 가능성·예금자 보호 대상 아님·펀딩 성공이 수익을 보장하지 않는다는 점을 확인했어요" />
-          <Check checked={agreeTerm} onToggle={() => setAgreeTerm(!agreeTerm)} label="만기와 원금 상환이 없고, 종료 규칙(완결 후 3년·저매출 2분기 연속)과 작가 매입 옵션이 있다는 점을 확인했어요" />
+          <Check checked={agreeTerm} onToggle={() => setAgreeTerm(!agreeTerm)} label="원금 상환이 없고, 시즌 완결 후 12개월이 지나면(또는 저매출 2분기 연속이면) 권리가 사라진다는 점을 확인했어요" />
         </View>
         <T size={12} color={colors.labelAssistive} style={{ marginTop: space(2) }}>마감 1시간 전부터는 감액·취소할 수 없어요.</T>
         <ErrorBox error={error} />

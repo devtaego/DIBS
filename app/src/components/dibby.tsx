@@ -50,9 +50,9 @@ export function Dibby({ pose, size, bob = true, style }: { pose: Pose; size: num
 }
 
 /** 인사 카드 (홈·MY 상단) */
-export function Greet({ pose, title, text }: { pose: Pose; title: string; text: string }) {
+export function Greet({ pose, title, text, style }: { pose: Pose; title: string; text: string; style?: StyleProp<ViewStyle> }) {
   return (
-    <View style={[s.pinkCard, { paddingRight: 104, minHeight: 100 }]}>
+    <View style={[s.pinkCard, { paddingRight: 104, minHeight: 100 }, style]}>
       <View style={{ flex: 1 }}>
         <T size={ts.headline1.fontSize - 1} weight="700" style={{ marginBottom: 4 }}>{title}</T>
         <T size={13} color={colors.labelNeutral}>{text}</T>
@@ -63,9 +63,9 @@ export function Greet({ pose, title, text }: { pose: Pose; title: string; text: 
 }
 
 /** 위험 안내 (청약·주문 버튼 위) */
-export function DNote({ pose = 'careful', title, text }: { pose?: Pose; title: string; text: string }) {
+export function DNote({ pose = 'careful', title, text, style }: { pose?: Pose; title: string; text: string; style?: StyleProp<ViewStyle> }) {
   return (
-    <View style={[s.pinkCard, { paddingLeft: 84, minHeight: 78 }]}>
+    <View style={[s.pinkCard, { paddingLeft: 84, minHeight: 78 }, style]}>
       <Dibby pose={pose} size={66} bob={false} style={{ position: 'absolute', left: 10, bottom: 6 }} />
       <View style={{ flex: 1 }}>
         <T size={14} weight="700" style={{ marginBottom: 2 }}>{title}</T>

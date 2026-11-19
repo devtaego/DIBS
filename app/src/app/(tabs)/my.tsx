@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 import { View } from 'react-native';
 
 import { ErrorBox } from '@/components/ui';
+import { Greet } from '@/components/dibby';
 import { Button, DScreen, GroupLabel, Icon, ListCell, Panel, TopAppBar, Txt, color, radius, spacing } from '@/ds';
 import { api, type Holding, type MySubscription, type Wallet } from '@/lib/api';
 import { DEMO } from '@/lib/demo';
@@ -35,6 +36,7 @@ export default function My() {
   const active = (data?.subs ?? []).filter((x) => x.status === 'ACTIVE');
   const activeAmt = active.reduce((a, x) => a + x.units * x.unit_price, 0);
   const deposit = data?.wallet.deposit_available ?? 0;
+  const units = (data?.holdings ?? []).reduce((a, h) => a + h.units, 0);
 
   return (
     <DScreen header={<TopAppBar type="Main" />} onRefresh={reload} tabBar gap={spacing.gapXl} padTop={spacing.insetS}>
@@ -66,6 +68,13 @@ export default function My() {
           </View>
         ))}
       </View>
+
+      <Greet
+        pose={units ? 'puff' : 'hello'}
+        title={`볼주머니가 ${units ? '든든해요' : '아직 비어 있어요'}`}
+        text={`보유 조각 ${units.toLocaleString('ko-KR')}개 · 청약 ${active.length}건`}
+        style={{ marginTop: 0 }}
+      />
 
       <Panel style={{ borderColor: color.lineNormal }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.gapS }}>

@@ -3,7 +3,8 @@ import { useMemo, useState } from 'react';
 import { View } from 'react-native';
 
 import { ErrorBox, Loading } from '@/components/ui';
-import { ChipRow, DisclosureBar, DScreen, Empty, IndexChart, MarketCell, PageTitle, Segmented, TopAppBar, color, spacing } from '@/ds';
+import { DEmpty } from '@/components/dibby';
+import { ChipRow, DisclosureBar, DScreen, IndexChart, MarketCell, PageTitle, Segmented, TopAppBar, color, spacing } from '@/ds';
 import { api, type Candle, type Holding, type SecurityItem, type WorkCard } from '@/lib/api';
 import { marketIndex, signedPct, trendOf, typeLabel } from '@/lib/cards';
 import { useSession } from '@/lib/session';
@@ -74,7 +75,7 @@ export default function Market() {
               onPress={() => router.push(`/security/${x.funding_id}`)}
             />
           ))}
-          {data && !list.length ? <Empty title="조건에 맞는 종목이 없어요" /> : null}
+          {data && !list.length ? <DEmpty pose="peek" title="조건에 맞는 종목이 없어요" text="펀딩이 끝나고 발행되면 여기서 거래할 수 있어요." /> : null}
         </View>
       </View>
       <DisclosureBar text="모의 거래 · 실제 체결은 장외거래소 개장 후 · 가격제한폭 ±30%" />

@@ -11,6 +11,7 @@ import { manwon } from '@/lib/cards';
 import { showDone } from '@/lib/done';
 import { dateText } from '@/lib/format';
 import { useSession } from '@/lib/session';
+import { DNote, Dibby } from '@/components/dibby';
 import { useDibbyTask } from '@/lib/useDibbyTask';
 
 // V2 09 펀딩 금액 → V2 05 약관·위험 동의 → V2 10 완료
@@ -56,6 +57,9 @@ export default function SubscribeScreen() {
       <DScreen header={header} footer={<Button label="투자성향 확인하기" onPress={() => router.push('/risk-profile')} />}>
         <Stack.Screen options={{ headerShown: false }} />
         <PageTitle title="청약 전에 투자성향을 확인해야 해요" sub="검증 전 작품에 투자하는 매우 높은 위험 상품이라 5문항으로 먼저 확인해요." />
+        <View style={{ alignItems: 'center', paddingVertical: spacing.insetL }}>
+          <Dibby pose="careful" size={96} />
+        </View>
       </DScreen>
     );
   }
@@ -88,7 +92,7 @@ export default function SubscribeScreen() {
         <Callout title="DIBS는 계좌번호를 받지 않아요">
           {`계좌 개설·투자성향 확인·청약 대금은 ${brokerName}가 처리해요.${cfg.partner_coupon_coin ? ` 처음 계좌를 열면 ${cfg.partner_coupon_coin.toLocaleString('ko-KR')}코인을 드려요.` : ''}`}
         </Callout>
-        <Callout tone="Caution">{`위험 등급 ${f.risk_grade}. 원금을 잃을 수 있고 예금자 보호 대상이 아니에요.`}</Callout>
+        <DNote title="잠깐, 꼭 확인해 주세요" text={`위험 등급 ${f.risk_grade}. 원금을 잃을 수 있고 예금자 보호 대상이 아니에요.`} style={{ marginTop: 0 }} />
         <ErrorBox error={error} />
       </DScreen>
     );
@@ -165,7 +169,8 @@ export default function SubscribeScreen() {
             })}
           </View>
         ) : null}
-        <Callout tone="Caution">{`위험 등급 ${f.risk_grade}. 이 화면은 모의 청약이며 실제 청약은 증권사 화면에서 진행돼요.`}</Callout>
+        <DNote title="잠깐, 꼭 확인해 주세요" text={`위험 등급 ${f.risk_grade}. 원금을 잃을 수 있고 예금자 보호 대상이 아니에요. 발행이 실패하면 전액 돌려드려요.`} style={{ marginTop: 0 }} />
+        <Txt v="caption1" c={color.labelAlternative}>이 화면은 모의 청약이며 실제 청약은 증권사 화면에서 진행돼요.</Txt>
         <Button label={`${brokerName} 연결 흐름으로 청약 (B안 시연)`} variant="Text" tone="Assistive" size="Small" onPress={toBroker} />
         <ErrorBox error={error} />
         {task.overlay}

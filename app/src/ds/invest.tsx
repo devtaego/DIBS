@@ -2,6 +2,8 @@ import { Image } from 'react-native';
 import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 import Svg, { Defs, LinearGradient, Path, Stop } from 'react-native-svg';
 
+import { Ride } from '@/components/dibby';
+
 import { Icon, Txt } from './base';
 import { Badge, Button, LinearProgress, type BadgeType } from './controls';
 import { StatGrid } from './layout';
@@ -211,9 +213,9 @@ export function IndexChart({ name, value, change, asof, values, up }: { name: st
 }
 
 // ── Invest Summary (작품 투자 요약 헤더) ──
-export function InvestSummary({ id, title, by, format = '웹툰', status, statusText, mainLabel = '모집률', mainValue, mainSub, progress, stats, compact, coverUrl, actions }: {
+export function InvestSummary({ id, title, by, format = '웹툰', status, statusText, mainLabel = '모집률', mainValue, mainSub, progress, stats, compact, coverUrl, actions, ride }: {
   id: number; title: string; by?: string; format?: string; status: 'Recruiting' | 'Closed' | 'Trading'; statusText: string; mainLabel?: string; mainValue: string; mainSub?: string;
-  progress: number; stats: { label: string; value: string }[]; compact?: boolean; coverUrl?: string | null; actions?: { left: { label: string; icon?: string; onPress: () => void }; right: { label: string; icon?: string; onPress: () => void } };
+  progress: number; stats: { label: string; value: string }[]; compact?: boolean; coverUrl?: string | null; ride?: boolean; actions?: { left: { label: string; icon?: string; onPress: () => void }; right: { label: string; icon?: string; onPress: () => void } };
 }) {
   return (
     <View style={[s.panel, { gap: spacing.gapXl }]}>
@@ -244,7 +246,7 @@ export function InvestSummary({ id, title, by, format = '웹툰', status, status
       ) : mainSub ? (
         <Txt v="label2" w="medium" c={color.labelNeutral} style={{ textAlign: 'right' }}>{mainSub}</Txt>
       ) : null}
-      <LinearProgress value={progress} closed={status === 'Closed'} />
+      {ride ? <Ride pct={progress} /> : <LinearProgress value={progress} closed={status === 'Closed'} />}
       <StatGrid items={stats} />
       {actions ? (
         <View style={{ flexDirection: 'row', gap: spacing.gapL, paddingTop: spacing.insetL, borderTopWidth: 1, borderTopColor: color.lineNormal }}>

@@ -10,6 +10,7 @@ import {
 import { api, track, type Disclosure, type FundingDetail, type Indicators, type Serial, type Subscription, type WorkDetail } from '@/lib/api';
 import { ddayText, manwon, typeLabel } from '@/lib/cards';
 import { bps, dateText } from '@/lib/format';
+import { DNote } from '@/components/dibby';
 import { useApi } from '@/lib/useApi';
 
 type Tab = 'invest' | 'work' | 'serial' | 'disclosure';
@@ -97,6 +98,7 @@ export default function FundingScreen() {
         mainValue={`${pct.toLocaleString('ko-KR')}%`}
         mainSub={`${manwon(f.progress.raised_amount)} / 목표 ${manwon(f.target_amount)}`}
         progress={pct}
+        ride={open}
         stats={[
           { label: '1조각 공모가', value: `${f.unit_price.toLocaleString('ko-KR')}원` },
           { label: '정산 주기', value: '분기' },
@@ -143,6 +145,10 @@ export default function FundingScreen() {
             ]}
             note="연 수익률은 기간이 짧아 과장되므로 배수와 회수 달만 보여 드려요. 과거·예상 수치는 미래 수익을 보장하지 않아요."
           />
+          <Panel>
+            <Txt v="body1" w="bold" c={color.labelStrong}>목표를 넘으면 이렇게 나눠요</Txt>
+            <Txt v="body2" c={color.labelNormal}>{`목표의 ${bps(f.terms.allocation_params.equal_ratio_bps ?? 2000)}는 참여자 모두에게 고르게, 나머지는 청약 비율대로 배정해요. 배정 못 받은 금액은 마감 직후 바로 돌려드려요.`}</Txt>
+          </Panel>
           <Panel>
             <Txt v="body1" w="bold" c={color.labelStrong}>수요 지표</Txt>
             <KV k="관심(찜) · 최근 7일" v={`${ind.dibs_total.toLocaleString('ko-KR')}명 · +${ind.dibs_7d.toLocaleString('ko-KR')}`} />
@@ -207,6 +213,7 @@ export default function FundingScreen() {
         </>
       ) : null}
 
+      <DNote title="잠깐, 꼭 확인해 주세요" text="만기에는 마지막 정산 후 상장폐지되고 원금은 상환되지 않아요. 원금 손실이 날 수 있고 예금자 보호 대상이 아니에요." style={{ marginTop: 0 }} />
       <DisclosureBar />
     </DScreen>
   );

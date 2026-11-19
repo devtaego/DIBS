@@ -10,6 +10,7 @@ import {
 import { api, type FundingCard, type Holding, type MySubscription, type SecurityItem, type Wallet, type WorkCard as Work } from '@/lib/api';
 import { fundingToCard, manwon, marketIndex, signedPct, trendOf, typeLabel } from '@/lib/cards';
 import { useSession } from '@/lib/session';
+import { DEmpty, Greet } from '@/components/dibby';
 import { useApi } from '@/lib/useApi';
 
 // V2 04 홈
@@ -50,6 +51,14 @@ export default function Home() {
     <DScreen header={<TopAppBar type="Main" />} onRefresh={reload} tabBar gap={spacing.gap2xl} padTop={spacing.insetL}>
       <ErrorBox error={error} onRetry={reload} />
       {loading && !data ? <Loading /> : null}
+      {data ? (
+        <Greet
+          pose="hello"
+          title="오늘도 먼저 찜하러 왔군요!"
+          text={`지금 열린 청약 ${cards.length}건${soon.length ? ` · 마감 임박 ${soon.length}건` : ''}이 있어요.`}
+          style={{ marginTop: 0 }}
+        />
+      ) : null}
 
       {m ? (
         <PortfolioSummary
@@ -119,7 +128,7 @@ export default function Home() {
           {filtered.map((x, i) => (
             <WorkCard key={x.f.id} data={x.c} last={i === filtered.length - 1} onPress={() => router.push(`/funding/${x.f.id}`)} />
           ))}
-          {data && !filtered.length ? <Empty title="조건에 맞는 모집이 없어요" text="새 청약이 열리면 알림으로 알려 드릴게요." /> : null}
+          {data && !filtered.length ? <DEmpty pose="sleep" title="조건에 맞는 모집이 없어요" text="새 청약이 열리면 디비가 먼저 알려드릴게요." /> : null}
         </View>
       </Section>
 

@@ -1,0 +1,10 @@
+# 개발 환경과 같은 버전으로 고정 (Python 3.13 기준, 3.11 이상이면 동작)
+fastapi==0.163.2
+starlette==1.7.0
+uvicorn[standard]==0.54.0
+sqlalchemy==2.1.9
+pydantic==2.13.5
+pyjwt==2.15.0
+# 테스트
+pytest==9.1.1
+httpx==0.28.1

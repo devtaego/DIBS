@@ -42,6 +42,9 @@ class DividendRun(Base):
     creator_amount: Mapped[int] = mapped_column(BigInteger)
     platform_amount: Mapped[int] = mapped_column(BigInteger)
     residual: Mapped[int] = mapped_column(BigInteger, default=0)  # 원 단위 절사 잔여 (플랫폼 귀속)
+    creator_escrow: Mapped[int] = mapped_column(BigInteger, default=0)  # 작가 몫 중 이번 분기 유보분
+    escrow_released: Mapped[int] = mapped_column(BigInteger, default=0)  # 회수 달성으로 작가에게 푼 유보금
+    clawback_applied: Mapped[int] = mapped_column(BigInteger, default=0)  # 귀책 반환 청구로 투자자에게 돌린 작가 몫
     total_units: Mapped[int] = mapped_column(Integer)
     per_unit_gross: Mapped[float] = mapped_column()  # 표시용 (주당 배당금)
     status: Mapped[DividendStatus] = enum_col(DividendStatus, default=DividendStatus.CALCULATED)

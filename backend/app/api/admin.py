@@ -30,7 +30,10 @@ from app.schemas.content import EpisodeOut, EpisodePricingIn, ReviewIn, ReviewMe
 from app.schemas.community import NoticeIn, NoticeOut
 from app.schemas.funding import (
     CloseOut,
+    ClawbackIn,
+    DiscontinueIn,
     DiscontinueOut,
+    HiatusIn,
     FundingDetailOut,
     FundingOut,
     FundingReviewIn,
@@ -47,7 +50,7 @@ from app.schemas.wallet import WithdrawalOut
 from app.services import content as content_svc
 from app.services import dividend as div_svc
 from app.services import funding as svc
-from app.services import product
+from app.services import product, serial
 from app.services import wallet as wallet_svc
 from app.services.market.mock_exchange import get_market
 
@@ -197,17 +200,42 @@ def suspension(funding_id: int, body: SuspendIn, db: Session = Depends(get_db)):
 
 
 @router.post("/fundings/{funding_id}/discontinue", response_model=DiscontinueOut,
-             summary="연재 중단 확정 (남은 작가 지급분을 주주에게 분배, 거래 정지)")
-def discontinue(funding_id: int, body: ReasonIn, db: Session = Depends(get_db)):
+             summary="연재 중단 확정 (불가피한 사유 / 작가 귀책: 남은 지급분·유보금 보유자 분배, 반환 청구, 거래 정지)")
+def discontinue(funding_id: int, body: DiscontinueIn, db: Session = Depends(get_db)):
     f = svc.get_funding(db, funding_id)
-    out = svc.discontinue(db, f, body.reason)
+    out = svc.discontinue(db, f, body.reason, body.kind)
     get_market(db).cancel_all(f)
     return out
 
 
-@router.post("/fundings/{funding_id}/complete", response_model=FundingOut, summary="연재 완결 확정 (완결 후 12개월 기간 시작, 다음 시즌 펀딩 신청 가능)")
+@router.post("/fundings/{funding_id}/complete",
+             summary="시즌 완결 확정 (약정 회차 전이면 조기 완결: 남은 작가 지급분 비율 감액, 나머지 보유자 분배)")
 def complete(funding_id: int, db: Session = Depends(get_db)):
-    return product.mark_completed(db, svc.get_funding(db, funding_id))
+    return serial.complete_season(db, svc.get_funding(db, funding_id))
+
+
+@router.post("/fundings/{funding_id}/hiatus", summary="휴재 공지 기록 (시즌 누적 8주까지 연재 기한에서 뺌)")
+def hiatus(funding_id: int, body: HiatusIn, db: Session = Depends(get_db)):
+    return serial.record_hiatus(db, svc.get_funding(db, funding_id), body.weeks, body.reason)
+
+
+@router.post("/fundings/{funding_id}/serial-check", summary="연재 지연 판정 (한 달치 경고, 석 달치 귀책 중단)")
+def serial_check(funding_id: int, db: Session = Depends(get_db)):
+    f = svc.get_funding(db, funding_id)
+    out = serial.check_delay(db, f)
+    if out["action"] == "DISCONTINUED":
+        get_market(db).cancel_all(f)
+    return out
+
+
+@router.post("/fundings/{funding_id}/clawback", summary="귀책 중단 반환금 수납 → 보유자 분배")
+def clawback(funding_id: int, body: ClawbackIn, db: Session = Depends(get_db)):
+    return serial.collect_clawback(db, svc.get_funding(db, funding_id), body.amount)
+
+
+@router.post("/jobs/serial-check", summary="매일: 상장 작품 연재 지연 판정")
+def serial_check_all(db: Session = Depends(get_db)):
+    return serial.check_all(db)
 
 
 @router.post("/fundings/{funding_id}/terminate", response_model=FundingOut,

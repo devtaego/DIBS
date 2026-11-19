@@ -16,7 +16,7 @@ from app.core.db import get_db
 from app.core.errors import Forbidden, NotFound
 from app.core.security import current_user
 from app.models import DividendRun, User
-from app.services import broker
+from app.services import broker, serial
 from app.services import funding as funding_svc
 
 router = APIRouter(tags=["broker"])
@@ -86,6 +86,20 @@ def instruction(run_id: int, db: Session = Depends(get_db), x_broker_signature: 
     return broker.dividend_instruction(db, run)
 
 
+@router.get("/broker/notices", summary="[증권사 서버] DIBS 알림: 연재 지연·휴재·중단·완결·특별 분배")
+def notices(after_id: int = 0, db: Session = Depends(get_db), x_broker_signature: str | None = Header(default=None)):
+    _require_sig(f"GET /broker/notices?after_id={after_id}".encode(), x_broker_signature)
+    return serial.broker_notices(db, after_id)
+
+
+@router.get("/broker/special-distributions/{special_id}/instruction",
+            summary="[증권사 서버] 특별 분배 지시서 (연재 중단·조기 완결·귀책 유보금·반환금)")
+def special_instruction(special_id: int, db: Session = Depends(get_db),
+                        x_broker_signature: str | None = Header(default=None)):
+    _require_sig(f"GET /broker/special-distributions/{special_id}/instruction".encode(), x_broker_signature)
+    return broker.special_instruction(db, special_id)
+
+
 @router.post("/broker/webhooks/{event_type}",
              summary="[증권사 서버] 웹훅: account-linked · account-unlinked · subscription-summary · "
                      "allocation-confirmed · holder-registry · payout-completed")
@@ -134,3 +148,12 @@ def mock_pay(run_id: int, db: Session = Depends(get_db)):
     from app.services.broker import mock_kiwoom
 
     return mock_kiwoom.pay(db, run_id)
+
+
+@router.post("/dev/mock-kiwoom/special-distributions/{special_id}/pay",
+             summary="[모의 키움] 특별 분배 지시서대로 지급 → 완료 웹훅")
+def mock_pay_special(special_id: int, db: Session = Depends(get_db)):
+    _mock_enabled()
+    from app.services.broker import mock_kiwoom
+
+    return mock_kiwoom.pay_special(db, special_id)

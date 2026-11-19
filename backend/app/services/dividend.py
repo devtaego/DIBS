@@ -17,7 +17,7 @@ from app.core import clock
 from app.core.config import settings
 from app.core.errors import Conflict, DomainError, NotFound
 from app.models import DividendPayment, DividendRun, EpisodeUnlock, Funding, Holding, RevenueRecord, Trade, Work
-from app.models.enums import AccountKind, DividendStatus, FundingStatus, RevenueSource
+from app.models.enums import AccountKind, DiscontinueKind, DividendStatus, FundingStatus, RevenueSource
 from app.services import ledger, product
 from app.services.ledger import Leg
 from app.services.policy import notify
@@ -116,6 +116,18 @@ def calculate(db: Session, f: Funding, period: str, force: bool = False) -> Divi
     holder_pool = net * holder_bps // 10000
     creator_amount = net * creator_bps // 10000
     platform_amount = net - holder_pool - creator_amount
+    # 연재 위험 장치: 귀책 중단이면 반환 청구액을 채울 때까지 작가 몫을 투자자에게,
+    # 그 밖에는 회수 전 작가 몫의 50%를 유보 (회수·종료 때 작가에게, 귀책 시 투자자에게)
+    clawback_applied = creator_escrow = 0
+    outstanding = max(0, f.clawback_due - f.clawback_collected)
+    if f.discontinue_kind == DiscontinueKind.FAULT:
+        clawback_applied = min(creator_amount, outstanding)
+        holder_pool += clawback_applied
+        creator_amount -= clawback_applied
+        f.clawback_collected += clawback_applied
+    elif phase == "BEFORE_RECOUP":
+        creator_escrow = creator_amount * settings.creator_escrow_bps // 10000
+        f.creator_escrow_balance += creator_escrow
 
     snapshot = holdings_at(db, f, cutoff)
     total_units = sum(snapshot.values())
@@ -125,7 +137,8 @@ def calculate(db: Session, f: Funding, period: str, force: bool = False) -> Divi
     run = DividendRun(funding_id=f.id, period=period, record_date=record_date, pay_date=default_pay_date(record_date),
                       net_revenue=net, phase=phase, holder_pool=holder_pool, creator_amount=creator_amount,
                       platform_amount=platform_amount, total_units=total_units,
-                      per_unit_gross=round(holder_pool / total_units, 2))
+                      per_unit_gross=round(holder_pool / total_units, 2), creator_escrow=creator_escrow,
+                      clawback_applied=clawback_applied)
     db.add(run)
     db.flush()
     paid = 0
@@ -140,6 +153,9 @@ def calculate(db: Session, f: Funding, period: str, force: bool = False) -> Divi
     if not f.recouped_period and product.after_tax(cum_gross) >= f.target_amount:
         f.recouped_period = period
         run.recouped_now = True
+        if f.discontinue_kind != DiscontinueKind.FAULT:  # 회수 달성: 유보금을 이번 지급 때 작가에게 푼다
+            run.escrow_released = f.creator_escrow_balance
+            f.creator_escrow_balance = 0
     db.flush()
     return run
 
@@ -161,7 +177,9 @@ def pay(db: Session, run_id: int, force: bool = False) -> DividendRun:
 
     legs = [Leg(ledger.sys(db, AccountKind.SYS_ROYALTY_POOL, f.mode), -run.net_revenue),
             Leg(ledger.sys(db, AccountKind.SYS_TAX_WITHHOLDING, f.mode), sum(p.tax for p in payments)),
-            Leg(ledger.user_accounts(db, work.creator_id, f.mode).deposit, run.creator_amount),
+            Leg(ledger.user_accounts(db, work.creator_id, f.mode).deposit,
+                run.creator_amount - run.creator_escrow + run.escrow_released),
+            Leg(ledger.sys(db, AccountKind.SYS_CREATOR_ESCROW, f.mode), run.creator_escrow - run.escrow_released),
             Leg(ledger.sys(db, AccountKind.SYS_PLATFORM_REVENUE, f.mode), run.platform_amount + run.residual)]
     legs += [Leg(ledger.user_accounts(db, p.user_id, f.mode).deposit, p.net) for p in payments]
     j = ledger.post(db, "DIVIDEND_PAYOUT", legs, f.mode, "dividend_run", run.id, memo=run.period)

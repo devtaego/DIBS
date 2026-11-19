@@ -1,9 +1,8 @@
 # 규칙 기준과 남은 결정
 
-> **기준 문서: DIBS 서비스 기획서 v5.0 (2026-11-19).** 아래 표는 v5.0 규칙이 코드에서 어떤 값·함수로 구현됐는지 보여 준다. 규칙을 바꾸면 이 표와 `core/config.py`를 함께 고친다.
-> v4.0에서 바뀐 것: 만기 없음 → **시즌 + 완결 후 12개월**, 최소 3,000만 → **1,000만**, 목표 상한 48개월 → **상품 기간 투자자 몫 × 70%**, 개설 조건 열람자 → **유료 구매자**, 모금액 80/12/8 → **85/12/3**, 작가 매입 의무 → **선택**, 결제 → **상장 작품은 결제 시점에 신탁 계좌로 분할**, 공시 API 추가.
+> **기준 문서: DIBS 서비스 기획서 (2026-11-19).** 아래 표는 기획서 규칙이 코드에서 어떤 값·함수로 구현됐는지 보여 준다. 규칙을 바꾸면 이 표와 `core/config.py`를 함께 고친다.
 
-## v5.0 규칙 → 코드
+## 상품 규칙 → 코드
 
 | 단계 | 규칙 | 코드 (설정값) | 구현 위치 |
 |---|---|---|---|
@@ -21,16 +20,30 @@
 | 청약 | 1인 한도 min(3,000만 원, 발행액 5%) → 1,000만 원 발행이면 50만 원 | `max_subscription_amount`, `max_subscription_bps 500` | `services/product.py::per_user_cap_units` |
 | 청약 | 동의: 투자 위험, 시즌 기간·종료 규칙 | `agree_termination_rule` | `/policies/termination-rule` |
 | 발행 | 모금액 작가 85 / 발행 실비 12 / DIBS 3 (DIBS는 주로 매출 배분에서 번다) | `creator_bps 8500`, `issuance_cost_bps 1200`, `platform_fee_bps 300` | `services/funding.py::_list_security` |
-| 발행 | 작가 지급 상장 40 · 10화 30 · 20화(완결) 30, 중단 시 미지급분 보유자 분배 | `default_payout_schedule` | `services/funding.py::_pay`, `discontinue` |
+| 발행 | 작가 지급 상장 40 · 약정 회차 절반 30 · 약정 회차 완결 30. 회차가 올라오면 자동 지급 | `default_payout_schedule` (`episodes_bps`), `PayoutSchedule.episodes_required` | `services/serial.py::on_episode_published` |
 | 상장 후 | **결제 시점 신탁 분할**: 상장 작품 유료 결제는 DIBS 매출 계정을 거치지 않고 신탁 계좌로 | `SYS_TRUST_RECEIVABLE`, `EpisodeUnlock.funding_id` | `services/content.py::unlock_episode`, `live_funding` |
 | 상장 후 | 배당 재원 = 신탁 분할된 결제액 − 인앱 30% (+ 광고·굿즈·독점 뒤 외부 수익 작가 몫 20%) | `inapp_fee_bps 3000`, `external_share_bps 2000` | `services/dividend.py::aggregate_paid_episode_revenue`, `add_revenue` |
 | 상장 후 | 배분 회수 전 작가 30 / 투자자 45 / DIBS 25 → 세후 회수 다음 분기부터 40 / 35 / 25 | `royalty_*_bps`, `royalty_*_after_bps`, `fundings.recouped_period` | `services/product.py::split_for`, `services/dividend.py::calculate` |
 | 상장 후 | **공시**: 투자금 100원 쓰임, 매출 배분, 상품 기간, 분기별 대사(결제 원천 = 신탁 입금 = 배당 재원, 누수 0건), 결제 기록 SHA-256 연쇄 해시 | — | `services/disclosure.py` (`GET /fundings/{id}/disclosure`) |
 | 상장 후 | 분기 배당, 다음 달 10일, 원천징수 15.4% | `dividend_pay_day 10`, `dividend_tax_bps 1540` | `services/dividend.py` |
 | 상장 후 | 거래 수수료 0.015%, 거래소·증권사 몫 (1단계는 유통 없이 시즌 정산, 모의 거래소는 시연용) | `trade_fee_ppm 150` → `SYS_BROKER_FEE` | `services/market/mock_exchange.py` |
-| 상장 후 | 종료: 완결 후 12개월 또는 분기 순매출 < 발행액 0.5% 2분기 연속 | `termination_after_completion_months 12`, `low_revenue_bps 50`, `low_revenue_quarters 2` | `services/product.py::termination_check`, `terminate` |
+| 상장 후 | 종료: 「완결 후 12개월」과 「상장 후 24개월」 중 늦은 쪽, 또는 분기 순매출 < 발행액 0.5% 2분기 연속 | `termination_after_completion_months 12`, `min_term_after_listing_months 24`, `low_revenue_bps 50`, `low_revenue_quarters 2` | `services/product.py::termination_check`, `terminate` |
 | 상장 후 | 작가 매입 옵션 (선택 사항) = 최근 4분기 보유자 분배금 합계 × 3 | `Funding.buyback_enabled`, `buyback_multiple 3` | `services/product.py::buyback` |
 | 상장 후 | 일반투자자 연 1억 원(장외 순매수 한도), 종목당 3,000만 원 | `annual_limit_general`, `per_security_limit_general` | `services/policy.py` |
+
+## 연재 약정과 연재 위험 → 코드
+
+| 위험 | 규칙 | 코드 (설정값) | 구현 위치 |
+|---|---|---|---|
+| 약정 | 시즌 약정 회차(기본 40화, 최소 20화), 기한 한 달 4화. 공모 전 비축분 ≥ 약정 회차의 25% (승인 때 확인) | `default_committed_episodes 40`, `min_committed_episodes 20`, `monthly_episode_quota 4`, `buffer_bps 2500`, `enforce_buffer` | `services/serial.py::validate_commitment` |
+| 태업 | 미리 알린 휴재는 시즌 누적 8주까지만 기한에서 뺌. 한 달치(4화) 밀리면 경고·공시, 석 달치(12화) 밀리면 작가 귀책 중단 | `hiatus_limit_weeks 8`, `delay_warning_months 1`, `delay_breach_months 3` | `record_hiatus`, `check_delay` (`POST /admin/jobs/serial-check`) |
+| 조기 완결 | 약정 회차 전 완결이면 남은 작가 지급분 × (연재 회차 ÷ 약정 회차)만 지급, 나머지는 보유자에게. 권리는 상장 후 24개월까지 유지 | `min_term_after_listing_months 24` | `complete_season` |
+| 불가피한 중단 | 건강·불가항력: 남은 작가 지급분 → 보유자. 유보금은 종료 때 작가에게 | `DiscontinueKind.NO_FAULT` | `discontinue` |
+| 작가 귀책 | 유죄 판결·표절·권리 분쟁·계약 위반·연재 기한 초과: 남은 지급분 + 유보금 전액 → 보유자, 받은 지급금 50% 반환 청구, 청구액을 채울 때까지 작가 매출 몫 → 투자자 | `clawback_bps 5000`, `DiscontinueKind.FAULT` | `discontinue`, `collect_clawback`, `dividend.calculate` |
+| 작가 몫 유보 | 회수 전 작가 매출 몫의 50%를 신탁에 유보, 회수 달성·권리 종료 때 작가에게 | `creator_escrow_bps 5000`, `SYS_CREATOR_ESCROW` | `dividend.calculate`·`pay`, `release_escrow` |
+| 보유자 분배 경로 | INTERNAL은 바로 예치금, BROKER는 특별 분배 지시서 → 증권사 지급 → 완료 웹훅 대조 | `SpecialDistribution`, `SYS_SPECIAL_PAYABLE` | `serial.distribute`, `GET /broker/special-distributions/{id}/instruction` |
+| 증권사 알림 | 지연 경고·휴재·중단·완결·특별 분배를 증권사가 서명 요청으로 가져감 | `BrokerNotice` | `GET /broker/notices` |
+| 공개 | 약정·진행·지연 상태·유보금·반환 청구·특별 분배 내역 | — | `GET /fundings/{id}/serial` |
 
 ## B안 증권사 연계 → 코드 (읽기는 DIBS, 청약·계좌·보유는 증권사)
 
@@ -68,6 +81,8 @@
 | 13 | 투자성향 확인 | 5문항 합계로 3단계 (모의) | 제휴 증권사 적합성 기준을 따름 |
 | 14 | 실서비스 신탁 분할 | 원장 안의 `SYS_TRUST_RECEIVABLE` 계정 (모의) | PG 분할정산으로 신탁사 계좌 직접 입금, 월별 PG 대사, 연 1회 외부 감사 |
 | 15 | 시즌 길이 | 기본 12개월 | 작품별 시즌 회차 수에 맞춰 심사 때 조정할지 |
+| 16 | 귀책 반환 비율·작가 몫 유보 비율 | 각각 50% | 작가 유치와 맞바꾸는 값. 작가 설문·법률 검토 후 확정 |
+| 17 | 비축분 요건 강제 | 기본 꺼짐 (`DIBS_ENFORCE_BUFFER=true`로 켬) | 시연 데이터 규모 때문. 운영에서는 켬 |
 
 ## 기획서와 다르게 해석한 부분
 

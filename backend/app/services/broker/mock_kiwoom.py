@@ -68,3 +68,13 @@ def pay(db: Session, run_id: int) -> dict:
     tax = sum(int(l["gross"] * 0.154) for l in instr["lines"])
     return _send(db, "payout-completed", {"funding_id": run.funding_id, "run_id": run_id,
                                           "gross": instr["total_gross"], "tax": tax, "count": len(instr["lines"])})
+
+
+def pay_special(db: Session, special_id: int) -> dict:
+    """특별 분배 지시서를 받아 지급(모의: DIBS 모의 예치금으로)하고 완료를 알린다."""
+    from app.services import serial
+
+    instr = broker.special_instruction(db, special_id)  # 실제로는 GET /broker/special-distributions/{id}/instruction
+    sd = serial.settle_special(db, special_id)
+    return _send(db, "payout-completed", {"funding_id": sd.funding_id, "special_id": special_id,
+                                          "gross": instr["total"], "count": len(instr["lines"])})

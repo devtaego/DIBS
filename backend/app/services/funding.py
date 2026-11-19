@@ -27,7 +27,7 @@ from app.models.enums import (
     SubscriptionStatus,
     WorkStatus,
 )
-from app.services import ledger, product
+from app.services import ledger, product, serial
 from app.services.allocation import STRATEGIES, AllocationRequest, get_strategy
 from app.services.ledger import Leg
 from app.services.policy import check_investment_limit, current_mode, ensure_mode_allowed, notify
@@ -45,6 +45,7 @@ REVIEWABLE_TERMS = {
     "royalty_platform_bps", "royalty_creator_bps", "royalty_holder_bps",
     "royalty_platform_after_bps", "royalty_creator_after_bps", "royalty_holder_after_bps",
     "allocation_strategy", "allocation_params", "offering_round", "risk_note", "buyback_enabled",
+    "committed_episodes", "monthly_quota", "buffer_episodes",
 }
 
 
@@ -70,6 +71,7 @@ def _validate_terms(f: Funding) -> None:
     if f.allocation_strategy not in STRATEGIES:
         raise DomainError("INVALID_TERMS", f"배정 방식은 {STRATEGIES} 중 하나여야 해요")
     get_strategy(f.allocation_strategy, f.allocation_params)  # 파라미터 검증
+    serial.validate_commitment(f)  # 시즌 약정 회차·비축분
     if f.open_at and f.close_at:
         days = (f.close_at - f.open_at).days
         if not settings.min_funding_days <= days <= settings.max_funding_days:
@@ -121,18 +123,20 @@ def review_funding(db: Session, f: Funding, approve: bool, terms: dict, note: st
             raise DomainError("INVALID_TERMS", f"수정할 수 없는 항목: {k}")
         setattr(f, k, v)
     _validate_terms(f)
+    serial.validate_commitment(f, check_buffer=True)
     if not (f.open_at and f.close_at):
         raise DomainError("INVALID_TERMS", "모집 시작·마감 시각을 정해 주세요")
 
-    schedule = payout_schedule or settings.default_payout_schedule  # v3.0 기본: 상장 40% · 10화 30% · 20화 30%
+    schedule = payout_schedule or settings.default_payout_schedule  # 상장 40% · 약정 절반 30% · 약정 완결 30%
     if sum(s["bps"] for s in schedule) != 10000:
         raise DomainError("INVALID_PAYOUT_SCHEDULE", "작가 지급 비율 합계는 100%여야 해요")
     for old in db.scalars(select(PayoutSchedule).where(PayoutSchedule.funding_id == f.id)):
         db.delete(old)
     db.flush()
     for i, s in enumerate(schedule, start=1):
+        need = serial.episodes_for(f.committed_episodes, s["episodes_bps"]) if s.get("episodes_bps") else None
         db.add(PayoutSchedule(funding_id=f.id, seq=i, bps=s["bps"], trigger=PayoutTrigger(s["trigger"]),
-                              milestone_note=s.get("milestone_note")))
+                              milestone_note=s.get("milestone_note"), episodes_required=need))
     f.status = FundingStatus.APPROVED
     return f
 
@@ -486,6 +490,7 @@ def _list_security(db: Session, f: Funding) -> None:
     f.status = FundingStatus.LISTED
     f.reference_price = f.last_price = f.unit_price  # 상장일 기준가 = 공모가
     f.listed_at = clock.now()
+    serial.mark_listing(db, f)  # 시즌 진행 기준점
     f.exclusive_until = add_months(f.listed_at, f.exclusive_months)  # 이 날까지 DIBS 선공개 독점
 
 
@@ -501,14 +506,7 @@ def _pay(db: Session, f: Funding, work: Work, ps: PayoutSchedule) -> None:
 
 
 def pay_milestone(db: Session, f: Funding, seq: int) -> PayoutSchedule:
-    _require(f, FundingStatus.LISTED, FundingStatus.SUSPENDED)
-    ps = db.scalar(select(PayoutSchedule).where(PayoutSchedule.funding_id == f.id, PayoutSchedule.seq == seq))
-    if ps is None:
-        raise NotFound("PAYOUT_NOT_FOUND", "지급 일정을 찾을 수 없어요")
-    if ps.status != PayoutStatus.PENDING:
-        raise Conflict("PAYOUT_ALREADY_DONE", "이미 처리된 지급이에요")
-    _pay(db, f, db.get(Work, f.work_id), ps)
-    return ps
+    return serial.pay_milestone(db, f, seq)
 
 
 def fail_issuance(db: Session, f: Funding, reason: str) -> Funding:
@@ -546,32 +544,9 @@ def _holders(db: Session, f: Funding) -> list[Holding]:
                                                  Holding.units > 0).order_by(Holding.user_id)))
 
 
-def discontinue(db: Session, f: Funding, reason: str) -> dict:
-    """연재 중단 확정 (v3.0): 남은 작가 지급분을 취소하고 현재 주주에게 보유 비율대로 나눠 준다."""
-    _require(f, FundingStatus.LISTED, FundingStatus.SUSPENDED)
-    if f.discontinued_at:
-        raise Conflict("ALREADY_DISCONTINUED", "이미 연재 중단 처리된 종목이에요")
-    work = db.get(Work, f.work_id)
-    pending = list(db.scalars(select(PayoutSchedule).where(PayoutSchedule.funding_id == f.id,
-                                                           PayoutSchedule.status == PayoutStatus.PENDING)))
-    remaining = sum(p.amount or 0 for p in pending)
-    for p in pending:
-        p.status = PayoutStatus.CANCELLED
-    holders = _holders(db, f)
-    total_units = sum(h.units for h in holders)
-    distributed = 0
-    if remaining and total_units:
-        legs = [Leg(ledger.sys(db, AccountKind.SYS_CREATOR_PAYABLE, f.mode), -remaining)]
-        for h in holders:
-            amt = remaining * h.units // total_units
-            distributed += amt
-            legs.append(Leg(ledger.user_accounts(db, h.user_id, f.mode).deposit, amt))
-            notify(db, h.user_id, "DISCONTINUED_REFUND", f"「{work.title}」 연재 중단으로 미지급 제작비를 나눠 드렸어요",
-                   f"{amt:,}원이 예치금으로 들어왔어요.", "funding", f.id)
-        legs.append(Leg(ledger.sys(db, AccountKind.SYS_PLATFORM_REVENUE, f.mode), remaining - distributed))
-        ledger.post(db, "DISCONTINUE_DISTRIBUTION", legs, f.mode, "funding", f.id, memo=reason)
-    f.discontinued_at, f.status, f.review_note = clock.now(), FundingStatus.SUSPENDED, reason
-    return {"cancelled_payout_amount": remaining, "distributed": distributed, "holders": len(holders)}
+def discontinue(db: Session, f: Funding, reason: str, kind: str = "NO_FAULT") -> dict:
+    """연재 중단 확정: services/serial.py (불가피한 사유 / 작가 귀책)."""
+    return serial.discontinue(db, f, reason, kind)
 
 
 def breakeven(f: Funding, price_coin: int, monthly_episodes: int) -> list[dict]:

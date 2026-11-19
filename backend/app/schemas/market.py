@@ -120,6 +120,9 @@ class DividendRunOut(ORM):
     creator_amount: int
     platform_amount: int
     residual: int
+    creator_escrow: int = Field(default=0, description="작가 몫 중 회수 전 유보분 (신탁, 회수·종료 때 작가에게)")
+    escrow_released: int = Field(default=0, description="회수 달성으로 이번 지급 때 작가에게 푼 유보금")
+    clawback_applied: int = Field(default=0, description="귀책 중단 반환 청구로 투자자에게 돌린 작가 몫")
     total_units: int
     per_unit_gross: float
     status: DividendStatus

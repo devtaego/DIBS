@@ -104,6 +104,7 @@
 | `GET` | `/fundings/{funding_id}/subscriptions/me` | 내 청약 조회 | 회원 |  | SubscriptionOut |
 | `PATCH` | `/fundings/{funding_id}/subscriptions/me` | 청약 수량·리워드 변경 (감액은 마감 1시간 전까지) | 회원 | SubscriptionPatch | SubscriptionOut |
 | `DELETE` | `/fundings/{funding_id}/subscriptions/me` | 청약 취소 (마감 1시간 전까지) | 회원 |  | SubscriptionOut |
+| `GET` | `/fundings/{funding_id}/serial` | 연재 약정·진행 (약정 회차·기한·휴재·지연 상태, 작가 몫 유보금·반환 청구, 특별 분배 내역) | 회원 |  |  |
 
 ## market — 상장 종목 지정가 상대매매 (STEP 5, 모의)
 
@@ -157,11 +158,14 @@
 | `POST` | `/broker/handoff/verify` | [증권사 서버] 넘김 토큰 확인 → 공모 정보·회원 가명 id | 회원 | TokenIn |  |
 | `GET` | `/broker/fundings/{funding_id}/priority-list` | [증권사 서버] 우선 배정 명단 (연결 식별자) | 회원 |  |  |
 | `GET` | `/broker/dividend-runs/{run_id}/instruction` | [증권사 서버] 분배 지시서 (연결 식별자별 세전 금액) | 회원 |  |  |
+| `GET` | `/broker/notices` | [증권사 서버] DIBS 알림: 연재 지연·휴재·중단·완결·특별 분배 | 회원 |  |  |
+| `GET` | `/broker/special-distributions/{special_id}/instruction` | [증권사 서버] 특별 분배 지시서 (연재 중단·조기 완결·귀책 유보금·반환금) | 회원 |  |  |
 | `POST` | `/broker/webhooks/{event_type}` | [증권사 서버] 웹훅: account-linked · account-unlinked · subscription-summary · allocation-confirmed · holder-registry · payout-completed | 회원 | object |  |
 | `POST` | `/dev/mock-kiwoom/subscribe` | [모의 키움] 청약 화면에서 청약 (처음이면 계정 연결·쿠폰) | 회원 | MockSubscribeIn |  |
 | `POST` | `/dev/mock-kiwoom/fundings/{funding_id}/close` | [모의 키움] 마감·배정 확정 → 배정 결과 웹훅 | 회원 |  |  |
 | `POST` | `/dev/mock-kiwoom/fundings/{funding_id}/registry` | [모의 키움] 보유자 명부 웹훅 | 회원 |  |  |
 | `POST` | `/dev/mock-kiwoom/dividend-runs/{run_id}/pay` | [모의 키움] 분배 지시서대로 지급 → 완료 웹훅 | 회원 |  |  |
+| `POST` | `/dev/mock-kiwoom/special-distributions/{special_id}/pay` | [모의 키움] 특별 분배 지시서대로 지급 → 완료 웹훅 | 회원 |  |  |
 
 ## admin — 운영: 심사·마감·발행·상장·매출·배당·입출금 (STEP 4·6)
 
@@ -185,8 +189,12 @@
 | `POST` | `/admin/fundings/{funding_id}/issuance/advance` | 발행 단계 진행 (LISTED 시 보유 증권 반영·작가 지급) | 운영자 | IssuanceAdvanceIn | IssuanceOut |
 | `POST` | `/admin/fundings/{funding_id}/issuance/fail` | 발행 실패 (전액 환불·리워드 취소) | 운영자 | ReasonIn | FundingOut |
 | `POST` | `/admin/fundings/{funding_id}/suspension` | 거래 정지 / 해제 | 운영자 | SuspendIn | FundingOut |
-| `POST` | `/admin/fundings/{funding_id}/discontinue` | 연재 중단 확정 (남은 작가 지급분을 주주에게 분배, 거래 정지) | 운영자 | ReasonIn | DiscontinueOut |
-| `POST` | `/admin/fundings/{funding_id}/complete` | 연재 완결 확정 (완결 후 12개월 기간 시작, 다음 시즌 펀딩 신청 가능) | 운영자 |  | FundingOut |
+| `POST` | `/admin/fundings/{funding_id}/discontinue` | 연재 중단 확정 (불가피한 사유 / 작가 귀책: 남은 지급분·유보금 보유자 분배, 반환 청구, 거래 정지) | 운영자 | DiscontinueIn | DiscontinueOut |
+| `POST` | `/admin/fundings/{funding_id}/complete` | 시즌 완결 확정 (약정 회차 전이면 조기 완결: 남은 작가 지급분 비율 감액, 나머지 보유자 분배) | 운영자 |  |  |
+| `POST` | `/admin/fundings/{funding_id}/hiatus` | 휴재 공지 기록 (시즌 누적 8주까지 연재 기한에서 뺌) | 운영자 | HiatusIn |  |
+| `POST` | `/admin/fundings/{funding_id}/serial-check` | 연재 지연 판정 (한 달치 경고, 석 달치 귀책 중단) | 운영자 |  |  |
+| `POST` | `/admin/fundings/{funding_id}/clawback` | 귀책 중단 반환금 수납 → 보유자 분배 | 운영자 | ClawbackIn |  |
+| `POST` | `/admin/jobs/serial-check` | 매일: 상장 작품 연재 지연 판정 | 운영자 |  |  |
 | `POST` | `/admin/fundings/{funding_id}/terminate` | 권리 종료 (완결 후 12개월 또는 저매출 2분기 연속, 원금 상환 없음) | 운영자 |  | FundingOut |
 | `GET` | `/admin/fundings/{funding_id}/payouts` | 작가 지급 일정 | 운영자 |  | PayoutOut[] |
 | `POST` | `/admin/fundings/{funding_id}/payouts/{seq}/pay` | 마일스톤 지급 실행 | 운영자 |  | PayoutOut |
@@ -210,7 +218,7 @@
 | code | 기본 메시지 |
 |---|---|
 | `ALREADY_COMPLETED` | 이미 완결 처리된 작품이에요 |
-| `ALREADY_DISCONTINUED` | 이미 연재 중단 처리된 종목이에요 |
+| `ALREADY_DISCONTINUED` | 연재 중단된 작품이에요 |
 | `ALREADY_REPORTED` | 이미 신고한 글이에요 |
 | `ALREADY_SUBSCRIBED` | 이미 청약했어요. 수량 변경을 이용해 주세요 |
 | `ANNUAL_LIMIT_EXCEEDED` | 연간 투자 한도({annual:,}원)를 넘어요 |
@@ -218,6 +226,7 @@
 | `BAD_HANDOFF` | 넘김 토큰 형식이 아니에요 |
 | `BAD_SIGNATURE` | 증권사 서명이 맞지 않아요 |
 | `BEFORE_PAY_DATE` | 지급일({run.pay_date}) 전이에요 |
+| `BUFFER_SHORT` | 공모 전 비축분이 {need}화(약정 회차의 25%) 이상이어야 해요 |
 | `BUYBACK_NOT_ENABLED` | 이 펀딩은 작가 매입 옵션을 선택하지 않았어요 |
 | `COIN_TO_DEPOSIT_FORBIDDEN` | 코인은 예치금으로 바꿀 수 없어요 |
 | `CREATOR_NOT_FOUND` | 작가를 찾을 수 없어요 |
@@ -227,6 +236,7 @@
 | `DIVIDEND_NOT_FOUND` | 배당 내역을 찾을 수 없어요 |
 | `DIVIDEND_PAID` | 이미 지급한 배당이에요 |
 | `EMPTY_JOURNAL` | 금액이 0인 분개는 기록하지 않아요 |
+| `EPISODES_NOT_REACHED` | 시즌 연재가 {ps.episodes_required}화에 닿아야 지급할 수 있어요 |
 | `EPISODE_FREE` | 무료 회차예요 |
 | `EPISODE_NOT_FOUND` | 회차를 찾을 수 없어요 |
 | `EPISODE_NO_EXISTS` | 같은 회차 번호가 있어요 |
@@ -248,10 +258,11 @@
 | `IMAGE_REQUIRED` | 팬아트 이미지를 올려 주세요 |
 | `INSUFFICIENT_BALANCE` | 매입가 {price:,}원이 예치금보다 많아요 |
 | `INSUFFICIENT_UNITS` | 매도 가능 수량이 부족해요 |
-| `INVALID_AMOUNT` | 1원 이상 {MAX_CHARGE:,}원 이하로 입력해 주세요 |
+| `INVALID_AMOUNT` | 1원 이상 {outstanding:,}원 이하로 입력해 주세요 |
 | `INVALID_ANSWERS` | 각 문항은 1~4점이에요 |
 | `INVALID_BLOCK` | 차단할 수 없는 사용자예요 |
 | `INVALID_FUNDING_STATUS` | 현재 상태({f.status})에서는 할 수 없어요 |
+| `INVALID_HIATUS` | 휴재 기간은 1주 이상이에요 |
 | `INVALID_ISSUANCE_STEP` | {iss.step} 다음 단계가 아니에요 |
 | `INVALID_ORDER` | 가격과 수량은 1 이상이어야 해요 |
 | `INVALID_PAYOUT_SCHEDULE` | 작가 지급 비율 합계는 100%여야 해요 |
@@ -277,6 +288,7 @@
 | `NOT_LISTED` | 상장 후에 확인할 수 있어요 |
 | `NOT_TRADABLE` | 거래할 수 없는 종목이에요 (미상장 또는 거래 정지) |
 | `NOT_WORK_OWNER` | 내 작품만 관리할 수 있어요 |
+| `NO_CLAWBACK` | 반환 청구액이 없어요 |
 | `NO_DIVIDEND_HISTORY` | 배당 이력이 있어야 매입가를 정할 수 있어요 |
 | `NO_EPISODES` | 회차를 1개 이상 등록해 주세요 |
 | `NO_HOLDERS` | 기준일 보유자가 없어요 |
@@ -294,6 +306,7 @@
 | `RIGHTS_NOT_DECLARED` | 작품 공개 권한을 확인해 주세요 |
 | `RISK_NOTICE_REQUIRED` | 투자 위험 고지에 동의해 주세요 |
 | `RISK_PROFILE_REQUIRED` | 키움 투자성향 확인 후 청약할 수 있어요 |
+| `SEASON_CLOSED` | 완결되거나 중단된 시즌이에요 |
 | `SECURITY_LIMIT_EXCEEDED` | 종목당 투자 한도({per_security:,}원)를 넘어요 |
 | `SECURITY_NOT_FOUND` | 상장 종목이 아니에요 |
 | `SELF_INVEST_FORBIDDEN` | 창작자는 자기 작품에 청약할 수 없어요 |
@@ -303,6 +316,8 @@
 | `SHIPPING_NOT_REQUIRED` | 배송이 필요 없는 리워드예요 |
 | `SHIPPING_REQUIRED` | 배송지를 입력해 주세요 |
 | `SHORT_REQUIRED` | 댓글을 달 숏츠를 지정해 주세요 |
+| `SPECIAL_ALREADY_PAID` | 이미 지급한 분배예요 |
+| `SPECIAL_NOT_FOUND` | 특별 분배 내역을 찾을 수 없어요 |
 | `SUBSCRIPTION_LOCKED` | 마감 {settings.subscription_lock_minutes}분 전부터는 감액·취소할 수 없어요 |
 | `SUBSCRIPTION_NOT_FOUND` | 청약 내역이 없어요 |
 | `TARGET_OVER_CAP` | 목표 금액은 {g['target_cap']:,}원을 넘을 수 없어요 |

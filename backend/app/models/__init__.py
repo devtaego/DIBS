@@ -1,8 +1,8 @@
-from app.models.broker import BrokerEvent, BrokerLink, BrokerOfferingState
+from app.models.broker import BrokerEvent, BrokerLink, BrokerNotice, BrokerOfferingState
 from app.models.community import Notice, Post, PostReport, UserBlock
 from app.models.content import ContentEvent, Dib, Episode, EpisodeUnlock, Short, Work
 from app.models.dividend import DividendPayment, DividendRun, RevenueRecord
-from app.models.funding import Funding, Issuance, PayoutSchedule, RewardTier, Subscription
+from app.models.funding import Funding, Issuance, PayoutSchedule, RewardTier, SpecialDistribution, Subscription
 from app.models.ledger import Account, Journal, Posting, WithdrawalRequest
 from app.models.market import Holding, Order, Trade
 from app.models.user import Notification, User
@@ -11,6 +11,7 @@ __all__ = [
     "Account",
     "BrokerEvent",
     "BrokerLink",
+    "BrokerNotice",
     "BrokerOfferingState",
     "ContentEvent",
     "Dib",
@@ -32,6 +33,7 @@ __all__ = [
     "RevenueRecord",
     "RewardTier",
     "Short",
+    "SpecialDistribution",
     "Subscription",
     "Trade",
     "User",

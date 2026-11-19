@@ -5737,6 +5737,96 @@
         }
       }
     },
+    "/fundings/{funding_id}/serial": {
+      "get": {
+        "tags": [
+          "fundings"
+        ],
+        "summary": "연재 약정·진행 (약정 회차·기한·휴재·지연 상태, 작가 몫 유보금·반환 청구, 특별 분배 내역)",
+        "operationId": "funding_serial_fundings__funding_id__serial_get",
+        "parameters": [
+          {
+            "name": "funding_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Funding Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/market/securities": {
       "get": {
         "tags": [
@@ -10734,7 +10824,7 @@
         "tags": [
           "admin"
         ],
-        "summary": "연재 중단 확정 (남은 작가 지급분을 주주에게 분배, 거래 정지)",
+        "summary": "연재 중단 확정 (불가피한 사유 / 작가 귀책: 남은 지급분·유보금 보유자 분배, 반환 청구, 거래 정지)",
         "operationId": "discontinue_admin_fundings__funding_id__discontinue_post",
         "parameters": [
           {
@@ -10768,7 +10858,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/ReasonIn"
+                "$ref": "#/components/schemas/DiscontinueIn"
               }
             }
           }
@@ -10852,7 +10942,7 @@
         "tags": [
           "admin"
         ],
-        "summary": "연재 완결 확정 (완결 후 12개월 기간 시작, 다음 시즌 펀딩 신청 가능)",
+        "summary": "시즌 완결 확정 (약정 회차 전이면 조기 완결: 남은 작가 지급분 비율 감액, 나머지 보유자 분배)",
         "operationId": "complete_admin_fundings__funding_id__complete_post",
         "parameters": [
           {
@@ -10886,9 +10976,442 @@
             "description": "Successful Response",
             "content": {
               "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/FundingOut"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/fundings/{funding_id}/hiatus": {
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "휴재 공지 기록 (시즌 누적 8주까지 연재 기한에서 뺌)",
+        "operationId": "hiatus_admin_fundings__funding_id__hiatus_post",
+        "parameters": [
+          {
+            "name": "funding_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Funding Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HiatusIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/fundings/{funding_id}/serial-check": {
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "연재 지연 판정 (한 달치 경고, 석 달치 귀책 중단)",
+        "operationId": "serial_check_admin_fundings__funding_id__serial_check_post",
+        "parameters": [
+          {
+            "name": "funding_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Funding Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/fundings/{funding_id}/clawback": {
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "귀책 중단 반환금 수납 → 보유자 분배",
+        "operationId": "clawback_admin_fundings__funding_id__clawback_post",
+        "parameters": [
+          {
+            "name": "funding_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Funding Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClawbackIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/jobs/serial-check": {
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "매일: 상장 작품 연재 지연 판정",
+        "operationId": "serial_check_all_admin_jobs_serial_check_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
               }
             }
           },
@@ -13482,6 +14005,219 @@
         }
       }
     },
+    "/broker/notices": {
+      "get": {
+        "tags": [
+          "broker"
+        ],
+        "summary": "[증권사 서버] DIBS 알림: 연재 지연·휴재·중단·완결·특별 분배",
+        "operationId": "notices_broker_notices_get",
+        "parameters": [
+          {
+            "name": "after_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 0,
+              "title": "After Id"
+            }
+          },
+          {
+            "name": "x-broker-signature",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Broker-Signature"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/broker/special-distributions/{special_id}/instruction": {
+      "get": {
+        "tags": [
+          "broker"
+        ],
+        "summary": "[증권사 서버] 특별 분배 지시서 (연재 중단·조기 완결·귀책 유보금·반환금)",
+        "operationId": "special_instruction_broker_special_distributions__special_id__instruction_get",
+        "parameters": [
+          {
+            "name": "special_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Special Id"
+            }
+          },
+          {
+            "name": "x-broker-signature",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Broker-Signature"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/broker/webhooks/{event_type}": {
       "post": {
         "tags": [
@@ -13975,6 +14711,96 @@
         }
       }
     },
+    "/dev/mock-kiwoom/special-distributions/{special_id}/pay": {
+      "post": {
+        "tags": [
+          "broker"
+        ],
+        "summary": "[모의 키움] 특별 분배 지시서대로 지급 → 완료 웹훅",
+        "operationId": "mock_pay_special_dev_mock_kiwoom_special_distributions__special_id__pay_post",
+        "parameters": [
+          {
+            "name": "special_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Special Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/health": {
       "get": {
         "tags": [
@@ -14063,6 +14889,8 @@
           "SYS_ROYALTY_POOL",
           "SYS_TRUST_RECEIVABLE",
           "SYS_PARTNER_COUPON",
+          "SYS_CREATOR_ESCROW",
+          "SYS_SPECIAL_PAYABLE",
           "SYS_TAX_WITHHOLDING",
           "SYS_BROKER_FEE"
         ],
@@ -14297,6 +15125,20 @@
         ],
         "title": "CandleOut"
       },
+      "ClawbackIn": {
+        "properties": {
+          "amount": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Amount"
+          }
+        },
+        "type": "object",
+        "required": [
+          "amount"
+        ],
+        "title": "ClawbackIn"
+      },
       "CloseOut": {
         "properties": {
           "status": {
@@ -14472,8 +15314,36 @@
         "title": "DisclosureOut",
         "description": "공시 묶음 (v5.0): 투자금 쓰임, 매출 배분, 상품 기간, 1인 한도, 분기별 정산 대사와 원장 해시."
       },
+      "DiscontinueIn": {
+        "properties": {
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "FAULT",
+              "NO_FAULT"
+            ],
+            "title": "Kind",
+            "description": "FAULT = 작가 귀책(유죄 판결·표절·권리 분쟁·계약 위반·연재 기한 초과), NO_FAULT = 불가피한 사유(건강·불가항력)",
+            "default": "NO_FAULT"
+          }
+        },
+        "type": "object",
+        "required": [
+          "reason"
+        ],
+        "title": "DiscontinueIn"
+      },
       "DiscontinueOut": {
         "properties": {
+          "kind": {
+            "type": "string",
+            "title": "Kind",
+            "default": "NO_FAULT"
+          },
           "cancelled_payout_amount": {
             "type": "integer",
             "title": "Cancelled Payout Amount"
@@ -14485,6 +15355,21 @@
           "holders": {
             "type": "integer",
             "title": "Holders"
+          },
+          "escrow_forfeited": {
+            "type": "integer",
+            "title": "Escrow Forfeited",
+            "default": 0
+          },
+          "clawback_due": {
+            "type": "integer",
+            "title": "Clawback Due",
+            "default": 0
+          },
+          "clawback_outstanding": {
+            "type": "integer",
+            "title": "Clawback Outstanding",
+            "default": 0
           }
         },
         "type": "object",
@@ -14606,6 +15491,24 @@
           "residual": {
             "type": "integer",
             "title": "Residual"
+          },
+          "creator_escrow": {
+            "type": "integer",
+            "title": "Creator Escrow",
+            "description": "작가 몫 중 회수 전 유보분 (신탁, 회수·종료 때 작가에게)",
+            "default": 0
+          },
+          "escrow_released": {
+            "type": "integer",
+            "title": "Escrow Released",
+            "description": "회수 달성으로 이번 지급 때 작가에게 푼 유보금",
+            "default": 0
+          },
+          "clawback_applied": {
+            "type": "integer",
+            "title": "Clawback Applied",
+            "description": "귀책 중단 반환 청구로 투자자에게 돌린 작가 몫",
+            "default": 0
           },
           "total_units": {
             "type": "integer",
@@ -16154,6 +17057,26 @@
         ],
         "title": "HandoffOut"
       },
+      "HiatusIn": {
+        "properties": {
+          "weeks": {
+            "type": "integer",
+            "maximum": 52.0,
+            "minimum": 1.0,
+            "title": "Weeks"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          }
+        },
+        "type": "object",
+        "required": [
+          "weeks",
+          "reason"
+        ],
+        "title": "HiatusIn"
+      },
       "HideIn": {
         "properties": {
           "hidden": {
@@ -17222,6 +18145,17 @@
               }
             ],
             "title": "Milestone Note"
+          },
+          "episodes_required": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Episodes Required"
           },
           "status": {
             "$ref": "#/components/schemas/PayoutStatus"

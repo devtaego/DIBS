@@ -265,7 +265,11 @@ def buyback_price(db: Session, f: Funding) -> int | None:
 def termination_check(db: Session, f: Funding) -> dict:
     from app.services.funding import add_months
 
-    due = add_months(f.completed_at, settings.termination_after_completion_months) if f.completed_at else None
+    due = None
+    if f.completed_at:  # 완결 후 12개월과 상장 후 24개월 중 늦은 쪽 (조기 완결해도 투자자 기간 보전)
+        due = add_months(f.completed_at, settings.termination_after_completion_months)
+        if f.listed_at:
+            due = max(due, add_months(f.listed_at, settings.min_term_after_listing_months))
     threshold = f.target_amount * settings.low_revenue_bps // BPS
     streak = 0
     for r in _recent_runs(db, f, settings.low_revenue_quarters):
@@ -294,12 +298,11 @@ def _require_live(f: Funding) -> None:
         raise Conflict("INVALID_FUNDING_STATUS", f"현재 상태({f.status})에서는 할 수 없어요")
 
 
-def mark_completed(db: Session, f: Funding) -> Funding:
-    _require_live(f)
-    if f.completed_at:
-        raise Conflict("ALREADY_COMPLETED", "이미 완결 처리된 작품이에요")
-    f.completed_at = clock.now()
-    return f
+def mark_completed(db: Session, f: Funding) -> dict:
+    """완결 확정: services/serial.py (약정 회차 전이면 조기 완결 감액)."""
+    from app.services import serial
+
+    return serial.complete_season(db, f)
 
 
 def terminate(db: Session, f: Funding, force: bool = False) -> Funding:
@@ -313,6 +316,9 @@ def terminate(db: Session, f: Funding, force: bool = False) -> Funding:
         notify(db, h.user_id, "TERMINATED", f"「{work.title}」 수익 배분 권리가 종료됐어요",
                "이미 계산된 분기 배당은 예정대로 지급돼요. 원금 상환은 없어요.", "funding", f.id)
     f.status, f.terminated_at, f.termination_reason = FundingStatus.TERMINATED, clock.now(), chk["reason"] or "FORCED"
+    from app.services import serial
+
+    serial.release_escrow(db, f, "권리 종료")
     return f
 
 
@@ -344,4 +350,7 @@ def buyback(db: Session, f: Funding, creator_id: int) -> dict:
         legs.append(Leg(creator_acc.deposit, price - paid))  # 절사 잔여는 작가에게 반환
     ledger.post(db, "CREATOR_BUYBACK", legs, f.mode, "funding", f.id)
     f.status, f.terminated_at, f.termination_reason = FundingStatus.TERMINATED, clock.now(), "BUYBACK"
+    from app.services import serial
+
+    serial.release_escrow(db, f, "작가 매입으로 권리 종료")
     return {"price": price, "paid": paid, "holders": len(holders)}

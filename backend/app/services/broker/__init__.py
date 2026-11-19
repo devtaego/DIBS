@@ -147,6 +147,22 @@ def dividend_instruction(db: Session, run: DividendRun) -> dict:
             "lines": lines, "unlinked": {"count": len(unlinked), "gross": sum(u["gross"] for u in unlinked)}}
 
 
+def special_instruction(db: Session, special_id: int) -> dict:
+    """특별 분배 지시서 (연재 중단·조기 완결·귀책 유보금·반환금). 원천징수 여부는 증권 형태에 따라 증권사가 정한다."""
+    from app.models import SpecialDistribution
+
+    sd = db.get(SpecialDistribution, special_id)
+    if sd is None:
+        raise NotFound("SPECIAL_NOT_FOUND", "특별 분배 내역을 찾을 수 없어요")
+    links = _links_by_user(db)
+    lines = [{"link_ref": links[l["user_id"]], "units": l["units"], "amount": l["amount"]}
+             for l in sd.lines if l["user_id"] in links]
+    unlinked = [l for l in sd.lines if l["user_id"] not in links]
+    return {"special_id": sd.id, "funding_id": sd.funding_id, "kind": sd.kind, "status": sd.status,
+            "total": sd.amount, "lines": lines,
+            "unlinked": {"count": len(unlinked), "amount": sum(l["amount"] for l in unlinked)}}
+
+
 # ───────────────────────────── 증권사 → DIBS 웹훅 ─────────────────────────────
 
 def _state(db: Session, funding_id: int) -> BrokerOfferingState:
@@ -212,6 +228,12 @@ def handle_event(db: Session, event_type: str, event_id: str, payload: dict) -> 
         st = _state(db, fid)
         st.holder_registry = {h["link_ref"]: h["units"] for h in payload["holders"]}
         st.registry_as_of = clock.now()
+    elif event_type == "payout-completed" and "special_id" in payload:
+        expected = special_instruction(db, payload["special_id"])["total"]
+        st = _state(db, payload["funding_id"])
+        st.paid_runs = {**st.paid_runs, f"special-{payload['special_id']}": {
+            "gross": payload["gross"], "matched": payload["gross"] == expected}}
+        out["matched"] = payload["gross"] == expected
     elif event_type == "payout-completed":
         run = db.get(DividendRun, payload["run_id"])
         if run is None:

@@ -3,6 +3,7 @@ from datetime import date, datetime
 from sqlalchemy import JSON, BigInteger, Boolean, Date, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from app.core import clock
 from app.core.config import settings
 from app.core.db import Base
 from app.models.base import TimestampMixin, enum_col
@@ -77,6 +78,19 @@ class Funding(TimestampMixin, Base):
     termination_reason: Mapped[str | None] = mapped_column(String(50))  # COMPLETED_TERM | LOW_REVENUE | BUYBACK
     buyback_enabled: Mapped[bool] = mapped_column(Boolean, default=False)  # 작가 매입 옵션 (선택 사항)
     discontinued_at: Mapped[datetime | None] = mapped_column(DateTime)  # 연재 중단 확정
+    discontinue_kind: Mapped[str | None] = mapped_column(String(10))  # FAULT | NO_FAULT
+
+    # 연재 약정 (태업·조기 완결·귀책 중단 대비)
+    committed_episodes: Mapped[int] = mapped_column(Integer, default=settings.default_committed_episodes)
+    monthly_quota: Mapped[int] = mapped_column(Integer, default=settings.monthly_episode_quota)
+    buffer_episodes: Mapped[int | None] = mapped_column(Integer)  # 공모 전 비축분 (DIBS 심사 때 확인)
+    hiatus_weeks_used: Mapped[int] = mapped_column(Integer, default=0)  # 미리 알린 휴재 누적 주
+    episodes_at_listing: Mapped[int | None] = mapped_column(Integer)  # 상장 시점 회차 수 (시즌 진행 기준점)
+    delay_warned_at: Mapped[datetime | None] = mapped_column(DateTime)
+    early_completed: Mapped[bool] = mapped_column(Boolean, default=False)  # 약정 회차 전에 완결
+    creator_escrow_balance: Mapped[int] = mapped_column(BigInteger, default=0)  # 유보 중인 작가 매출 몫
+    clawback_due: Mapped[int] = mapped_column(BigInteger, default=0)  # 귀책 중단 반환 청구액
+    clawback_collected: Mapped[int] = mapped_column(BigInteger, default=0)
 
     # 마켓
     reference_price: Mapped[int | None] = mapped_column(Integer)  # 가격제한폭 기준가 (전일 종가)
@@ -157,6 +171,26 @@ class PayoutSchedule(Base):
     bps: Mapped[int] = mapped_column(Integer)  # 작가 지급분 중 비율
     trigger: Mapped[PayoutTrigger] = enum_col(PayoutTrigger)
     milestone_note: Mapped[str | None] = mapped_column(String(255))
+    episodes_required: Mapped[int | None] = mapped_column(Integer)  # 시즌 연재가 이 회차에 닿으면 자동 지급
     status: Mapped[PayoutStatus] = enum_col(PayoutStatus, default=PayoutStatus.PENDING)
     amount: Mapped[int | None] = mapped_column(BigInteger)
     paid_journal_id: Mapped[int | None] = mapped_column(ForeignKey("journals.id"))
+
+
+class SpecialDistribution(Base):
+    """배당 외 특별 분배: 연재 중단·조기 완결로 취소된 작가 지급분, 귀책 시 유보금·반환금.
+
+    INTERNAL 모드는 바로 예치금으로, BROKER 모드는 분배 지시서를 만들고 증권사 지급 완료 웹훅을 받아 확정한다.
+    """
+
+    __tablename__ = "special_distributions"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    funding_id: Mapped[int] = mapped_column(ForeignKey("fundings.id"), index=True)
+    kind: Mapped[str] = mapped_column(String(30))  # DISCONTINUE | EARLY_COMPLETION | ESCROW_FORFEIT | CLAWBACK
+    amount: Mapped[int] = mapped_column(BigInteger)
+    lines: Mapped[list] = mapped_column(JSON, default=list)  # [{user_id, units, amount}]
+    status: Mapped[str] = mapped_column(String(20), default="PAID")  # PAID | INSTRUCTED
+    memo: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=clock.now)
+    paid_at: Mapped[datetime | None] = mapped_column(DateTime)

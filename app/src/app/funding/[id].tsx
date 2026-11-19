@@ -4,20 +4,28 @@ import { View } from 'react-native';
 
 import { Cover, CtaBar, DNote, Ride } from '@/components/dibby';
 import { Badge, Button, Card, ErrorBox, H1, H2, KV, Loading, MockBadge, Muted, Row, Screen, T } from '@/components/ui';
-import { api, ApiError, track, type Breakeven, type Disclosure, type FundingDetail, type Indicators, type Subscription } from '@/lib/api';
+import { api, ApiError, track, type Breakeven, type Disclosure, type FundingDetail, type Indicators, type Serial, type Subscription } from '@/lib/api';
 import { FUNDING_STATUS, SUB_STATUS, bps, dateText, won } from '@/lib/format';
 import { colors, radii, space } from '@/lib/theme';
 import { useApi } from '@/lib/useApi';
+
+const SERIAL_LABEL: Record<Serial['state'], string> = {
+  ON_TRACK: '연재 정상', WARNING: '연재 지연', BREACH: '기한 초과', COMPLETED: '시즌 완결', EARLY_COMPLETED: '조기 완결', DISCONTINUED: '연재 중단',
+};
+const SPECIAL_LABEL: Record<string, string> = {
+  DISCONTINUE: '연재 중단', EARLY_COMPLETION: '조기 완결', ESCROW_FORFEIT: '유보금', CLAWBACK: '작가 반환금',
+};
 
 export default function FundingScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { data, error, loading, reload } = useApi(
     async () => {
-      const [f, be, ind, disc] = await Promise.all([
+      const [f, be, ind, disc, ser] = await Promise.all([
         api.get<FundingDetail>(`/fundings/${id}`),
         api.get<Breakeven>(`/fundings/${id}/breakeven`),
         api.get<Indicators>(`/fundings/${id}/indicators`),
         api.get<Disclosure>(`/fundings/${id}/disclosure`),
+        api.get<Serial>(`/fundings/${id}/serial`),
       ]);
       let sub: Subscription | null = null;
       try {
@@ -25,7 +33,7 @@ export default function FundingScreen() {
       } catch (e) {
         if ((e as ApiError).status !== 404) throw e;
       }
-      return { f, be, sub, ind, disc };
+      return { f, be, sub, ind, disc, ser };
     },
     [id],
     30_000, // 모집 중 달성률 30초마다 갱신
@@ -37,7 +45,7 @@ export default function FundingScreen() {
 
   if (loading && !data) return <Screen><Loading /></Screen>;
   if (!data) return <Screen><ErrorBox error={error} onRetry={reload} /></Screen>;
-  const { f, be, sub, ind, disc } = data;
+  const { f, be, sub, ind, disc, ser } = data;
   const mult = (v: number | null) => (v === null ? '-' : `${v.toFixed(2)}배`);
   const mon = (v: number | null) => (v === null ? '기간 안 회수 못 함' : `${v}개월에 회수`);
   const SCEN: [keyof Indicators['scenarios'], string][] = [
@@ -138,6 +146,33 @@ export default function FundingScreen() {
         ))}
         {disc.verification.map((v) => (
           <Muted key={v} size={12} style={{ marginTop: space(1) }}>· {v}</Muted>
+        ))}
+      </Card>
+
+      <H2>연재 약정</H2>
+      <Card>
+        <Row style={{ justifyContent: 'space-between' }}>
+          <T weight="700">시즌 {ser.committed_episodes}화 · 한 달 {ser.monthly_quota}화</T>
+          <Badge label={SERIAL_LABEL[ser.state]} tone={ser.state === 'ON_TRACK' || ser.state === 'COMPLETED' ? 'accent' : 'danger'} />
+        </Row>
+        {ser.expected || ser.published ? (
+          <KV k="연재 진행" v={`${ser.published}화 / 기한상 ${ser.expected}화`} vColor={ser.delay_episodes ? colors.danger : colors.text} />
+        ) : null}
+        <KV k="미리 알린 휴재" v={`${ser.hiatus_weeks_used}주 / ${ser.hiatus_limit_weeks}주까지 기한 연장`} />
+        {ser.creator_escrow_balance ? <KV k="유보 중인 작가 매출 몫" v={won(ser.creator_escrow_balance)} /> : null}
+        {ser.clawback_due ? <KV k="작가 반환 청구 (남은 금액)" v={won(ser.clawback_outstanding)} vColor={colors.danger} /> : null}
+        <Muted size={12} style={{ marginTop: space(2) }}>
+          작가 제작비는 상장 40% · {Math.ceil(ser.committed_episodes / 2)}화 30% · {ser.committed_episodes}화 30%로 나눠 지급해요.
+          연재가 {ser.rules.delay_warning_episodes}화 밀리면 알려 드리고, {ser.rules.delay_breach_episodes}화 밀리면 작가 귀책 중단으로 남은 제작비를 보유자에게 나눠요.
+        </Muted>
+        <Muted size={12} style={{ marginTop: space(1) }}>
+          약정보다 일찍 완결하면 남은 제작비를 연재한 만큼만 주고 나머지는 보유자에게 돌려요. 권리는 상장 후 최소 {ser.rules.min_term_after_listing_months}개월 유지돼요.
+        </Muted>
+        <Muted size={12} style={{ marginTop: space(1) }}>
+          작가 귀책(유죄 판결·표절·계약 위반 등)이면 이미 받은 제작비의 {bps(ser.rules.clawback_bps)}를 돌려받고, 회수 전 유보해 둔 작가 매출 몫({bps(ser.rules.creator_escrow_bps)})도 보유자에게 가요.
+        </Muted>
+        {ser.special_distributions.map((d) => (
+          <KV key={d.id} k={`특별 분배 · ${SPECIAL_LABEL[d.kind] ?? d.kind}`} v={`${won(d.amount)}${d.status === 'PAID' ? '' : ' (증권사 지급 중)'}`} />
         ))}
       </Card>
 

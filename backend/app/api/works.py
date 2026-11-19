@@ -148,6 +148,9 @@ def create_episode(work_id: int, body: EpisodeIn, db: Session = Depends(get_db),
     e = Episode(work_id=w.id, **body.model_dump())  # 발행 전에는 항상 무료
     db.add(e)
     db.flush()
+    from app.services import serial
+
+    serial.on_episode_published(db, w)  # 상장 작품: 약정 회차 마일스톤 자동 지급, 약정 완료 시 시즌 완결
     return e
 
 

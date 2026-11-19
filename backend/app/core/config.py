@@ -76,11 +76,25 @@ class Settings(BaseModel):
     assumed_pay_rate_bps: int = 1500  # 참고용: 열람자 중 결제 비율 15% (네이버 플랫폼 평균, 작품 단위에는 상한값)
     assumed_monthly_episodes: int = 4  # 유료 팬 1명이 한 달에 구매하는 미리보기 회차
     # 작가 분할 지급 기본 일정 (bps, trigger, 마일스톤 설명)
+    # episodes_bps = 약정 회차 중 이만큼 연재되면 자동 지급 (5000 = 절반, 10000 = 약정 회차 완결)
     default_payout_schedule: list = [
         {"bps": 4000, "trigger": "ON_LISTED", "milestone_note": "상장"},
-        {"bps": 3000, "trigger": "MILESTONE", "milestone_note": "10화 연재"},
-        {"bps": 3000, "trigger": "MILESTONE", "milestone_note": "20화 연재 또는 완결"},
+        {"bps": 3000, "trigger": "MILESTONE", "milestone_note": "약정 회차 절반 연재", "episodes_bps": 5000},
+        {"bps": 3000, "trigger": "MILESTONE", "milestone_note": "약정 회차 완결", "episodes_bps": 10000},
     ]
+
+    # ── 연재 약정과 연재 위험 ──
+    default_committed_episodes: int = 40  # 시즌 약정 회차 (주 1회 약 10개월)
+    min_committed_episodes: int = 20
+    monthly_episode_quota: int = 4  # 기한 계산 기준: 한 달 4화
+    hiatus_limit_weeks: int = 8  # 미리 알린 휴재는 시즌 중 누적 8주까지 기한에서 빼 준다
+    buffer_bps: int = 2500  # 공모 전 비축분 ≥ 약정 회차의 25%
+    enforce_buffer: bool = _env_bool("DIBS_ENFORCE_BUFFER", False)  # 시연 데이터 규모 때문에 기본 꺼짐, 운영에서 켬
+    delay_warning_months: int = 1  # 한 달치(4화) 이상 밀리면 경고·공시
+    delay_breach_months: int = 3  # 석 달치(12화) 밀리면 귀책 중단
+    min_term_after_listing_months: int = 24  # 조기 완결해도 상장 후 24개월까지는 권리 유지
+    clawback_bps: int = 5000  # 귀책 중단: 이미 받은 작가 지급금의 50% 반환
+    creator_escrow_bps: int = 5000  # 회수 전 작가 매출 몫의 50%를 신탁에 유보 (회수·종료 때 작가에게, 귀책 시 투자자에게)
 
     # 배당 재원(순매출) 배분 (bps) — v4.0 회수 우선 배분
     # 회수 전: 작가 30 / 투자자 45 / DIBS 25

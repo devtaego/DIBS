@@ -100,4 +100,4 @@ def test_security_detail_chart_preview_settlement(api, published_work, now):
 
     st = api.ok("creator", "get", "/studio/settlements")
     assert st[0]["paid_total"] == 340_000 and st[0]["payouts"][0]["status"] == "PAID"
-    assert [p["milestone_note"] for p in st[0]["payouts"]] == ["상장", "10화 연재", "20화 연재 또는 완결"]
+    assert [p["milestone_note"] for p in st[0]["payouts"]] == ["상장", "약정 회차 절반 연재", "약정 회차 완결"]

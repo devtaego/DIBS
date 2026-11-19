@@ -115,6 +115,14 @@ erDiagram
         datetime linked_at
         datetime unlinked_at
     }
+    broker_notices {
+        integer id PK
+        string broker
+        integer funding_id FK
+        string kind
+        json payload
+        datetime created_at
+    }
     broker_offering_states {
         integer id PK
         string broker
@@ -170,6 +178,9 @@ erDiagram
         bigint creator_amount
         bigint platform_amount
         bigint residual
+        bigint creator_escrow
+        bigint escrow_released
+        bigint clawback_applied
         integer total_units
         double per_unit_gross
         enum status
@@ -232,6 +243,17 @@ erDiagram
         string termination_reason
         boolean buyback_enabled
         datetime discontinued_at
+        string discontinue_kind
+        integer committed_episodes
+        integer monthly_quota
+        integer buffer_episodes
+        integer hiatus_weeks_used
+        integer episodes_at_listing
+        datetime delay_warned_at
+        boolean early_completed
+        bigint creator_escrow_balance
+        bigint clawback_due
+        bigint clawback_collected
         integer reference_price
         integer last_price
         datetime listed_at
@@ -316,6 +338,7 @@ erDiagram
         integer bps
         enum trigger
         string milestone_note
+        integer episodes_required
         enum status
         bigint amount
         integer paid_journal_id FK
@@ -377,6 +400,17 @@ erDiagram
         integer duration_sec
         datetime created_at
         datetime updated_at
+    }
+    special_distributions {
+        integer id PK
+        integer funding_id FK
+        string kind
+        bigint amount
+        json lines
+        string status
+        text memo
+        datetime created_at
+        datetime paid_at
     }
     subscriptions {
         integer id PK
@@ -464,6 +498,7 @@ erDiagram
     episodes ||--o{ episode_unlocks : "episode_id"
     episodes ||--o{ posts : "episode_id"
     fundings ||--o{ broker_events : "funding_id"
+    fundings ||--o{ broker_notices : "funding_id"
     fundings ||--o{ broker_offering_states : "funding_id"
     fundings ||--o{ content_events : "funding_id"
     fundings ||--o{ dividend_runs : "funding_id"
@@ -475,6 +510,7 @@ erDiagram
     fundings ||--o{ payout_schedules : "funding_id"
     fundings ||--o{ revenue_records : "funding_id"
     fundings ||--o{ reward_tiers : "funding_id"
+    fundings ||--o{ special_distributions : "funding_id"
     fundings ||--o{ subscriptions : "funding_id"
     fundings ||--o{ trades : "funding_id"
     journals ||--o{ dividend_runs : "journal_id"

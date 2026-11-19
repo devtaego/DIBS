@@ -190,3 +190,14 @@ def change(funding_id: int, body: SubscriptionPatch, db: Session = Depends(get_d
                summary="청약 취소 (마감 1시간 전까지)")
 def cancel(funding_id: int, db: Session = Depends(get_db), user: User = Depends(current_user)):
     return svc.cancel_subscription(db, user, svc.get_funding(db, funding_id))
+
+
+@router.get("/fundings/{funding_id}/serial",
+            summary="연재 약정·진행 (약정 회차·기한·휴재·지연 상태, 작가 몫 유보금·반환 청구, 특별 분배 내역)")
+def funding_serial(funding_id: int, db: Session = Depends(get_db)):
+    from app.services import serial
+
+    f = svc.get_funding(db, funding_id)
+    if f.status not in PUBLIC_STATUSES:
+        raise NotFound("FUNDING_NOT_FOUND", "펀딩을 찾을 수 없어요")
+    return serial.overview(db, f)

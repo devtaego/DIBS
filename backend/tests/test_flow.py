@@ -157,7 +157,9 @@ def test_full_flow(api, published_work, now):
     mine = api.ok("a", "get", "/me/dividends")[0]
     assert (mine["units"], mine["gross"], mine["tax"], mine["net"]) == (42, 24_702, 3_804, 20_898)
     assert wallet(api, "a")["deposit_available"] == before + 20_898
-    assert wallet(api, "creator")["deposit_available"] == 340_000 + 39_210
+    # 회수 전 작가 몫의 50%는 신탁에 유보 (회수·종료 때 작가에게)
+    assert run["creator_escrow"] == 19_605
+    assert wallet(api, "creator")["deposit_available"] == 340_000 + 39_210 - 19_605
     assert api.ok("a", "get", "/me/notifications")[0]["type"] == "DIVIDEND_PAID"
     assert_books_balance(api)
 

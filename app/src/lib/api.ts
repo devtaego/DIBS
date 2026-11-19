@@ -138,6 +138,16 @@ export type Disclosure = {
   per_user_cap_amount: number; buyback_enabled: boolean; settlement_basis: string; verification: string[];
   reconciliation: Reconciliation[];
 };
+/** 연재 약정·진행 (태업·조기 완결·귀책 중단 대비) */
+export type SerialState = 'ON_TRACK' | 'WARNING' | 'BREACH' | 'COMPLETED' | 'EARLY_COMPLETED' | 'DISCONTINUED';
+export type Serial = {
+  committed_episodes: number; monthly_quota: number; buffer_episodes: number | null; required_buffer: number;
+  published: number; expected: number; delay_episodes: number; hiatus_weeks_used: number; hiatus_limit_weeks: number;
+  state: SerialState; next_payout_at_episode: number | null; discontinue_kind: 'FAULT' | 'NO_FAULT' | null;
+  creator_escrow_balance: number; clawback_due: number; clawback_collected: number; clawback_outstanding: number;
+  rules: { delay_warning_episodes: number; delay_breach_episodes: number; clawback_bps: number; creator_escrow_bps: number; min_term_after_listing_months: number };
+  special_distributions: { id: number; kind: string; amount: number; status: string; holders: number; created_at: string }[];
+};
 /** B안 증권사 연계 */
 export type PublicConfig = { subscription_channel: 'INTERNAL' | 'BROKER'; broker_name: string; trading_mode: string; partner_coupon_coin: number; first_time_cap_amount: number };
 export type Handoff = { channel: string; broker: string; deeplink: string; token: string; expires_at: string; linked: boolean };

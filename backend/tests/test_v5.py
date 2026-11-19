@@ -176,11 +176,12 @@ def test_discontinue_distributes_unpaid_payouts(api, published_work, now):
     fid = listed(api, published_work["id"], now, {"a": 75, "b": 25})
     before = api.ok("b", "get", "/wallet")["deposit_available"]
     out = api.ok("admin", "post", f"/admin/fundings/{fid}/discontinue", json={"reason": "작가 연재 중단 확정"})
-    assert out == {"cancelled_payout_amount": 510_000, "distributed": 510_000, "holders": 2}
+    assert out == {"kind": "NO_FAULT", "cancelled_payout_amount": 510_000, "distributed": 510_000, "holders": 2,
+                   "escrow_forfeited": 0, "clawback_due": 0, "clawback_outstanding": 0}
     assert api.ok("b", "get", "/wallet")["deposit_available"] == before + 127_500
     assert {p["status"] for p in api.ok("admin", "get", f"/admin/fundings/{fid}/payouts")[1:]} == {"CANCELLED"}
     assert api.ok(None, "get", f"/fundings/{fid}")["status"] == "SUSPENDED"
-    assert api.ok("b", "get", "/me/notifications")[0]["type"] == "DISCONTINUED_REFUND"
+    assert api.ok("b", "get", "/me/notifications")[0]["type"] == "SPECIAL_DISCONTINUE"
 
 
 def test_no_maturity_termination_rules(api, published_work, now):
@@ -208,10 +209,13 @@ def test_completion_plus_12_months_and_optional_buyback(api, published_work, now
     fid = listed(api, published_work["id"], now, {"a": 60, "b": 40})
     api.ok("admin", "post", f"/admin/fundings/{fid}/complete")
     q = api.ok(None, "get", f"/fundings/{fid}/buyback-quote")
-    assert q["terminate_due_at"].startswith("2028-03-02") and not q["eligible"]
+    # 조기 완결이라도 '완결 후 12개월'과 '상장 후 24개월' 중 늦은 쪽까지 권리 유지
+    assert q["terminate_due_at"].startswith("2029-03-02") and not q["eligible"]
     assert (q["buyback_enabled"], q["buyback_price"]) == (False, None)
     api.err("creator", "post", f"/fundings/{fid}/buyback", "BUYBACK_NOT_ENABLED")
     clock.set_now(now + timedelta(days=366))
+    assert not api.ok(None, "get", f"/fundings/{fid}/buyback-quote")["eligible"]
+    clock.set_now(now + timedelta(days=731))
     q = api.ok(None, "get", f"/fundings/{fid}/buyback-quote")
     assert (q["eligible"], q["reason"]) == (True, "COMPLETED_TERM")
 

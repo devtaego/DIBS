@@ -59,6 +59,8 @@ class AccountKind(StrEnum):
     # 상장 작품 유료 회차 매출: 결제 시점에 신탁 계좌로 바로 분할 (DIBS 매출 계정을 거치지 않음)
     SYS_TRUST_RECEIVABLE = "SYS_TRUST_RECEIVABLE"
     SYS_PARTNER_COUPON = "SYS_PARTNER_COUPON"  # 증권사가 사서 신규 계좌 고객에게 준 코인 (계좌 개설 쿠폰)
+    SYS_CREATOR_ESCROW = "SYS_CREATOR_ESCROW"  # 회수 전 유보한 작가 매출 몫 (신탁)
+    SYS_SPECIAL_PAYABLE = "SYS_SPECIAL_PAYABLE"  # 증권사 지급 대기 중인 특별 분배금
     SYS_TAX_WITHHOLDING = "SYS_TAX_WITHHOLDING"
     SYS_BROKER_FEE = "SYS_BROKER_FEE"  # 거래 수수료 0.015% (거래소·증권사 몫, 모의)
 
@@ -128,6 +130,11 @@ class OrderStatus(StrEnum):
 class PayoutTrigger(StrEnum):
     ON_LISTED = "ON_LISTED"
     MILESTONE = "MILESTONE"  # 운영자 확인 후 지급 (분할 지급용)
+
+
+class DiscontinueKind(StrEnum):
+    FAULT = "FAULT"  # 작가 귀책: 유죄 판결·표절·권리 분쟁·계약 위반·연재 기한 초과
+    NO_FAULT = "NO_FAULT"  # 불가피한 사유: 건강·불가항력 (DIBS 확인)
 
 
 class PayoutStatus(StrEnum):

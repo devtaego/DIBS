@@ -1,4 +1,5 @@
 from datetime import date, datetime
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -285,6 +286,7 @@ class PayoutOut(ORM):
     bps: int
     trigger: PayoutTrigger
     milestone_note: str | None
+    episodes_required: int | None = None
     status: PayoutStatus
     amount: int | None
 
@@ -374,7 +376,27 @@ class BreakevenOut(BaseModel):
     lines: list[BreakevenLine]
 
 
+class DiscontinueIn(BaseModel):
+    reason: str
+    kind: Literal["FAULT", "NO_FAULT"] = Field(
+        default="NO_FAULT", description="FAULT = 작가 귀책(유죄 판결·표절·권리 분쟁·계약 위반·연재 기한 초과), "
+                                        "NO_FAULT = 불가피한 사유(건강·불가항력)")
+
+
+class HiatusIn(BaseModel):
+    weeks: int = Field(ge=1, le=52)
+    reason: str
+
+
+class ClawbackIn(BaseModel):
+    amount: int = Field(ge=1)
+
+
 class DiscontinueOut(BaseModel):
+    kind: str = "NO_FAULT"
     cancelled_payout_amount: int
     distributed: int
     holders: int
+    escrow_forfeited: int = 0
+    clawback_due: int = 0
+    clawback_outstanding: int = 0

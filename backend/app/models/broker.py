@@ -55,3 +55,16 @@ class BrokerOfferingState(Base):
     holder_registry: Mapped[dict] = mapped_column(JSON, default=dict)  # {link_ref: units} 분기 기준일 보유자 명부
     paid_runs: Mapped[dict] = mapped_column(JSON, default=dict)  # {run_id: {"gross":…, "tax":…}}
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=clock.now, onupdate=clock.now)
+
+
+class BrokerNotice(Base):
+    """DIBS → 증권사 알림 (증권사가 서명 요청으로 가져감). 연재 지연·중단·완결·특별 분배."""
+
+    __tablename__ = "broker_notices"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    broker: Mapped[str] = mapped_column(String(20))
+    funding_id: Mapped[int] = mapped_column(ForeignKey("fundings.id"), index=True)
+    kind: Mapped[str] = mapped_column(String(40))  # SERIAL_DELAY_WARNING | DISCONTINUED | SEASON_COMPLETED | SPECIAL_DISTRIBUTION | HIATUS
+    payload: Mapped[dict] = mapped_column(JSON, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=clock.now)

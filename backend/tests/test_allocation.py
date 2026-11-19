@@ -57,3 +57,13 @@ def test_equal_then_pro_rata_invariants(seed):
         alloc = strat.allocate(reqs(units), target)
         assert sum(alloc.values()) == min(target, sum(units))
         assert all(0 <= alloc[i] <= u for i, u in enumerate(units))
+
+
+def test_early_reader_pool_first_then_general_equal():
+    """v4.0: 발행량 20% 균등 중 10%는 초기 독자에게 먼저. 남는 초기 독자 몫은 일반 균등으로 넘어간다."""
+    reqs = [AllocationRequest(1, 100, (1,), early=True), AllocationRequest(2, 100, (2,)), AllocationRequest(3, 100, (3,))]
+    alloc = EqualThenProRata(2000, 1000).allocate(reqs, 100)
+    assert sum(alloc.values()) == 100 and alloc[1] > alloc[2] == alloc[3]
+    # 초기 독자가 없으면 20% 전부 일반 균등
+    plain = [AllocationRequest(k, 100, (k,)) for k in (1, 2, 3)]
+    assert EqualThenProRata(2000, 1000).allocate(plain, 100) == EqualThenProRata(2000).allocate(plain, 100)

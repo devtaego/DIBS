@@ -58,16 +58,55 @@ class FundingTermsOut(ORM):
     creator_bps: int
     issuance_cost_bps: int
     platform_fee_bps: int
-    royalty_platform_bps: int
-    royalty_creator_bps: int
-    royalty_holder_bps: int
+    royalty_platform_bps: int = Field(description="회수 전 DIBS 몫 (기본 25%)")
+    royalty_creator_bps: int = Field(description="회수 전 작가 몫 (기본 30%)")
+    royalty_holder_bps: int = Field(description="회수 전 투자자 몫 (기본 45%)")
+    royalty_platform_after_bps: int = Field(description="회수 후 DIBS 몫 (기본 25%)")
+    royalty_creator_after_bps: int = Field(description="회수 후 작가 몫 (기본 40%)")
+    royalty_holder_after_bps: int = Field(description="회수 후 투자자 몫 (기본 35%)")
     allocation_strategy: str
-    allocation_params: dict
-    operating_period_months: int
-    maturity_policy: str
+    allocation_params: dict = Field(description="equal_ratio_bps(균등 20%), early_reader_bps(초기 독자 우선 10%)")
     exclusive_months: int = Field(description="상장 후 DIBS 선공개 독점 기간(개월)")
     exclusive_until: datetime | None
-    external_share_bps: int = Field(description="외부 진출 후 작가 몫 외부 연재 수익 중 배당 재원 비율")
+    external_share_bps: int = Field(description="독점 종료 후 외부 연재·영상화 수익 중 작가 몫에서 순매출에 넣는 비율")
+
+
+class RecoupOut(BaseModel):
+    """회수 우선 배분 진행 상황."""
+
+    phase: str = Field(description="BEFORE_RECOUP | AFTER_RECOUP")
+    recouped_period: str | None
+    cumulative_holder_gross: int = Field(description="누적 세전 분배금 (투자자 전체)")
+    issuance_amount: int
+    progress_pct: float
+    holder_bps_now: int
+    holder_bps_before: int
+    holder_bps_after: int
+
+
+class TerminationOut(BaseModel):
+    completed_at: datetime | None
+    terminate_due_at: datetime | None = Field(description="완결 후 3년")
+    low_revenue_threshold: int = Field(description="분기 순매출이 이보다 작으면 저매출 분기 (발행액 0.5%)")
+    low_revenue_streak: int
+    eligible: bool
+    reason: str | None
+    buyback_price: int | None = Field(description="작가 매입가 = 최근 4분기 보유자 분배금 합계 × 3")
+
+
+class FundingGateOut(BaseModel):
+    """펀딩 개설 조건과 목표 금액 상한 (v4.0)."""
+
+    work_id: int
+    target_amount: int
+    pilot_readers_4w: int
+    readers_needed_for_4y: int
+    gate_threshold: int = Field(description="필요 열람자의 50%")
+    passes_gate: bool
+    expected_monthly_readers: int
+    target_cap: int = Field(description="예상 월 투자자 몫(세후) × 48개월")
+    within_cap: bool
+    enforced: bool
 
 
 class FundingOut(ORM):
@@ -99,7 +138,10 @@ class FundingDetailOut(FundingOut):
     reward_tiers: list[RewardTierOut]
     progress: FundingProgress
     lock_at: datetime | None = Field(description="이 시각부터 감액·취소 불가")
-    maturity_date: datetime | None = Field(description="만기일 (상장 후 계산). 만기 시 상장폐지, 원금 상환 없음")
+    per_user_cap_units: int = Field(description="1인 청약 한도 (3,000만 원과 발행액 5% 중 작은 금액)")
+    risk_grade: str = Field(default="매우 높은 위험")
+    recoup: RecoupOut
+    termination: TerminationOut | None = Field(description="상장 후에만 (만기 없음, 종료 규칙)")
 
 
 class SubscribeIn(BaseModel):
@@ -109,8 +151,8 @@ class SubscribeIn(BaseModel):
                                                          "zipcode": "06236", "address1": "서울 강남구 테헤란로 142",
                                                          "address2": "12층"}])
     agree_risk_notice: bool = Field(description="투자 위험 고지 동의 (true 필수)")
-    agree_no_principal_return: bool = Field(
-        default=False, description="만기 시 원금 상환 없음·예금자 보호 대상 아님 동의 (true 필수, v3.0)")
+    agree_termination_rule: bool = Field(
+        default=False, description="만기 없음·원금 상환 없음·종료 규칙·작가 매입 옵션 동의 (true 필수, v4.0)")
 
 
 class SubscriptionPatch(BaseModel):
@@ -136,6 +178,7 @@ class AllocationLine(BaseModel):
     user_id: int
     requested: int
     allocated: int
+    early_reader: bool = Field(default=False, description="모집 시작 전 찜한 초기 독자 (우선 균등 배정 대상)")
 
 
 class CloseOut(BaseModel):
@@ -259,10 +302,11 @@ class BreakevenLine(BaseModel):
     net_revenue_per_year: int
     paid_unlocks_per_month: int
     buyers_per_episode: int
+    monthly_readers: int = Field(description="결제율 가정으로 환산한 필요 월 열람자")
 
 
 class BreakevenOut(BaseModel):
-    """손익분기 독자 규모 공시 (청약 화면). 1년차 DIBS 안 유료 회차 매출만으로 계산한 보수적 수치."""
+    """손익분기 독자 규모 공시 (청약 화면). 회수 전 투자자 몫(세후)으로 4년·2년 안에 원금을 돌려받는 데 필요한 규모."""
 
     funding_id: int
     target_amount: int

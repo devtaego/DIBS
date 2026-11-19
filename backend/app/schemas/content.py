@@ -54,8 +54,10 @@ class EpisodeOut(ORM):
     work_id: int
     no: int
     title: str
-    is_paid: bool
+    is_paid: bool = Field(description="지금 결제가 필요한 회차인가 (유료 미리보기 기간 중)")
+    paid_preview: bool = Field(description="유료 미리보기로 지정된 회차")
     price_coin: int
+    free_unlock_at: datetime | None = Field(description="이 시각부터 무료 (공개 21일 후)")
 
 
 class EpisodeContentOut(EpisodeOut):

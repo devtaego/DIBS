@@ -1,9 +1,10 @@
 """저작권료 분기 배당.
 
-재원 (v3.0)
-  - 나눠지는 재원: 상장 작품의 DIBS 안 순매출 (유료 회차·광고·굿즈) → DIBS / 작가 / 주주 = 30/30/40
-  - 전액 주주 재원: 외부 연재 수익 중 작가 몫 × 20% (선공개 독점 종료 후), 거래 수수료 적립분
-  - 영상화·게임 등 2차 IP 수익은 제외
+재원 (v4.0): 순매출 = 유료 미리보기·광고·굿즈 − 인앱 수수료 − 굿즈 원가
+            + 선공개 독점 12개월 뒤 외부 연재·영상화 수익 중 작가 몫 × 20%
+배분 (회수 우선): 회수 전 작가 30 / 투자자 45 / DIBS 25
+                → 누적 세전 분배금 ≥ 발행액이 된 분기의 다음 분기부터 40 / 35 / 25 (모든 보유자 동시)
+거래 수수료는 거래소·증권사 몫이라 배당 재원에 넣지 않는다.
 주주 몫: 기준일(분기 말일 24:00) 보유 조각 수 비례, 원 단위 절사 → 잔여는 플랫폼 귀속
 지급: 다음 달 10일 예치금, 배당소득세 15.4% 원천징수
 """
@@ -16,8 +17,8 @@ from app.core import clock
 from app.core.config import settings
 from app.core.errors import Conflict, DomainError, NotFound
 from app.models import DividendPayment, DividendRun, EpisodeUnlock, Funding, Holding, RevenueRecord, Trade, Work
-from app.models.enums import HOLDER_ONLY_SOURCES, AccountKind, DividendStatus, FundingStatus, RevenueSource
-from app.services import ledger
+from app.models.enums import AccountKind, DividendStatus, FundingStatus, RevenueSource
+from app.services import ledger, product
 from app.services.ledger import Leg
 from app.services.policy import notify
 
@@ -40,7 +41,7 @@ def default_pay_date(record_date: date) -> date:
 
 
 def _listed(f: Funding) -> None:
-    if f.status not in (FundingStatus.LISTED, FundingStatus.SUSPENDED, FundingStatus.MATURED):
+    if f.status not in (FundingStatus.LISTED, FundingStatus.SUSPENDED, FundingStatus.TERMINATED):
         raise Conflict("NOT_LISTED", "상장된 종목만 배당할 수 있어요")
 
 
@@ -58,8 +59,6 @@ def add_revenue(db: Session, f: Funding, period: str, source: RevenueSource, gro
         if not evidence_url:
             raise DomainError("EVIDENCE_REQUIRED", "외부 플랫폼 정산서(증빙)를 첨부해 주세요")
         deductions = gross - gross * f.external_share_bps // 10000
-    if source == RevenueSource.FEE_RESERVE:
-        raise DomainError("SYSTEM_SOURCE", "거래 수수료 적립분은 배당 계산 때 자동으로 집계돼요")
     if db.scalar(select(DividendRun.id).where(DividendRun.funding_id == f.id, DividendRun.period == period)):
         raise Conflict("PERIOD_CLOSED", "이미 배당을 계산한 분기예요")
     r = RevenueRecord(funding_id=f.id, period=period, source=source, gross=gross, deductions=deductions,
@@ -85,25 +84,6 @@ def aggregate_paid_episode_revenue(db: Session, f: Funding, period: str) -> Reve
                        note="유료 회차 코인 매출 자동 집계 (인앱결제 수수료 공제)")
 
 
-def aggregate_fee_reserve(db: Session, f: Funding, period: str) -> RevenueRecord | None:
-    """해당 분기 체결에서 적립된 거래 수수료 배당 재원을 FEE_RESERVE 매출로 기록 (재집계 시 교체)."""
-    start, end = parse_period(period)
-    amount = int(db.scalar(select(func.coalesce(func.sum(Trade.fee_reserve), 0)).where(
-        Trade.funding_id == f.id, Trade.mode == f.mode, Trade.created_at >= datetime.combine(start, time.min),
-        Trade.created_at < datetime.combine(end + timedelta(days=1), time.min))))
-    for old in db.scalars(select(RevenueRecord).where(RevenueRecord.funding_id == f.id, RevenueRecord.period == period,
-                                                      RevenueRecord.source == RevenueSource.FEE_RESERVE)):
-        db.delete(old)
-    db.flush()
-    if amount == 0:
-        return None
-    r = RevenueRecord(funding_id=f.id, period=period, source=RevenueSource.FEE_RESERVE, gross=amount, deductions=0,
-                      net=amount, note="거래 수수료 적립분 자동 집계 (전액 주주 몫)")
-    db.add(r)
-    db.flush()
-    return r
-
-
 def holdings_at(db: Session, f: Funding, cutoff: datetime) -> dict[int, int]:
     """기준 시각 보유 수량 = 현재 보유 - 기준 이후 매수 + 기준 이후 매도."""
     units = {h.user_id: h.units for h in db.scalars(select(Holding).where(Holding.funding_id == f.id,
@@ -125,15 +105,13 @@ def calculate(db: Session, f: Funding, period: str, force: bool = False) -> Divi
     if f.listed_at >= cutoff:
         raise Conflict("LISTED_AFTER_RECORD_DATE", "기준일 이후 상장된 종목이에요")
 
-    aggregate_fee_reserve(db, f, period)
     records = list(db.scalars(select(RevenueRecord).where(RevenueRecord.funding_id == f.id,
                                                           RevenueRecord.period == period)))
-    net = sum(r.net for r in records if r.source not in HOLDER_ONLY_SOURCES)  # 30/30/40 으로 나눌 재원
-    direct = sum(r.net for r in records if r.source in HOLDER_ONLY_SOURCES)  # 전액 주주 재원
-    holder_split = net * f.royalty_holder_bps // 10000
-    creator_amount = net * f.royalty_creator_bps // 10000
-    platform_amount = net - holder_split - creator_amount
-    holder_pool = holder_split + direct
+    net = sum(r.net for r in records)
+    phase, holder_bps, creator_bps, _ = product.split_for(f, period)
+    holder_pool = net * holder_bps // 10000
+    creator_amount = net * creator_bps // 10000
+    platform_amount = net - holder_pool - creator_amount
 
     snapshot = holdings_at(db, f, cutoff)
     total_units = sum(snapshot.values())
@@ -141,7 +119,7 @@ def calculate(db: Session, f: Funding, period: str, force: bool = False) -> Divi
         raise Conflict("NO_HOLDERS", "기준일 보유자가 없어요")
 
     run = DividendRun(funding_id=f.id, period=period, record_date=record_date, pay_date=default_pay_date(record_date),
-                      net_revenue=net, holder_direct=direct, holder_pool=holder_pool, creator_amount=creator_amount,
+                      net_revenue=net, phase=phase, holder_pool=holder_pool, creator_amount=creator_amount,
                       platform_amount=platform_amount, total_units=total_units,
                       per_unit_gross=round(holder_pool / total_units, 2))
     db.add(run)
@@ -153,6 +131,10 @@ def calculate(db: Session, f: Funding, period: str, force: bool = False) -> Divi
         paid += gross
         db.add(DividendPayment(run_id=run.id, user_id=user_id, units=units, gross=gross, tax=tax, net=gross - tax))
     run.residual = holder_pool - paid
+    # 회수 판정: 이번 분기까지 누적 세전 분배금이 발행액에 닿으면 다음 분기부터 회수 후 비율
+    if not f.recouped_period and product.cumulative_holder_gross(db, f, period) + holder_pool >= f.target_amount:
+        f.recouped_period = period
+        run.recouped_now = True
     db.flush()
     return run
 
@@ -168,15 +150,11 @@ def pay(db: Session, run_id: int, force: bool = False) -> DividendRun:
     f = db.get(Funding, run.funding_id)
     work = db.get(Work, f.work_id)
     payments = list(db.scalars(select(DividendPayment).where(DividendPayment.run_id == run.id)))
-    if run.net_revenue == 0 and run.holder_direct == 0:
+    if run.net_revenue == 0:
         run.status = DividendStatus.PAID
         return run
 
-    fee_part = int(db.scalar(select(func.coalesce(func.sum(RevenueRecord.net), 0)).where(
-        RevenueRecord.funding_id == f.id, RevenueRecord.period == run.period,
-        RevenueRecord.source == RevenueSource.FEE_RESERVE)))
-    legs = [Leg(ledger.sys(db, AccountKind.SYS_ROYALTY_POOL, f.mode), -(run.net_revenue + run.holder_direct - fee_part)),
-            Leg(ledger.sys(db, AccountKind.SYS_FEE_RESERVE, f.mode), -fee_part),
+    legs = [Leg(ledger.sys(db, AccountKind.SYS_ROYALTY_POOL, f.mode), -run.net_revenue),
             Leg(ledger.sys(db, AccountKind.SYS_TAX_WITHHOLDING, f.mode), sum(p.tax for p in payments)),
             Leg(ledger.user_accounts(db, work.creator_id, f.mode).deposit, run.creator_amount),
             Leg(ledger.sys(db, AccountKind.SYS_PLATFORM_REVENUE, f.mode), run.platform_amount + run.residual)]

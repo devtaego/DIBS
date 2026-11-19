@@ -47,6 +47,7 @@ from app.schemas.wallet import WithdrawalOut
 from app.services import content as content_svc
 from app.services import dividend as div_svc
 from app.services import funding as svc
+from app.services import product
 from app.services import wallet as wallet_svc
 from app.services.market.mock_exchange import get_market
 
@@ -102,7 +103,16 @@ def review_metrics(work_id: int, db: Session = Depends(get_db)):
     return content_svc.review_metrics(db, w)
 
 
-@router.patch("/episodes/{episode_id}/pricing", response_model=EpisodeOut, summary="회차 유료 지정 (상장 작품만)")
+@router.get("/works/{work_id}/pre-issuance-settlement", summary="발행 전 유료 미리보기 정산 (작가 70 / DIBS 30)")
+def pre_issuance_settlement(work_id: int, since: datetime, until: datetime, db: Session = Depends(get_db)):
+    w = db.get(Work, work_id)
+    if w is None:
+        raise NotFound("WORK_NOT_FOUND", "작품을 찾을 수 없어요")
+    return content_svc.pre_issuance_settlement(db, w, since, until)
+
+
+@router.patch("/episodes/{episode_id}/pricing", response_model=EpisodeOut,
+              summary="유료 미리보기 지정 (4화부터, 기본 300원, 공개 21일 후 무료)")
 def pricing(episode_id: int, body: EpisodePricingIn, db: Session = Depends(get_db)):
     e = db.get(Episode, episode_id)
     if e is None:
@@ -195,11 +205,17 @@ def discontinue(funding_id: int, body: ReasonIn, db: Session = Depends(get_db)):
     return out
 
 
-@router.post("/fundings/{funding_id}/mature", response_model=FundingOut, summary="만기 처리 (상장폐지, 원금 상환 없음)")
-def mature(funding_id: int, force: bool = Query(default=False, description="만기일 전 처리 (시연용)"),
-           db: Session = Depends(get_db)):
+@router.post("/fundings/{funding_id}/complete", response_model=FundingOut, summary="연재 완결 확정 (종료 규칙 3년 시작)")
+def complete(funding_id: int, db: Session = Depends(get_db)):
+    return product.mark_completed(db, svc.get_funding(db, funding_id))
+
+
+@router.post("/fundings/{funding_id}/terminate", response_model=FundingOut,
+             summary="권리 종료 (완결 후 3년 또는 저매출 2분기 연속, 원금 상환 없음)")
+def terminate(funding_id: int, force: bool = Query(default=False, description="조건 충족 전 처리 (시연용)"),
+              db: Session = Depends(get_db)):
     f = svc.get_funding(db, funding_id)
-    svc.mature(db, f, force)
+    product.terminate(db, f, force)
     get_market(db).cancel_all(f)
     return f
 

@@ -32,7 +32,7 @@ def test_full_flow(api, published_work, now):
     assert api.ok("a", "get", "/me/notifications")[0]["type"] == "DIBBED_FUNDING_OPEN"
 
     # ── STEP 2. 청약 ──
-    sub = {"agree_risk_notice": True, "agree_no_principal_return": True}
+    sub = {"agree_risk_notice": True, "agree_termination_rule": True}
     api.err("creator", "post", f"/fundings/{fid}/subscriptions", "SELF_INVEST_FORBIDDEN", json={**sub, "units": 1})
     api.err("a", "post", f"/fundings/{fid}/subscriptions", "MAX_UNITS_EXCEEDED", json={**sub, "units": 251})
     api.err("a", "post", f"/fundings/{fid}/subscriptions", "SHIPPING_REQUIRED",
@@ -92,21 +92,21 @@ def test_full_flow(api, published_work, now):
 
     # ── STEP 5. 마켓 ──
     clock.set_now(datetime(2027, 3, 10, 10, 0))
-    order = {"funding_id": fid, "agree_risk_notice": True, "agree_no_principal_return": True}
+    order = {"funding_id": fid, "agree_risk_notice": True, "agree_termination_rule": True}
     api.err("b", "post", "/market/orders", "PRICE_OUT_OF_BAND", json={**order, "side": "BUY", "price": 13_001, "units": 1})
     api.err("creator", "post", "/market/orders", "SELF_TRADE_FORBIDDEN", json={**order, "side": "BUY", "price": 10_000, "units": 1})
     api.err("c", "post", "/market/orders", "INSUFFICIENT_UNITS", json={**order, "side": "SELL", "price": 11_000, "units": 6})
     api.ok("a", "post", "/market/orders", json={**order, "side": "SELL", "price": 11_000, "units": 10})
     api.ok("b", "post", "/market/orders", json={**order, "side": "BUY", "price": 10_900, "units": 6})  # 가격 다름 → 미체결
     buy = api.ok("b", "post", "/market/orders", json={**order, "side": "BUY", "price": 11_000, "units": 6})
-    assert buy["status"] == "FILLED" and buy["fee_bps"] == 80  # 5조각 이상 0.8%
+    assert buy["status"] == "FILLED" and buy["fee_ppm"] == 150  # 0.015% (거래소·증권사 몫)
 
     book_ = api.ok(None, "get", f"/market/securities/{fid}/orderbook")
     assert book_["asks"] == [{"price": 11_000, "units": 4, "orders": 1}]
     assert book_["bids"] == [{"price": 10_900, "units": 6, "orders": 1}]
     assert book_["last_price"] == 11_000
 
-    assert wallet(api, "a")["deposit_available"] == 2_520_000 + 66_000 - 660  # 매도 수수료 1%
+    assert wallet(api, "a")["deposit_available"] == 2_520_000 + 66_000 - 9  # 매도 수수료 0.015% (원 미만 절사)
     b_hold = api.ok("b", "get", "/me/holdings")[0]
     assert b_hold["units"] == 53 and b_hold["avg_price"] == (47 * 10_000 + 6 * 11_000) // 53
     a_hold = api.ok("a", "get", "/me/holdings")[0]
@@ -124,7 +124,7 @@ def test_full_flow(api, published_work, now):
 
     # ── STEP 6. 유료 회차 → 매출 → 분기 배당 ──
     clock.set_now(datetime(2027, 3, 20, 12, 0))
-    ep3 = api.ok(None, "get", f"/works/{wid}/episodes")[2]
+    ep3 = api.ok(None, "get", f"/works/{wid}/episodes")[3]  # 4화 (파일럿 1~3화는 무료)
     api.ok("admin", "patch", f"/admin/episodes/{ep3['id']}/pricing", json={"is_paid": True, "price_coin": 500})
     api.err("c", "get", f"/episodes/{ep3['id']}", "PAYMENT_REQUIRED")
     api.err("c", "post", f"/episodes/{ep3['id']}/unlock", "INSUFFICIENT_BALANCE")
@@ -143,11 +143,10 @@ def test_full_flow(api, published_work, now):
 
     clock.set_now(datetime(2027, 4, 1, 9, 0))
     run = api.ok("admin", "post", f"/admin/fundings/{fid}/dividends", json=period)
-    assert run["net_revenue"] == 130_700
-    # 거래 수수료 (528 + 660) × 20% = 237원이 전액 주주 재원으로 더해짐 (v3.0)
-    assert run["holder_direct"] == 237
-    assert (run["holder_pool"], run["creator_amount"], run["platform_amount"]) == (52_280 + 237, 39_210, 39_210)
-    assert run["total_units"] == 100 and run["residual"] == 1
+    assert run["net_revenue"] == 130_700 and run["phase"] == "BEFORE_RECOUP"
+    # 회수 전 투자자 45 / 작가 30 / DIBS 25. 거래 수수료는 배당 재원이 아니다 (v4.0)
+    assert (run["holder_pool"], run["creator_amount"], run["platform_amount"]) == (58_815, 39_210, 32_675)
+    assert run["total_units"] == 100 and run["residual"] == 2 and not run["recouped_now"]
     assert run["record_date"] == "2027-03-31" and run["pay_date"] == "2027-04-10"
 
     api.err("admin", "post", f"/admin/dividends/{run['id']}/pay", "BEFORE_PAY_DATE")
@@ -156,8 +155,8 @@ def test_full_flow(api, published_work, now):
     api.ok("admin", "post", f"/admin/dividends/{run['id']}/pay")
 
     mine = api.ok("a", "get", "/me/dividends")[0]
-    assert (mine["units"], mine["gross"], mine["tax"], mine["net"]) == (42, 22_057, 3_396, 18_661)
-    assert wallet(api, "a")["deposit_available"] == before + 18_661
+    assert (mine["units"], mine["gross"], mine["tax"], mine["net"]) == (42, 24_702, 3_804, 20_898)
+    assert wallet(api, "a")["deposit_available"] == before + 20_898
     assert wallet(api, "creator")["deposit_available"] == 320_000 + 39_210
     assert api.ok("a", "get", "/me/notifications")[0]["type"] == "DIVIDEND_PAID"
     assert_books_balance(api)
@@ -168,7 +167,7 @@ def test_failed_funding_releases_all(api, published_work, now):
     api.ok("a", "post", "/wallet/deposit/charge", json={"amount": 500_000})
     f = open_funding(api, published_work["id"], now, target_units=100)
     api.ok("a", "post", f"/fundings/{f['id']}/subscriptions",
-           json={"units": 10, "agree_risk_notice": True, "agree_no_principal_return": True})
+           json={"units": 10, "agree_risk_notice": True, "agree_termination_rule": True})
     clock.set_now(now + timedelta(days=7))
     assert api.ok("admin", "post", f"/admin/fundings/{f['id']}/close")["status"] == "FAILED"
     assert wallet(api, "a") == {"mode": "MOCK", "coin": 0, "deposit_available": 500_000, "deposit_locked": 0}
@@ -181,7 +180,7 @@ def test_issue_failure_refunds_and_cancels_rewards(api, published_work, now):
     f = open_funding(api, published_work["id"], now, target_units=100, tiers=[{"title": "크레딧", "min_units": 1}])
     tier = api.ok(None, "get", f"/fundings/{f['id']}")["reward_tiers"][0]["id"]
     api.ok("a", "post", f"/fundings/{f['id']}/subscriptions", json={"units": 150, "reward_tier_id": tier,
-                                                                   "agree_risk_notice": True, "agree_no_principal_return": True})
+                                                                   "agree_risk_notice": True, "agree_termination_rule": True})
     api.ok("admin", "post", f"/admin/fundings/{f['id']}/close", params={"force": True})
     api.ok("admin", "post", f"/admin/fundings/{f['id']}/issuance", json={})
     api.ok("admin", "post", f"/admin/fundings/{f['id']}/issuance/fail", json={"reason": "증권신고서 미수리"})
@@ -193,14 +192,17 @@ def test_issue_failure_refunds_and_cancels_rewards(api, published_work, now):
 def test_investment_limit_and_kyc(api, published_work, now):
     api.login("a")
     api.login("nokyc", kyc=False)
-    api.ok("a", "post", "/wallet/deposit/charge", json={"amount": 5_000_000})
+    for _ in range(7):  # 모의 충전은 1회 500만 원까지
+        api.ok("a", "post", "/wallet/deposit/charge", json={"amount": 5_000_000})
     f = open_funding(api, published_work["id"], now, target_units=1000)
-    body = {"agree_risk_notice": True, "agree_no_principal_return": True}
+    body = {"agree_risk_notice": True, "agree_termination_rule": True}
     api.err("nokyc", "post", f"/fundings/{f['id']}/subscriptions", "KYC_REQUIRED", json={**body, "units": 1})
-    api.err("a", "post", f"/fundings/{f['id']}/subscriptions", "SECURITY_LIMIT_EXCEEDED", json={**body, "units": 301})
-    api.ok("a", "post", f"/fundings/{f['id']}/subscriptions", json={**body, "units": 300})
+    # 1인 청약 한도 3,000만 원 (= 일반투자자 종목당 한도)
+    api.err("a", "post", f"/fundings/{f['id']}/subscriptions", "MAX_UNITS_EXCEEDED", json={**body, "units": 3001})
+    api.ok("a", "post", f"/fundings/{f['id']}/subscriptions", json={**body, "units": 3000})  # 3,000만 원
     lim = api.ok("a", "get", f"/fundings/{f['id']}/limits")
-    assert lim["security_remaining"] == 0 and lim["annual_remaining"] == 7_000_000
+    # 일반투자자: 종목당 3,000만 원, 연 1억 원 (장외거래소 순매수 한도)
+    assert lim["security_remaining"] == 0 and lim["annual_remaining"] == 70_000_000
 
 
 def test_coin_and_deposit_are_separated(api, db_session_factory, now):
@@ -226,10 +228,25 @@ def test_coin_and_deposit_are_separated(api, db_session_factory, now):
         db.close()
 
 
-def test_paid_episode_only_after_listing(api, published_work, now):
-    ep = api.ok(None, "get", f"/works/{published_work['id']}/episodes")[0]
-    api.err("admin", "patch", f"/admin/episodes/{ep['id']}/pricing", "NOT_LISTED_WORK",
-            json={"is_paid": True, "price_coin": 500})
+def test_pilot_free_and_preview_free_after_21_days(api, published_work, now):
+    """v4.0: 파일럿 1~3화 무료, 4화부터 유료 미리보기(300원)를 발행 전에도 열 수 있고 공개 21일 뒤 무료."""
+    wid = published_work["id"]
+    eps = api.ok(None, "get", f"/works/{wid}/episodes")
+    api.err("admin", "patch", f"/admin/episodes/{eps[2]['id']}/pricing", "PILOT_FREE", json={"is_paid": True})
+    ep4 = api.ok("admin", "patch", f"/admin/episodes/{eps[3]['id']}/pricing", json={"is_paid": True})
+    assert (ep4["is_paid"], ep4["price_coin"]) == (True, 300)
+    assert ep4["free_unlock_at"].startswith("2027-03-23")
+    api.login("r")
+    api.err("r", "get", f"/episodes/{ep4['id']}", "PAYMENT_REQUIRED")
+    api.ok("r", "post", "/wallet/coin/charge", json={"amount": 1_000})
+    api.ok("r", "post", f"/episodes/{ep4['id']}/unlock")
+    s = api.ok("admin", "get", f"/admin/works/{wid}/pre-issuance-settlement",
+               params={"since": "2027-03-01T00:00:00", "until": "2027-04-01T00:00:00"})
+    assert (s["gross"], s["net"], s["creator_amount"], s["platform_amount"]) == (300, 210, 147, 63)  # 작가 70 / DIBS 30
+    clock.set_now(now + timedelta(days=21))
+    api.login("late")
+    assert api.ok(None, "get", f"/works/{wid}/episodes")[3]["is_paid"] is False
+    api.ok("late", "get", f"/episodes/{ep4['id']}")  # 공개 21일 뒤 무료
 
 
 def test_event_metrics_read_through(api, published_work, now):
@@ -263,15 +280,15 @@ def test_suspension_cancels_open_orders(api, published_work, now):
     api.ok("a", "post", "/wallet/deposit/charge", json={"amount": 2_000_000})
     f = open_funding(api, published_work["id"], now, target_units=100)
     fid = f["id"]
-    api.ok("a", "post", f"/fundings/{fid}/subscriptions", json={"units": 100, "agree_risk_notice": True, "agree_no_principal_return": True})
+    api.ok("a", "post", f"/fundings/{fid}/subscriptions", json={"units": 100, "agree_risk_notice": True, "agree_termination_rule": True})
     api.ok("admin", "post", f"/admin/fundings/{fid}/close", params={"force": True})
     api.ok("admin", "post", f"/admin/fundings/{fid}/issuance", json={})
     for step, extra in [("FILED", {}), ("ISSUED", {"security_code": "X", "trustee": "T"}),
                         ("LISTING_SCHEDULED", {"listing_date": str(date(2027, 3, 3))}), ("LISTED", {})]:
         api.ok("admin", "post", f"/admin/fundings/{fid}/issuance/advance", json={"step": step, **extra})
     api.ok("a", "post", "/market/orders", json={"funding_id": fid, "side": "SELL", "price": 10_000, "units": 10,
-                                                "agree_risk_notice": True, "agree_no_principal_return": True})
+                                                "agree_risk_notice": True, "agree_termination_rule": True})
     api.ok("admin", "post", f"/admin/fundings/{fid}/suspension", json={"suspended": True, "reason": "권리 분쟁"})
     assert api.ok("a", "get", "/me/holdings")[0]["locked_units"] == 0
     api.err("a", "post", "/market/orders", "NOT_TRADABLE",
-            json={"funding_id": fid, "side": "SELL", "price": 10_000, "units": 1, "agree_risk_notice": True, "agree_no_principal_return": True})
+            json={"funding_id": fid, "side": "SELL", "price": 10_000, "units": 1, "agree_risk_notice": True, "agree_termination_rule": True})

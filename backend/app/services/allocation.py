@@ -3,8 +3,9 @@
 기획 확정 전이라 전략을 교체할 수 있게 분리했다.
 - PRO_RATA: 청약 비율대로 내림 배정 → 남는 조각은 소수부가 큰 회원부터 1개씩
             (같으면 먼저 청약한 회원). 소액 청약자는 0조각 가능. (기획안 v2.0 기준)
-- EQUAL_THEN_PRO_RATA: 목표의 일정 비율을 먼저 균등 배정한 뒤 나머지를 PRO_RATA.
-            금융위가 권고한 '균등배정 최소 비율' 대응안.
+- EQUAL_THEN_PRO_RATA: 목표의 일정 비율(기본 20%)을 먼저 균등 배정한 뒤 나머지를 PRO_RATA.
+            v4.0: 균등분 중 early_reader_bps(기본 발행량의 10%)는 펀딩 전에 찜한 '초기 독자'에게
+            먼저 균등 배정하고, 남으면 일반 균등분으로 넘긴다.
 
 모든 전략은 순수 함수이며 DB 를 모른다 → 단위 테스트·시뮬레이션에 그대로 쓸 수 있다.
 """
@@ -17,6 +18,7 @@ class AllocationRequest:
     key: int  # subscription id
     units: int
     order: tuple  # 동점 처리용 정렬 키 (first_subscribed_at, id)
+    early: bool = False  # 초기 독자 (펀딩 전 찜)
 
 
 class AllocationStrategy(Protocol):
@@ -63,10 +65,31 @@ class ProRataLargestRemainder:
 class EqualThenProRata:
     name = "EQUAL_THEN_PRO_RATA"
 
-    def __init__(self, equal_ratio_bps: int = 2000):
+    def __init__(self, equal_ratio_bps: int = 2000, early_reader_bps: int = 0):
         if not 0 <= equal_ratio_bps <= 10000:
             raise ValueError("equal_ratio_bps 는 0~10000")
+        if not 0 <= early_reader_bps <= equal_ratio_bps:
+            raise ValueError("early_reader_bps 는 0~equal_ratio_bps")
         self.equal_ratio_bps = equal_ratio_bps
+        self.early_reader_bps = early_reader_bps
+
+    @staticmethod
+    def _spread(pool: int, members: list[AllocationRequest], alloc: dict[int, int]) -> int:
+        """pool 을 남은 수요가 있는 members 에게 고르게 나눈다 (부족하면 먼저 청약한 순). 쓰고 남은 양을 돌려준다."""
+        while pool > 0:
+            active = [r for r in members if alloc[r.key] < r.units]
+            if not active:
+                break
+            share = pool // len(active)
+            if share == 0:
+                for r in active[:pool]:
+                    alloc[r.key] += 1
+                return 0
+            for r in active:
+                give = min(share, r.units - alloc[r.key])
+                alloc[r.key] += give
+                pool -= give
+        return pool
 
     def allocate(self, requests: list[AllocationRequest], target: int) -> dict[int, int]:
         total = _validate(requests, target)
@@ -75,23 +98,13 @@ class EqualThenProRata:
 
         ordered = sorted(requests, key=lambda r: r.order)
         alloc = {r.key: 0 for r in ordered}
-        pool = target * self.equal_ratio_bps // 10000
+        early_pool = target * self.early_reader_bps // 10000
+        general_pool = target * self.equal_ratio_bps // 10000 - early_pool
 
-        # 1단계: 균등 배정 (남은 수요가 있는 회원에게 고르게, 부족하면 먼저 청약한 순)
-        while pool > 0:
-            active = [r for r in ordered if alloc[r.key] < r.units]
-            if not active:
-                break
-            share = pool // len(active)
-            if share == 0:
-                for r in active[:pool]:
-                    alloc[r.key] += 1
-                pool = 0
-                break
-            for r in active:
-                give = min(share, r.units - alloc[r.key])
-                alloc[r.key] += give
-                pool -= give
+        # 0단계: 초기 독자 우선 균등 배정. 남은 양은 일반 균등분으로 넘긴다
+        left = self._spread(early_pool, [r for r in ordered if r.early], alloc)
+        # 1단계: 일반 균등 배정 (참여자 전원)
+        self._spread(general_pool + left, ordered, alloc)
 
         # 2단계: 남은 목표를 남은 수요 비율대로
         remaining_target = target - sum(alloc.values())

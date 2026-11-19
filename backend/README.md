@@ -1,7 +1,8 @@
 # DIBS Backend (v0.1 기초)
 
 웹툰·웹소설 IP 크라우드펀딩 및 토큰증권 조각투자 플랫폼 **DIBS** 백엔드입니다.
-기획안 v3.0의 STEP 1~7 흐름(작품 → 찜 → 청약 → 안분 배정 → 발행·상장 → 거래 → 분기 배당)을 API로 구현했습니다.
+서비스 기획서 v4.0의 흐름(작품 → 찜 → 청약 → 안분 배정 → 발행·상장 → 거래 → 분기 배당 → 종료·작가 매입)을 API로 구현했습니다.
+규칙 값과 구현 위치는 [docs/OPEN_DECISIONS.md](docs/OPEN_DECISIONS.md)에 정리했습니다.
 투자 기능은 **모의투자 모드**가 기본입니다.
 
 - 스택: Python 3.11+ (개발 기준 3.13) · FastAPI · SQLAlchemy 2 · Pydantic 2 · PyJWT · pytest
@@ -18,9 +19,9 @@
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 
-python -m scripts.seed_demo          # 데모 데이터 (1,000만 원 목표 842% 펀딩, 상장 종목 + 호가 + 게시판)
+python -m scripts.seed_demo          # 데모 데이터 (5,000만 원 목표 140% 펀딩, 상장 종목 + 호가 + 게시판)
 uvicorn app.main:app --reload        # http://localhost:8000/docs  (Swagger UI)
-pytest -q                            # 테스트 47개
+pytest -q                            # 테스트 52개
 python -m scripts.export_docs        # docs/API_SPEC.md · ERD.md · openapi.json 재생성
 ```
 
@@ -77,6 +78,7 @@ tests/         배정 알고리즘 단위 테스트 + 전체 흐름 E2E
 | `DIBS_JWT_SECRET` | 개발용 값 | 운영에서 반드시 교체 |
 | `DIBS_TRADING_MODE` | `MOCK` | `MOCK` / `LIVE` |
 | `DIBS_LIVE_ENABLED` | `false` | 인가 전에는 false 유지 |
+| `DIBS_ENFORCE_GATE` | `false` | `true`면 펀딩 개설 조건(파일럿 열람자 기준선)을 신청 때 강제 |
 
 ## 아직 안 한 것 (다음 단계)
 
@@ -84,5 +86,5 @@ tests/         배정 알고리즘 단위 테스트 + 전체 흐름 E2E
 - 동시성: 운영 DB에서 계정·주문 행 잠금 (`SELECT ... FOR UPDATE`)과 멱등 키
 - 배치 스케줄러: 마감 처리, 자정 주문 취소, 04:00 기준가 갱신 (지금은 `/admin/jobs/*`를 수동 호출)
 - 실제 연동: 본인확인기관, PG·인앱결제, 제휴 증권사 발행 API, 장외거래소 어댑터
-- 운용 기간 만료 처리 (기획 확정 후)
+- 세계관 묶음(ETF형) 상품 (확장 단계)
 - 파일 업로드(회차 이미지·숏츠 영상): 지금은 URL만 저장

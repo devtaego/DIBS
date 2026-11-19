@@ -35,8 +35,9 @@ stateDiagram-v2
     LISTED --> SUSPENDED: 거래 정지
     SUSPENDED --> LISTED: 정지 해제
     LISTED --> SUSPENDED: 연재 중단 확정 (미지급분 주주 분배)
-    LISTED --> MATURED: 운용 기간 3년 만기 (상장폐지, 원금 상환 없음)
-    SUSPENDED --> MATURED: 만기
+    LISTED --> TERMINATED: 권리 종료 (완결 후 3년 / 저매출 2분기 연속, 원금 상환 없음)
+    SUSPENDED --> TERMINATED: 권리 종료
+    LISTED --> TERMINATED: 작가 매입 (최근 4분기 분배금 × 3)
 ```
 
 ### 청약 (subscriptions.status)
@@ -70,17 +71,18 @@ stateDiagram-v2
 | 이벤트 | 출금 계정 (−) | 입금 계정 (+) |
 |---|---|---|
 | 코인 충전 | SYS_PG | COIN |
-| 유료 회차 구매 | COIN | SYS_COIN_REVENUE |
+| 유료 미리보기 구매 (4화부터, 공개 21일 후 무료) | COIN | SYS_COIN_REVENUE |
 | 예치금 입금 | SYS_BANK | DEPOSIT |
 | 청약 | DEPOSIT | DEPOSIT_LOCKED |
 | 마감·배정 | DEPOSIT_LOCKED | SYS_FUNDING_ESCROW (배정분) + DEPOSIT (초과분 환불) |
 | 펀딩 실패 | DEPOSIT_LOCKED | DEPOSIT |
-| 상장 정산 | SYS_FUNDING_ESCROW | SYS_CREATOR_PAYABLE 80% · SYS_ISSUANCE_COST 10% · SYS_PLATFORM_REVENUE 10% |
+| 상장 정산 | SYS_FUNDING_ESCROW | SYS_CREATOR_PAYABLE 80% · SYS_ISSUANCE_COST 12% · SYS_PLATFORM_REVENUE 8% |
 | 작가 지급 (상장 40% · 마일스톤 30% · 30%) | SYS_CREATOR_PAYABLE | 작가 DEPOSIT |
 | 연재 중단 분배 | SYS_CREATOR_PAYABLE (미지급분) | 주주 DEPOSIT (보유 비율) |
 | 매수 주문 | DEPOSIT | DEPOSIT_LOCKED (금액 + 수수료) |
-| 체결 | 매수자 DEPOSIT_LOCKED | 매도자 DEPOSIT (− 매도 수수료) · SYS_PLATFORM_REVENUE (수수료 80%) · SYS_FEE_RESERVE (수수료 20%) |
-| 배당 지급 | SYS_ROYALTY_POOL · SYS_FEE_RESERVE | 주주 DEPOSIT (세후) · SYS_TAX_WITHHOLDING · 작가 DEPOSIT · SYS_PLATFORM_REVENUE |
+| 체결 | 매수자 DEPOSIT_LOCKED | 매도자 DEPOSIT (− 매도 수수료) · SYS_BROKER_FEE (매수·매도 수수료 0.015%, 거래소·증권사 몫) |
+| 배당 지급 | SYS_ROYALTY_POOL | 주주 DEPOSIT (세후) · SYS_TAX_WITHHOLDING · 작가 DEPOSIT · SYS_PLATFORM_REVENUE (회수 전 45·30·25 → 회수 후 35·40·25) |
+| 작가 매입 | 작가 DEPOSIT | 주주 DEPOSIT (보유 비율) |
 
 코인 → 예치금 방향의 분개는 원장 계층에서 거부됩니다 (`COIN_TO_DEPOSIT_FORBIDDEN`).
 
@@ -131,7 +133,8 @@ erDiagram
         date record_date
         date pay_date
         bigint net_revenue
-        bigint holder_direct
+        string phase
+        boolean recouped_now
         bigint holder_pool
         bigint creator_amount
         bigint platform_amount
@@ -157,8 +160,9 @@ erDiagram
         integer no
         string title
         string content_url
-        boolean is_paid
+        boolean paid_preview
         integer price_coin
+        datetime free_unlock_at
         datetime created_at
         datetime updated_at
     }
@@ -181,14 +185,18 @@ erDiagram
         integer royalty_platform_bps
         integer royalty_creator_bps
         integer royalty_holder_bps
+        integer royalty_platform_after_bps
+        integer royalty_creator_after_bps
+        integer royalty_holder_after_bps
+        string recouped_period
         string allocation_strategy
         json allocation_params
-        integer operating_period_months
-        string maturity_policy
         integer exclusive_months
         datetime exclusive_until
         integer external_share_bps
-        datetime matured_at
+        datetime completed_at
+        datetime terminated_at
+        string termination_reason
         datetime discontinued_at
         integer reference_price
         integer last_price
@@ -261,7 +269,7 @@ erDiagram
         integer units
         integer remaining_units
         enum status
-        integer fee_bps
+        integer fee_ppm
         bigint locked_amount
         date trade_date
         datetime created_at
@@ -366,7 +374,6 @@ erDiagram
         integer seller_id FK
         bigint buy_fee
         bigint sell_fee
-        bigint fee_reserve
         integer journal_id FK
         datetime created_at
     }

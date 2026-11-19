@@ -1,5 +1,8 @@
 from datetime import timedelta
 
+from app.core import clock
+from app.core.config import settings
+
 from sqlalchemy import String, cast, distinct, func, literal, select
 from sqlalchemy.orm import Session
 
@@ -58,13 +61,27 @@ def unlock_episode(db: Session, user: User, ep: Episode) -> EpisodeUnlock:
 
 
 def set_episode_pricing(db: Session, ep: Episode, is_paid: bool, price_coin: int) -> Episode:
-    """발행 전에는 전 회차 무료. 상장 작품만 운영자가 회차별 유료 지정."""
-    if is_paid and not is_listed(db, ep.work_id):
-        raise Conflict("NOT_LISTED_WORK", "상장된 작품만 유료 회차를 지정할 수 있어요")
-    if is_paid and price_coin <= 0:
-        raise DomainError("INVALID_PRICE", "유료 회차 가격을 입력해 주세요")
-    ep.is_paid, ep.price_coin = is_paid, (price_coin if is_paid else 0)
+    """v4.0: 파일럿 1~3화는 무료. 4화부터 유료 미리보기(기본 300원)로 지정할 수 있고, 공개 21일 뒤 무료가 된다.
+    발행 전·후 모두 적용된다 (발행 전 순매출은 작가 70 / DIBS 30, 상장 후는 배당 재원)."""
+    if is_paid and ep.no <= settings.pilot_free_episodes:
+        raise Conflict("PILOT_FREE", f"파일럿 {settings.pilot_free_episodes}화까지는 무료예요")
+    price = (price_coin or settings.default_preview_price_coin) if is_paid else 0
+    ep.paid_preview, ep.price_coin = is_paid, price
+    ep.free_unlock_at = (ep.created_at or clock.now()) + timedelta(days=settings.preview_free_after_days) if is_paid else None
     return ep
+
+
+def pre_issuance_settlement(db: Session, work: Work, since, until) -> dict:
+    """발행 전(상장 전) 유료 미리보기 순매출 정산: 인앱 수수료 30% 공제 후 작가 70 / DIBS 30."""
+    listed_at = db.scalar(select(func.min(Funding.listed_at)).where(Funding.work_id == work.id))
+    end = min(until, listed_at) if listed_at else until
+    gross = int(db.scalar(select(func.coalesce(func.sum(EpisodeUnlock.price_coin), 0)).where(
+        EpisodeUnlock.work_id == work.id, EpisodeUnlock.unlocked_at >= since, EpisodeUnlock.unlocked_at < end)))
+    net = gross - gross * settings.inapp_fee_bps // 10000
+    creator = net * settings.pre_issuance_creator_bps // 10000
+    return {"work_id": work.id, "gross": gross, "inapp_fee": gross - net, "net": net,
+            "creator_amount": creator, "platform_amount": net - creator,
+            "creator_bps": settings.pre_issuance_creator_bps}
 
 
 def toggle_dib(db: Session, user: User, work: Work, on: bool) -> bool:

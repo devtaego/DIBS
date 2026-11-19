@@ -1,6 +1,6 @@
 from datetime import date, datetime
 
-from sqlalchemy import BigInteger, Date, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
+from sqlalchemy import BigInteger, Boolean, Date, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core import clock
@@ -35,8 +35,9 @@ class DividendRun(Base):
     period: Mapped[str] = mapped_column(String(7))
     record_date: Mapped[date] = mapped_column(Date)  # 기준일 = 분기 말일
     pay_date: Mapped[date] = mapped_column(Date)  # 다음 달 10일
-    net_revenue: Mapped[int] = mapped_column(BigInteger)  # 나눠지는 재원 (유료 회차·광고·굿즈)
-    holder_direct: Mapped[int] = mapped_column(BigInteger, default=0)  # 전액 주주 재원 (외부 연재·수수료 적립)
+    net_revenue: Mapped[int] = mapped_column(BigInteger)  # 순매출 (작가·투자자·DIBS 로 나눔)
+    phase: Mapped[str] = mapped_column(String(20), default="BEFORE_RECOUP")  # BEFORE_RECOUP | AFTER_RECOUP
+    recouped_now: Mapped[bool] = mapped_column(Boolean, default=False)  # 이 분기로 원금 회수 달성
     holder_pool: Mapped[int] = mapped_column(BigInteger)
     creator_amount: Mapped[int] = mapped_column(BigInteger)
     platform_amount: Mapped[int] = mapped_column(BigInteger)

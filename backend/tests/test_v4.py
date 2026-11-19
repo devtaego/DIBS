@@ -1,10 +1,11 @@
-"""기획안 v3.0 반영 사항."""
+"""서비스 기획서 v4.0 규칙."""
 from datetime import datetime, timedelta
 
 from app.core import clock
 from tests.conftest import iso, open_funding
 
-SUB = {"agree_risk_notice": True, "agree_no_principal_return": True}
+SUB = {"agree_risk_notice": True, "agree_termination_rule": True}
+ORDER = {"agree_risk_notice": True}
 
 
 def listed(api, wid, now, units_by_user: dict, target=100):
@@ -19,17 +20,39 @@ def listed(api, wid, now, units_by_user: dict, target=100):
     return f["id"]
 
 
-def test_defaults_min_target_and_equal_allocation(api, published_work, now, monkeypatch):
+def test_defaults_min_target_cap_and_allocation(api, published_work, now, monkeypatch):
     from app.core.config import settings
 
-    monkeypatch.setattr(settings, "min_target_amount", 10_000_000)
+    monkeypatch.setattr(settings, "min_target_amount", 30_000_000)
+    monkeypatch.setattr(settings, "max_subscription_bps", 500)
     body = {"open_at": iso(now), "close_at": iso(now + timedelta(days=7)), "use_of_funds": "작화"}
-    api.err("creator", "post", f"/works/{published_work['id']}/fundings", "INVALID_TERMS", json={**body, "target_units": 100})
-    f = api.ok("creator", "post", f"/works/{published_work['id']}/fundings", json={**body, "target_units": 1000})
+    api.err("creator", "post", f"/works/{published_work['id']}/fundings", "INVALID_TERMS", json={**body, "target_units": 2999})
+    f = api.ok("creator", "post", f"/works/{published_work['id']}/fundings", json={**body, "target_units": 3000})
     terms = f["terms"]
-    assert terms["allocation_strategy"] == "EQUAL_THEN_PRO_RATA" and terms["allocation_params"] == {"equal_ratio_bps": 2000}
-    assert (terms["operating_period_months"], terms["exclusive_months"], terms["external_share_bps"]) == (36, 12, 2000)
-    assert terms["maturity_policy"] == "DELIST_NO_REDEMPTION"
+    assert terms["allocation_strategy"] == "EQUAL_THEN_PRO_RATA"
+    assert terms["allocation_params"] == {"equal_ratio_bps": 2000, "early_reader_bps": 1000}
+    assert (terms["creator_bps"], terms["issuance_cost_bps"], terms["platform_fee_bps"]) == (8000, 1200, 800)
+    assert (terms["royalty_creator_bps"], terms["royalty_holder_bps"], terms["royalty_platform_bps"]) == (3000, 4500, 2500)
+    assert (terms["royalty_creator_after_bps"], terms["royalty_holder_after_bps"],
+            terms["royalty_platform_after_bps"]) == (4000, 3500, 2500)
+    assert (terms["exclusive_months"], terms["external_share_bps"]) == (12, 2000)
+    # 1인 한도: min(3,000만 원, 발행액 5% = 150만 원) → 150조각
+    assert f["max_units_per_user"] == 150 and f["per_user_cap_units"] == 150
+    assert f["risk_grade"] == "매우 높은 위험" and f["recoup"]["phase"] == "BEFORE_RECOUP"
+
+
+def test_funding_gate_and_target_cap(api, published_work, now, monkeypatch):
+    from app.core.config import settings
+
+    wid = published_work["id"]
+    g = api.ok(None, "get", f"/works/{wid}/funding-gate", params={"target_amount": 30_000_000})
+    # 월 열람자 1명 = 결제율 15% × 월 4화 × 300원 × 0.7 = 126원, 투자자 45%·세후 × 48개월
+    assert (g["readers_needed_for_4y"], g["gate_threshold"], g["passes_gate"]) == (13_030, 6_515, False)
+    g5 = api.ok(None, "get", f"/works/{wid}/funding-gate", params={"target_amount": 50_000_000})
+    assert g5["gate_threshold"] == 10_858
+    monkeypatch.setattr(settings, "enforce_funding_gate", True)
+    body = {"open_at": iso(now), "close_at": iso(now + timedelta(days=7)), "use_of_funds": "작화", "target_units": 3000}
+    api.err("creator", "post", f"/works/{wid}/fundings", "FUNDING_GATE_NOT_MET", json=body)
 
 
 def test_consents_and_risk_profile_required(api, published_work, now):
@@ -39,7 +62,7 @@ def test_consents_and_risk_profile_required(api, published_work, now):
     for u in ("a", "norisk"):
         api.ok(u, "post", "/wallet/deposit/charge", json={"amount": 1_000_000})
     f = open_funding(api, published_work["id"], now, target_units=100)
-    api.err("a", "post", f"/fundings/{f['id']}/subscriptions", "NO_PRINCIPAL_NOTICE_REQUIRED",
+    api.err("a", "post", f"/fundings/{f['id']}/subscriptions", "TERMINATION_NOTICE_REQUIRED",
             json={"units": 1, "agree_risk_notice": True})
     api.err("norisk", "post", f"/fundings/{f['id']}/subscriptions", "RISK_PROFILE_REQUIRED", json={**SUB, "units": 1})
     me = api.ok("norisk", "post", "/me/risk-profile", json={"answers": [1, 2, 1, 2, 1]})
@@ -47,21 +70,41 @@ def test_consents_and_risk_profile_required(api, published_work, now):
     api.ok("norisk", "post", f"/fundings/{f['id']}/subscriptions", json={**SUB, "units": 1})
 
 
+def test_early_readers_get_priority_allocation(api, published_work, now):
+    wid = published_work["id"]
+    for u in ("early", "late1", "late2"):
+        api.login(u)
+        api.ok(u, "post", "/wallet/deposit/charge", json={"amount": 2_000_000})
+    api.ok("early", "put", f"/works/{wid}/dib")  # 모집 시작 전 찜
+    clock.set_now(now + timedelta(minutes=1))
+    f = open_funding(api, wid, now + timedelta(minutes=1), target_units=100, strategy="EQUAL_THEN_PRO_RATA")
+    for u in ("early", "late1", "late2"):
+        api.ok(u, "post", f"/fundings/{f['id']}/subscriptions", json={**SUB, "units": 100})
+    res = api.ok("admin", "post", f"/admin/fundings/{f['id']}/close", params={"force": True})
+    got = {a["user_id"]: (a["allocated"], a["early_reader"]) for a in res["allocations"]}
+    early = [v for v in got.values() if v[1]]
+    late = [v for v in got.values() if not v[1]]
+    assert len(early) == 1 and early[0][0] > max(v[0] for v in late)
+    assert sum(v[0] for v in got.values()) == 100
+
+
 def test_breakeven_disclosure(api, published_work, now):
     f = open_funding(api, published_work["id"], now, target_units=1000)
     b = api.ok(None, "get", f"/fundings/{f['id']}/breakeven", params={"price_coin": 300, "monthly_episodes": 4})
-    five, principal = b["lines"]
-    assert (five["holder_dividend_per_year"], five["net_revenue_per_year"]) == (500_000, 1_250_000)
-    assert (five["paid_unlocks_per_month"], five["buyers_per_episode"]) == (496, 124)
-    assert principal["goal"] == "3년 안에 원금만큼 배당" and principal["holder_dividend_per_year"] == 3_333_333
+    four, two = b["lines"]
+    assert four["goal"] == "4년 안에 원금 회수" and b["royalty_holder_bps"] == 4500
+    assert (four["holder_dividend_per_year"], four["net_revenue_per_year"]) == (2_500_000, 6_566_851)
+    assert (four["paid_unlocks_per_month"], four["buyers_per_episode"], four["monthly_readers"]) == (2_606, 651, 4_343)
+    assert two["goal"] == "2년 안에 원금 회수" and two["monthly_readers"] == 8_686
 
 
-def test_external_revenue_after_exclusivity_goes_to_holders(api, published_work, now):
+def test_external_revenue_is_part_of_net_revenue(api, published_work, now):
     api.login("a")
     api.ok("a", "post", "/wallet/deposit/charge", json={"amount": 2_000_000})
     fid = listed(api, published_work["id"], now, {"a": 100})
     d = api.ok(None, "get", f"/fundings/{fid}")
-    assert d["terms"]["exclusive_until"].startswith("2028-03-02") and d["maturity_date"].startswith("2030-03-02")
+    assert d["terms"]["exclusive_until"].startswith("2028-03-02")
+    assert d["termination"]["terminate_due_at"] is None  # 만기 없음, 완결 전
     rev = {"funding_id": fid, "source": "EXTERNAL_SERIAL", "gross": 1_000_000, "evidence_url": "s3://settlement.pdf"}
     api.err("admin", "post", "/admin/revenues", "EXCLUSIVE_PERIOD", json={**rev, "period": "2027Q4"})
     api.err("admin", "post", "/admin/revenues", "EVIDENCE_REQUIRED", json={**rev, "period": "2028Q2", "evidence_url": None})
@@ -69,9 +112,25 @@ def test_external_revenue_after_exclusivity_goes_to_holders(api, published_work,
     assert r["net"] == 200_000  # 작가 몫 100만 원 × 20%
     api.ok("admin", "post", "/admin/revenues", json={"funding_id": fid, "period": "2028Q2", "source": "AD", "gross": 100_000})
     run = api.ok("admin", "post", f"/admin/fundings/{fid}/dividends", params={"force": True}, json={"period": "2028Q2"})
-    assert run["net_revenue"] == 100_000 and run["holder_direct"] == 200_000
-    assert run["holder_pool"] == 40_000 + 200_000  # 외부 수익은 30/30/40 으로 나누지 않고 전액 주주 몫
+    assert run["net_revenue"] == 300_000 and run["holder_pool"] == 135_000  # 순매출에 포함해 45%
     api.err("admin", "post", f"/admin/fundings/{fid}/dividends", "PERIOD_NOT_ENDED", json={"period": "2028Q3"})
+
+
+def test_recoup_switches_split_from_next_quarter(api, published_work, now):
+    api.login("a")
+    api.ok("a", "post", "/wallet/deposit/charge", json={"amount": 2_000_000})
+    fid = listed(api, published_work["id"], now, {"a": 100})  # 발행액 100만 원
+    ad = {"funding_id": fid, "source": "AD"}
+    api.ok("admin", "post", "/admin/revenues", json={**ad, "period": "2027Q2", "gross": 3_000_000})
+    q2 = api.ok("admin", "post", f"/admin/fundings/{fid}/dividends", params={"force": True}, json={"period": "2027Q2"})
+    assert (q2["phase"], q2["holder_pool"], q2["recouped_now"]) == ("BEFORE_RECOUP", 1_350_000, True)
+    api.ok("admin", "post", "/admin/revenues", json={**ad, "period": "2027Q3", "gross": 100_000})
+    q3 = api.ok("admin", "post", f"/admin/fundings/{fid}/dividends", params={"force": True}, json={"period": "2027Q3"})
+    assert q3["phase"] == "AFTER_RECOUP"
+    assert (q3["holder_pool"], q3["creator_amount"], q3["platform_amount"]) == (35_000, 40_000, 25_000)
+    rec = api.ok(None, "get", f"/fundings/{fid}")["recoup"]
+    assert (rec["phase"], rec["recouped_period"], rec["holder_bps_now"]) == ("AFTER_RECOUP", "2027Q2", 3500)
+    assert api.ok(None, "get", f"/market/securities/{fid}")["royalty_holder_bps"] == 3500
 
 
 def test_discontinue_distributes_unpaid_payouts(api, published_work, now):
@@ -89,31 +148,56 @@ def test_discontinue_distributes_unpaid_payouts(api, published_work, now):
     assert api.ok("b", "get", "/me/notifications")[0]["type"] == "DISCONTINUED_REFUND"
 
 
-def test_maturity_delists(api, published_work, now):
+def test_no_maturity_termination_rules(api, published_work, now):
     api.login("a")
     api.ok("a", "post", "/wallet/deposit/charge", json={"amount": 2_000_000})
     fid = listed(api, published_work["id"], now, {"a": 100})
-    api.err("admin", "post", f"/admin/fundings/{fid}/mature", "MATURITY_NOT_REACHED")
-    clock.set_now(datetime(2030, 3, 3, 9, 0))
-    assert api.ok("admin", "post", f"/admin/fundings/{fid}/mature")["status"] == "MATURED"
+    api.err("admin", "post", f"/admin/fundings/{fid}/terminate", "TERMINATION_NOT_DUE")
+    # 저매출 2분기 연속 (발행액 100만 원의 0.5% = 5,000원 미만)
+    for period in ("2027Q2", "2027Q3"):
+        api.ok("admin", "post", "/admin/revenues", json={"funding_id": fid, "period": period, "source": "AD", "gross": 4_000})
+        api.ok("admin", "post", f"/admin/fundings/{fid}/dividends", params={"force": True}, json={"period": period})
+    q = api.ok(None, "get", f"/fundings/{fid}/buyback-quote")
+    assert (q["low_revenue_streak"], q["eligible"], q["reason"]) == (2, True, "LOW_REVENUE")
+    assert api.ok("admin", "post", f"/admin/fundings/{fid}/terminate")["status"] == "TERMINATED"
     api.err("a", "post", "/market/orders", "NOT_TRADABLE",
-            json={"funding_id": fid, "side": "SELL", "price": 10_000, "units": 1, "agree_risk_notice": True})
-    assert api.ok(None, "get", f"/market/securities/{fid}")["status"] == "MATURED"
-    assert api.ok("a", "get", "/me/notifications")[0]["type"] == "MATURED"
+            json={"funding_id": fid, "side": "SELL", "price": 10_000, "units": 1, **ORDER})
+    assert api.ok(None, "get", f"/market/securities/{fid}")["status"] == "TERMINATED"
+    assert api.ok("a", "get", "/me/notifications")[0]["type"] == "TERMINATED"
 
 
-def test_fee_reserve_and_liquidity_metrics(api, published_work, now):
+def test_completion_plus_3_years_and_buyback(api, published_work, now):
+    for u in ("a", "b"):
+        api.login(u)
+        api.ok(u, "post", "/wallet/deposit/charge", json={"amount": 2_000_000})
+    fid = listed(api, published_work["id"], now, {"a": 60, "b": 40})
+    api.ok("admin", "post", f"/admin/fundings/{fid}/complete")
+    q = api.ok(None, "get", f"/fundings/{fid}/buyback-quote")
+    assert q["terminate_due_at"].startswith("2030-03-02") and not q["eligible"] and q["buyback_price"] is None
+    api.err("creator", "post", f"/fundings/{fid}/buyback", "NO_DIVIDEND_HISTORY")
+    api.ok("admin", "post", "/admin/revenues", json={"funding_id": fid, "period": "2027Q2", "source": "AD", "gross": 100_000})
+    api.ok("admin", "post", f"/admin/fundings/{fid}/dividends", params={"force": True}, json={"period": "2027Q2"})
+    assert api.ok(None, "get", f"/fundings/{fid}/buyback-quote")["buyback_price"] == 45_000 * 3
+    b_before = api.ok("b", "get", "/wallet")["deposit_available"]
+    out = api.ok("creator", "post", f"/fundings/{fid}/buyback")
+    assert out == {"price": 135_000, "paid": 135_000, "holders": 2}
+    assert api.ok("b", "get", "/wallet")["deposit_available"] == b_before + 54_000
+    assert api.ok(None, "get", f"/fundings/{fid}")["status"] == "TERMINATED"
+    assert api.ok("a", "get", "/me/notifications")[0]["type"] == "BUYBACK"
+
+
+def test_trade_fee_goes_to_broker_not_dividends(api, published_work, now):
     for u in ("a", "b"):
         api.login(u)
         api.ok(u, "post", "/wallet/deposit/charge", json={"amount": 2_000_000})
     fid = listed(api, published_work["id"], now, {"a": 100})
-    order = {"funding_id": fid, "agree_risk_notice": True}
+    order = {"funding_id": fid, **ORDER}
     api.ok("a", "post", "/market/orders", json={**order, "side": "SELL", "price": 10_000, "units": 10})
     api.ok("b", "post", "/market/orders", json={**order, "side": "BUY", "price": 10_000, "units": 10})
     d = api.ok(None, "get", f"/market/securities/{fid}")
     assert (d["volume_7d"], d["trades_7d"], d["price_to_dividend"]) == (10, 1, None)
     tb = {(l["kind"], l["mode"]): l["balance"] for l in api.ok("admin", "get", "/admin/ledger/trial-balance")}
-    assert tb[("SYS_FEE_RESERVE", "MOCK")] == (800 + 1000) * 2000 // 10000  # 매수 0.8% + 매도 1% 의 20%
+    assert tb[("SYS_BROKER_FEE", "MOCK")] == 15 + 15  # 10만 원 × 0.015% × 매수·매도
 
 
 def test_community_rules(api, published_work, now):
@@ -153,7 +237,7 @@ def test_profile_broker_policies_notices_creator(api, published_work, now):
     assert me["bio"] == "로판 그리는 작가"
     assert api.ok("a", "put", "/me/broker-account", json={"broker_name": "제휴증권", "account_no": "123-45-678"})[
         "broker_account_masked"] == "****5678"
-    assert "no-principal-return" in {p["key"] for p in api.ok(None, "get", "/policies")}
+    assert "termination-rule" in {p["key"] for p in api.ok(None, "get", "/policies")}
     api.ok("admin", "post", "/admin/notices", json={"title": "점검 안내", "body": "04:00~04:30", "category": "MAINTENANCE"})
     assert api.ok(None, "get", "/notices")[0]["title"] == "점검 안내"
     cr = api.ok(None, "get", f"/creators/{api.creator_id}")

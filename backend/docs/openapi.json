@@ -4904,6 +4904,307 @@
         }
       }
     },
+    "/works/{work_id}/funding-gate": {
+      "get": {
+        "tags": [
+          "fundings"
+        ],
+        "summary": "펀딩 개설 조건·목표 금액 상한 (파일럿 4주 열람자 기준)",
+        "operationId": "funding_gate_works__work_id__funding_gate_get",
+        "parameters": [
+          {
+            "name": "work_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Work Id"
+            }
+          },
+          {
+            "name": "target_amount",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "default": 50000000,
+              "title": "Target Amount"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FundingGateOut"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/fundings/{funding_id}/buyback-quote": {
+      "get": {
+        "tags": [
+          "fundings"
+        ],
+        "summary": "종료 규칙 상태와 작가 매입가 (상장 후)",
+        "operationId": "buyback_quote_fundings__funding_id__buyback_quote_get",
+        "parameters": [
+          {
+            "name": "funding_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Funding Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TerminationOut"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/fundings/{funding_id}/buyback": {
+      "post": {
+        "tags": [
+          "fundings"
+        ],
+        "summary": "작가 매입 옵션 실행 (작가 본인, 전량 매입 후 권리 종료)",
+        "operationId": "buyback_fundings__funding_id__buyback_post",
+        "parameters": [
+          {
+            "name": "funding_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Funding Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/fundings/{funding_id}/subscriptions/me": {
       "get": {
         "tags": [
@@ -8719,12 +9020,138 @@
         }
       }
     },
+    "/admin/works/{work_id}/pre-issuance-settlement": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "발행 전 유료 미리보기 정산 (작가 70 / DIBS 30)",
+        "operationId": "pre_issuance_settlement_admin_works__work_id__pre_issuance_settlement_get",
+        "parameters": [
+          {
+            "name": "work_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Work Id"
+            }
+          },
+          {
+            "name": "since",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date-time",
+              "title": "Since"
+            }
+          },
+          {
+            "name": "until",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date-time",
+              "title": "Until"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/admin/episodes/{episode_id}/pricing": {
       "patch": {
         "tags": [
           "admin"
         ],
-        "summary": "회차 유료 지정 (상장 작품만)",
+        "summary": "유료 미리보기 지정 (4화부터, 기본 300원, 공개 21일 후 무료)",
         "operationId": "pricing_admin_episodes__episode_id__pricing_patch",
         "parameters": [
           {
@@ -10218,13 +10645,121 @@
         }
       }
     },
-    "/admin/fundings/{funding_id}/mature": {
+    "/admin/fundings/{funding_id}/complete": {
       "post": {
         "tags": [
           "admin"
         ],
-        "summary": "만기 처리 (상장폐지, 원금 상환 없음)",
-        "operationId": "mature_admin_fundings__funding_id__mature_post",
+        "summary": "연재 완결 확정 (종료 규칙 3년 시작)",
+        "operationId": "complete_admin_fundings__funding_id__complete_post",
+        "parameters": [
+          {
+            "name": "funding_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Funding Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FundingOut"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/fundings/{funding_id}/terminate": {
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "권리 종료 (완결 후 3년 또는 저매출 2분기 연속, 원금 상환 없음)",
+        "operationId": "terminate_admin_fundings__funding_id__terminate_post",
         "parameters": [
           {
             "name": "funding_id",
@@ -10241,11 +10776,11 @@
             "required": false,
             "schema": {
               "type": "boolean",
-              "description": "만기일 전 처리 (시연용)",
+              "description": "조건 충족 전 처리 (시연용)",
               "default": false,
               "title": "Force"
             },
-            "description": "만기일 전 처리 (시연용)"
+            "description": "조건 충족 전 처리 (시연용)"
           },
           {
             "name": "authorization",
@@ -12246,7 +12781,7 @@
           "SYS_PLATFORM_REVENUE",
           "SYS_ROYALTY_POOL",
           "SYS_TAX_WITHHOLDING",
-          "SYS_FEE_RESERVE"
+          "SYS_BROKER_FEE"
         ],
         "title": "AccountKind"
       },
@@ -12267,6 +12802,12 @@
           "allocated": {
             "type": "integer",
             "title": "Allocated"
+          },
+          "early_reader": {
+            "type": "boolean",
+            "title": "Early Reader",
+            "description": "모집 시작 전 찜한 초기 독자 (우선 균등 배정 대상)",
+            "default": false
           }
         },
         "type": "object",
@@ -12339,6 +12880,11 @@
           "buyers_per_episode": {
             "type": "integer",
             "title": "Buyers Per Episode"
+          },
+          "monthly_readers": {
+            "type": "integer",
+            "title": "Monthly Readers",
+            "description": "결제율 가정으로 환산한 필요 월 열람자"
           }
         },
         "type": "object",
@@ -12347,7 +12893,8 @@
           "holder_dividend_per_year",
           "net_revenue_per_year",
           "paid_unlocks_per_month",
-          "buyers_per_episode"
+          "buyers_per_episode",
+          "monthly_readers"
         ],
         "title": "BreakevenLine"
       },
@@ -12396,7 +12943,7 @@
           "lines"
         ],
         "title": "BreakevenOut",
-        "description": "손익분기 독자 규모 공시 (청약 화면). 1년차 DIBS 안 유료 회차 매출만으로 계산한 보수적 수치."
+        "description": "손익분기 독자 규모 공시 (청약 화면). 회수 전 투자자 몫(세후)으로 4년·2년 안에 원금을 돌려받는 데 필요한 규모."
       },
       "BrokerAccountIn": {
         "properties": {
@@ -12685,9 +13232,15 @@
             "type": "integer",
             "title": "Net Revenue"
           },
-          "holder_direct": {
-            "type": "integer",
-            "title": "Holder Direct"
+          "phase": {
+            "type": "string",
+            "title": "Phase",
+            "description": "BEFORE_RECOUP(투자자 45%) | AFTER_RECOUP(35%)"
+          },
+          "recouped_now": {
+            "type": "boolean",
+            "title": "Recouped Now",
+            "description": "이 분기로 원금 회수 달성 → 다음 분기부터 회수 후 비율"
           },
           "holder_pool": {
             "type": "integer",
@@ -12725,7 +13278,8 @@
           "record_date",
           "pay_date",
           "net_revenue",
-          "holder_direct",
+          "phase",
+          "recouped_now",
           "holder_pool",
           "creator_amount",
           "platform_amount",
@@ -12764,11 +13318,30 @@
           },
           "is_paid": {
             "type": "boolean",
-            "title": "Is Paid"
+            "title": "Is Paid",
+            "description": "지금 결제가 필요한 회차인가 (유료 미리보기 기간 중)"
+          },
+          "paid_preview": {
+            "type": "boolean",
+            "title": "Paid Preview",
+            "description": "유료 미리보기로 지정된 회차"
           },
           "price_coin": {
             "type": "integer",
             "title": "Price Coin"
+          },
+          "free_unlock_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Free Unlock At",
+            "description": "이 시각부터 무료 (공개 21일 후)"
           },
           "content_url": {
             "type": "string",
@@ -12782,7 +13355,9 @@
           "no",
           "title",
           "is_paid",
+          "paid_preview",
           "price_coin",
+          "free_unlock_at",
           "content_url"
         ],
         "title": "EpisodeContentOut"
@@ -12831,11 +13406,30 @@
           },
           "is_paid": {
             "type": "boolean",
-            "title": "Is Paid"
+            "title": "Is Paid",
+            "description": "지금 결제가 필요한 회차인가 (유료 미리보기 기간 중)"
+          },
+          "paid_preview": {
+            "type": "boolean",
+            "title": "Paid Preview",
+            "description": "유료 미리보기로 지정된 회차"
           },
           "price_coin": {
             "type": "integer",
             "title": "Price Coin"
+          },
+          "free_unlock_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Free Unlock At",
+            "description": "이 시각부터 무료 (공개 21일 후)"
           },
           "unlocked": {
             "type": "boolean",
@@ -12849,7 +13443,9 @@
           "no",
           "title",
           "is_paid",
+          "paid_preview",
           "price_coin",
+          "free_unlock_at",
           "unlocked"
         ],
         "title": "EpisodeListItem"
@@ -12927,11 +13523,30 @@
           },
           "is_paid": {
             "type": "boolean",
-            "title": "Is Paid"
+            "title": "Is Paid",
+            "description": "지금 결제가 필요한 회차인가 (유료 미리보기 기간 중)"
+          },
+          "paid_preview": {
+            "type": "boolean",
+            "title": "Paid Preview",
+            "description": "유료 미리보기로 지정된 회차"
           },
           "price_coin": {
             "type": "integer",
             "title": "Price Coin"
+          },
+          "free_unlock_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Free Unlock At",
+            "description": "이 시각부터 무료 (공개 21일 후)"
           }
         },
         "type": "object",
@@ -12941,7 +13556,9 @@
           "no",
           "title",
           "is_paid",
-          "price_coin"
+          "paid_preview",
+          "price_coin",
+          "free_unlock_at"
         ],
         "title": "EpisodeOut"
       },
@@ -13570,18 +14187,29 @@
             "title": "Lock At",
             "description": "이 시각부터 감액·취소 불가"
           },
-          "maturity_date": {
+          "per_user_cap_units": {
+            "type": "integer",
+            "title": "Per User Cap Units",
+            "description": "1인 청약 한도 (3,000만 원과 발행액 5% 중 작은 금액)"
+          },
+          "risk_grade": {
+            "type": "string",
+            "title": "Risk Grade",
+            "default": "매우 높은 위험"
+          },
+          "recoup": {
+            "$ref": "#/components/schemas/RecoupOut"
+          },
+          "termination": {
             "anyOf": [
               {
-                "type": "string",
-                "format": "date-time"
+                "$ref": "#/components/schemas/TerminationOut"
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Maturity Date",
-            "description": "만기일 (상장 후 계산). 만기 시 상장폐지, 원금 상환 없음"
+            "description": "상장 후에만 (만기 없음, 종료 규칙)"
           }
         },
         "type": "object",
@@ -13604,9 +14232,72 @@
           "reward_tiers",
           "progress",
           "lock_at",
-          "maturity_date"
+          "per_user_cap_units",
+          "recoup",
+          "termination"
         ],
         "title": "FundingDetailOut"
+      },
+      "FundingGateOut": {
+        "properties": {
+          "work_id": {
+            "type": "integer",
+            "title": "Work Id"
+          },
+          "target_amount": {
+            "type": "integer",
+            "title": "Target Amount"
+          },
+          "pilot_readers_4w": {
+            "type": "integer",
+            "title": "Pilot Readers 4W"
+          },
+          "readers_needed_for_4y": {
+            "type": "integer",
+            "title": "Readers Needed For 4Y"
+          },
+          "gate_threshold": {
+            "type": "integer",
+            "title": "Gate Threshold",
+            "description": "필요 열람자의 50%"
+          },
+          "passes_gate": {
+            "type": "boolean",
+            "title": "Passes Gate"
+          },
+          "expected_monthly_readers": {
+            "type": "integer",
+            "title": "Expected Monthly Readers"
+          },
+          "target_cap": {
+            "type": "integer",
+            "title": "Target Cap",
+            "description": "예상 월 투자자 몫(세후) × 48개월"
+          },
+          "within_cap": {
+            "type": "boolean",
+            "title": "Within Cap"
+          },
+          "enforced": {
+            "type": "boolean",
+            "title": "Enforced"
+          }
+        },
+        "type": "object",
+        "required": [
+          "work_id",
+          "target_amount",
+          "pilot_readers_4w",
+          "readers_needed_for_4y",
+          "gate_threshold",
+          "passes_gate",
+          "expected_monthly_readers",
+          "target_cap",
+          "within_cap",
+          "enforced"
+        ],
+        "title": "FundingGateOut",
+        "description": "펀딩 개설 조건과 목표 금액 상한 (v4.0)."
       },
       "FundingOut": {
         "properties": {
@@ -13797,7 +14488,7 @@
           "ISSUE_FAILED",
           "LISTED",
           "SUSPENDED",
-          "MATURED"
+          "TERMINATED"
         ],
         "title": "FundingStatus"
       },
@@ -13820,15 +14511,33 @@
           },
           "royalty_platform_bps": {
             "type": "integer",
-            "title": "Royalty Platform Bps"
+            "title": "Royalty Platform Bps",
+            "description": "회수 전 DIBS 몫 (기본 25%)"
           },
           "royalty_creator_bps": {
             "type": "integer",
-            "title": "Royalty Creator Bps"
+            "title": "Royalty Creator Bps",
+            "description": "회수 전 작가 몫 (기본 30%)"
           },
           "royalty_holder_bps": {
             "type": "integer",
-            "title": "Royalty Holder Bps"
+            "title": "Royalty Holder Bps",
+            "description": "회수 전 투자자 몫 (기본 45%)"
+          },
+          "royalty_platform_after_bps": {
+            "type": "integer",
+            "title": "Royalty Platform After Bps",
+            "description": "회수 후 DIBS 몫 (기본 25%)"
+          },
+          "royalty_creator_after_bps": {
+            "type": "integer",
+            "title": "Royalty Creator After Bps",
+            "description": "회수 후 작가 몫 (기본 40%)"
+          },
+          "royalty_holder_after_bps": {
+            "type": "integer",
+            "title": "Royalty Holder After Bps",
+            "description": "회수 후 투자자 몫 (기본 35%)"
           },
           "allocation_strategy": {
             "type": "string",
@@ -13837,15 +14546,8 @@
           "allocation_params": {
             "additionalProperties": true,
             "type": "object",
-            "title": "Allocation Params"
-          },
-          "operating_period_months": {
-            "type": "integer",
-            "title": "Operating Period Months"
-          },
-          "maturity_policy": {
-            "type": "string",
-            "title": "Maturity Policy"
+            "title": "Allocation Params",
+            "description": "equal_ratio_bps(균등 20%), early_reader_bps(초기 독자 우선 10%)"
           },
           "exclusive_months": {
             "type": "integer",
@@ -13867,7 +14569,7 @@
           "external_share_bps": {
             "type": "integer",
             "title": "External Share Bps",
-            "description": "외부 진출 후 작가 몫 외부 연재 수익 중 배당 재원 비율"
+            "description": "독점 종료 후 외부 연재·영상화 수익 중 작가 몫에서 순매출에 넣는 비율"
           }
         },
         "type": "object",
@@ -13879,10 +14581,11 @@
           "royalty_platform_bps",
           "royalty_creator_bps",
           "royalty_holder_bps",
+          "royalty_platform_after_bps",
+          "royalty_creator_after_bps",
+          "royalty_holder_after_bps",
           "allocation_strategy",
           "allocation_params",
-          "operating_period_months",
-          "maturity_policy",
           "exclusive_months",
           "exclusive_until",
           "external_share_bps"
@@ -14741,9 +15444,10 @@
           "status": {
             "$ref": "#/components/schemas/OrderStatus"
           },
-          "fee_bps": {
+          "fee_ppm": {
             "type": "integer",
-            "title": "Fee Bps"
+            "title": "Fee Ppm",
+            "description": "거래 수수료율 (100만분의 1, 0.015% = 150)"
           },
           "locked_amount": {
             "type": "integer",
@@ -14770,7 +15474,7 @@
           "units",
           "remaining_units",
           "status",
-          "fee_bps",
+          "fee_ppm",
           "locked_amount",
           "trade_date",
           "created_at"
@@ -14797,9 +15501,10 @@
             "type": "integer",
             "title": "Gross"
           },
-          "fee_bps": {
+          "fee_ppm": {
             "type": "integer",
-            "title": "Fee Bps"
+            "title": "Fee Ppm",
+            "description": "0.015% = 150 (거래소·증권사 몫)"
           },
           "fee": {
             "type": "integer",
@@ -14849,7 +15554,7 @@
           "price",
           "units",
           "gross",
-          "fee_bps",
+          "fee_ppm",
           "fee",
           "total",
           "price_band",
@@ -15298,6 +16003,64 @@
         ],
         "title": "ReasonIn"
       },
+      "RecoupOut": {
+        "properties": {
+          "phase": {
+            "type": "string",
+            "title": "Phase",
+            "description": "BEFORE_RECOUP | AFTER_RECOUP"
+          },
+          "recouped_period": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recouped Period"
+          },
+          "cumulative_holder_gross": {
+            "type": "integer",
+            "title": "Cumulative Holder Gross",
+            "description": "누적 세전 분배금 (투자자 전체)"
+          },
+          "issuance_amount": {
+            "type": "integer",
+            "title": "Issuance Amount"
+          },
+          "progress_pct": {
+            "type": "number",
+            "title": "Progress Pct"
+          },
+          "holder_bps_now": {
+            "type": "integer",
+            "title": "Holder Bps Now"
+          },
+          "holder_bps_before": {
+            "type": "integer",
+            "title": "Holder Bps Before"
+          },
+          "holder_bps_after": {
+            "type": "integer",
+            "title": "Holder Bps After"
+          }
+        },
+        "type": "object",
+        "required": [
+          "phase",
+          "recouped_period",
+          "cumulative_holder_gross",
+          "issuance_amount",
+          "progress_pct",
+          "holder_bps_now",
+          "holder_bps_before",
+          "holder_bps_after"
+        ],
+        "title": "RecoupOut",
+        "description": "회수 우선 배분 진행 상황."
+      },
       "ReplyIn": {
         "properties": {
           "body": {
@@ -15519,8 +16282,7 @@
           "PAID_EPISODE",
           "AD",
           "GOODS",
-          "EXTERNAL_SERIAL",
-          "FEE_RESERVE"
+          "EXTERNAL_SERIAL"
         ],
         "title": "RevenueSource"
       },
@@ -15931,7 +16693,33 @@
             "title": "Price To Dividend",
             "description": "현재가 ÷ 최근 4분기 주당 배당. 배당 없으면 null"
           },
-          "maturity_date": {
+          "recoup_phase": {
+            "type": "string",
+            "title": "Recoup Phase",
+            "description": "BEFORE_RECOUP | AFTER_RECOUP"
+          },
+          "recoup_progress_pct": {
+            "type": "number",
+            "title": "Recoup Progress Pct",
+            "description": "누적 세전 분배금 ÷ 발행액"
+          },
+          "royalty_holder_after_bps": {
+            "type": "integer",
+            "title": "Royalty Holder After Bps"
+          },
+          "buyback_price": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Buyback Price",
+            "description": "작가 매입가 (최근 4분기 보유자 분배금 × 3)"
+          },
+          "terminate_due_at": {
             "anyOf": [
               {
                 "type": "string",
@@ -15941,7 +16729,8 @@
                 "type": "null"
               }
             ],
-            "title": "Maturity Date"
+            "title": "Terminate Due At",
+            "description": "완결 후 3년 (완결 전이면 null). 만기는 없음"
           },
           "my_units": {
             "anyOf": [
@@ -15988,7 +16777,11 @@
           "trades_7d",
           "dividend_4q_per_unit",
           "price_to_dividend",
-          "maturity_date"
+          "recoup_phase",
+          "recoup_progress_pct",
+          "royalty_holder_after_bps",
+          "buyback_price",
+          "terminate_due_at"
         ],
         "title": "SecurityDetailOut",
         "description": "종목 상세 상단 (현재가·등락·발행 정보·배당·내 보유)."
@@ -16530,10 +17323,10 @@
             "title": "Agree Risk Notice",
             "description": "투자 위험 고지 동의 (true 필수)"
           },
-          "agree_no_principal_return": {
+          "agree_termination_rule": {
             "type": "boolean",
-            "title": "Agree No Principal Return",
-            "description": "만기 시 원금 상환 없음·예금자 보호 대상 아님 동의 (true 필수, v3.0)",
+            "title": "Agree Termination Rule",
+            "description": "만기 없음·원금 상환 없음·종료 규칙·작가 매입 옵션 동의 (true 필수, v4.0)",
             "default": false
           }
         },
@@ -16688,6 +17481,82 @@
           "suspended"
         ],
         "title": "SuspendIn"
+      },
+      "TerminationOut": {
+        "properties": {
+          "completed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At"
+          },
+          "terminate_due_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Terminate Due At",
+            "description": "완결 후 3년"
+          },
+          "low_revenue_threshold": {
+            "type": "integer",
+            "title": "Low Revenue Threshold",
+            "description": "분기 순매출이 이보다 작으면 저매출 분기 (발행액 0.5%)"
+          },
+          "low_revenue_streak": {
+            "type": "integer",
+            "title": "Low Revenue Streak"
+          },
+          "eligible": {
+            "type": "boolean",
+            "title": "Eligible"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "buyback_price": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Buyback Price",
+            "description": "작가 매입가 = 최근 4분기 보유자 분배금 합계 × 3"
+          }
+        },
+        "type": "object",
+        "required": [
+          "completed_at",
+          "terminate_due_at",
+          "low_revenue_threshold",
+          "low_revenue_streak",
+          "eligible",
+          "reason",
+          "buyback_price"
+        ],
+        "title": "TerminationOut"
       },
       "TokenOut": {
         "properties": {

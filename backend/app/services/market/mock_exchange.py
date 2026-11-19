@@ -4,7 +4,7 @@
 1. 지정가 주문만, 같은 가격끼리만 체결 (가격 우선이 아니라 '가격 일치' + 시간 우선)
 2. 가격제한폭: 기준가(전일 종가) ±30%. 상장일 기준가 = 공모가
 3. 24시간 거래, 매일 04:00~04:30 점검, 미체결 주문은 자정에 자동 취소
-4. 수수료: 매수 1.0% (5조각 이상 0.8%), 매도 1.0% — 그중 20%는 종목 배당 재원으로 적립 (v3.0)
+4. 수수료: 매수·매도 0.015% (v4.0). 거래소·증권사 몫이며 DIBS 수입이 아니다 (발행·유통 분리)
 5. 자기 주문끼리는 체결하지 않음 (자전거래 방지)
 6. 매수는 투자성향 확인 후 가능 (v3.0)
 """
@@ -41,8 +41,8 @@ def price_band(reference_price: int) -> tuple[int, int]:
     return (math.ceil(reference_price * (10000 - bps) / 10000), math.floor(reference_price * (10000 + bps) / 10000))
 
 
-def buy_fee_bps(units: int) -> int:
-    return settings.buy_fee_bulk_bps if units >= settings.buy_fee_bulk_min_units else settings.buy_fee_bps
+def trade_fee(gross: int, fee_ppm: int | None = None) -> int:
+    return gross * (settings.trade_fee_ppm if fee_ppm is None else fee_ppm) // 1_000_000
 
 
 class InternalMockExchange(MarketGateway):
@@ -71,12 +71,11 @@ class InternalMockExchange(MarketGateway):
             raise DomainError("PRICE_OUT_OF_BAND", f"주문 가능 가격은 {lo:,}~{hi:,}원이에요")
 
         order = Order(user_id=user.id, funding_id=f.id, mode=f.mode, side=side, price=price, units=units,
-                      remaining_units=units, trade_date=now.date(),
-                      fee_bps=buy_fee_bps(units) if side == OrderSide.BUY else settings.sell_fee_bps)
+                      remaining_units=units, trade_date=now.date(), fee_ppm=settings.trade_fee_ppm)
         if side == OrderSide.BUY:
             gross = price * units
             check_investment_limit(db, user, f.mode, f.id, gross)
-            lock = gross + gross * order.fee_bps // 10000
+            lock = gross + trade_fee(gross, order.fee_ppm)
             order.locked_amount = lock
             db.add(order)
             db.flush()
@@ -111,20 +110,17 @@ class InternalMockExchange(MarketGateway):
     def _fill(self, f: Funding, buy: Order, sell: Order, q: int, price: int) -> None:
         db = self.db
         gross = price * q
-        buy_fee, sell_fee = gross * buy.fee_bps // 10000, gross * sell.fee_bps // 10000
+        buy_fee, sell_fee = trade_fee(gross, buy.fee_ppm), trade_fee(gross, sell.fee_ppm)
         b_acc = ledger.user_accounts(db, buy.user_id, f.mode)
         s_acc = ledger.user_accounts(db, sell.user_id, f.mode)
 
         buy.remaining_units -= q
         sell.remaining_units -= q
         buy.locked_amount -= gross + buy_fee
-        fee_total = buy_fee + sell_fee
-        reserve = fee_total * settings.fee_reserve_bps // 10000  # 종목 배당 재원 적립
         legs = [
             Leg(b_acc.locked, -(gross + buy_fee)),
             Leg(s_acc.deposit, gross - sell_fee),
-            Leg(ledger.sys(db, AccountKind.SYS_PLATFORM_REVENUE, f.mode), fee_total - reserve),
-            Leg(ledger.sys(db, AccountKind.SYS_FEE_RESERVE, f.mode), reserve),
+            Leg(ledger.sys(db, AccountKind.SYS_BROKER_FEE, f.mode), buy_fee + sell_fee),  # 거래소·증권사 몫
         ]
         if buy.remaining_units == 0 and buy.locked_amount > 0:  # 수수료 절사 차액 반환
             legs += [Leg(b_acc.locked, -buy.locked_amount), Leg(b_acc.deposit, buy.locked_amount)]
@@ -145,7 +141,7 @@ class InternalMockExchange(MarketGateway):
             o.status = OrderStatus.FILLED if o.remaining_units == 0 else OrderStatus.PARTIAL
         db.add(Trade(funding_id=f.id, mode=f.mode, price=price, units=q, buy_order_id=buy.id, sell_order_id=sell.id,
                      buyer_id=buy.user_id, seller_id=sell.user_id, buy_fee=buy_fee, sell_fee=sell_fee,
-                     fee_reserve=reserve, journal_id=j.id))
+                     journal_id=j.id))
         f.last_price = price
         db.flush()
 
@@ -171,8 +167,8 @@ class InternalMockExchange(MarketGateway):
             reasons.append("PRICE_OUT_OF_BAND")
 
         gross = price * units
-        fee_bps = buy_fee_bps(units) if side == OrderSide.BUY else settings.sell_fee_bps
-        fee = gross * fee_bps // 10000
+        fee_ppm = settings.trade_fee_ppm
+        fee = trade_fee(gross, fee_ppm)
         acc = ledger.user_accounts(db, user.id, f.mode)
         deposit = ledger.balance(db, acc.deposit)
         h = self._holding(user.id, f)
@@ -188,7 +184,7 @@ class InternalMockExchange(MarketGateway):
         elif units > avail_units:
             reasons.append("INSUFFICIENT_UNITS")
         return {
-            "mode": f.mode, "side": side, "price": price, "units": units, "gross": gross, "fee_bps": fee_bps,
+            "mode": f.mode, "side": side, "price": price, "units": units, "gross": gross, "fee_ppm": fee_ppm,
             "fee": fee, "total": gross + fee if side == OrderSide.BUY else gross - fee,
             "price_band": {"min": lo, "max": hi}, "available_deposit": deposit, "available_units": avail_units,
             "annual_remaining": lim["annual_remaining"], "security_remaining": lim["security_remaining"],

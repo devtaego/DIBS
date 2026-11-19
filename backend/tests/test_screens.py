@@ -52,7 +52,7 @@ def test_reward_shipping_flow(api, published_work, now):
     book = [t for t in api.ok(None, "get", f"/fundings/{f['id']}")["reward_tiers"] if t["title"] == "양장본"][0]
     api.ok("a", "post", f"/fundings/{f['id']}/subscriptions", json={
         "units": 100, "reward_tier_id": book["id"], "shipping": {"name": "A", "address1": "서울"},
-        "agree_risk_notice": True, "agree_no_principal_return": True})
+        "agree_risk_notice": True, "agree_termination_rule": True})
     api.ok("admin", "post", f"/admin/fundings/{f['id']}/close", params={"force": True})
 
     ships = api.ok("creator", "get", f"/studio/fundings/{f['id']}/shipments")
@@ -70,7 +70,7 @@ def test_security_detail_chart_preview_settlement(api, published_work, now):
         api.ok(u, "post", "/wallet/deposit/charge", json={"amount": 2_000_000})
     f = open_funding(api, published_work["id"], now, target_units=100)
     fid = f["id"]
-    api.ok("a", "post", f"/fundings/{fid}/subscriptions", json={"units": 100, "agree_risk_notice": True, "agree_no_principal_return": True})
+    api.ok("a", "post", f"/fundings/{fid}/subscriptions", json={"units": 100, "agree_risk_notice": True, "agree_termination_rule": True})
     list_security(api, fid)
 
     d = api.ok("a", "get", f"/market/securities/{fid}")
@@ -79,13 +79,13 @@ def test_security_detail_chart_preview_settlement(api, published_work, now):
     assert api.ok(None, "get", f"/market/securities/{fid}")["my_units"] is None
 
     p = api.ok("b", "get", f"/market/securities/{fid}/order-preview", params={"side": "BUY", "price": 10_000, "units": 5})
-    assert (p["gross"], p["fee_bps"], p["fee"], p["total"], p["can_place"]) == (50_000, 80, 400, 50_400, True)
+    assert (p["gross"], p["fee_ppm"], p["fee"], p["total"], p["can_place"]) == (50_000, 150, 7, 50_007, True)
     p = api.ok("b", "get", f"/market/securities/{fid}/order-preview", params={"side": "SELL", "price": 14_000, "units": 1})
     assert set(p["reasons"]) == {"PRICE_OUT_OF_BAND", "INSUFFICIENT_UNITS"} and not p["can_place"]
     p = api.ok("creator", "get", f"/market/securities/{fid}/order-preview", params={"side": "BUY", "price": 10_000, "units": 1})
     assert "SELF_TRADE_FORBIDDEN" in p["reasons"]
 
-    order = {"funding_id": fid, "agree_risk_notice": True, "agree_no_principal_return": True}
+    order = {"funding_id": fid, "agree_risk_notice": True, "agree_termination_rule": True}
     api.ok("a", "post", "/market/orders", json={**order, "side": "SELL", "price": 10_500, "units": 3})
     api.ok("b", "post", "/market/orders", json={**order, "side": "BUY", "price": 10_500, "units": 3})
     clock.set_now(now + timedelta(days=1))

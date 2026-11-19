@@ -27,7 +27,7 @@ def is_holder(db: Session, user: User | None, work_id: int) -> bool:
         return False
     return bool(db.scalar(select(func.count()).select_from(Holding).join(Funding, Funding.id == Holding.funding_id).where(
         Holding.user_id == user.id, Holding.units > 0, Funding.work_id == work_id,
-        Funding.status.in_([FundingStatus.LISTED, FundingStatus.SUSPENDED, FundingStatus.MATURED]))))
+        Funding.status.in_([FundingStatus.LISTED, FundingStatus.SUSPENDED, FundingStatus.TERMINATED]))))
 
 
 def _check_holder_board(db: Session, user: User | None, work: Work) -> None:

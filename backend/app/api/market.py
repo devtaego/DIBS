@@ -22,11 +22,12 @@ from app.schemas.market import (
     TradeOut,
 )
 from app.services import funding as funding_svc
+from app.services import product
 from app.services.market.mock_exchange import get_market, price_band
 
 router = APIRouter(prefix="/market", tags=["market"])
 
-TRADABLE_VIEW = [FundingStatus.LISTED, FundingStatus.SUSPENDED, FundingStatus.MATURED]
+TRADABLE_VIEW = [FundingStatus.LISTED, FundingStatus.SUSPENDED, FundingStatus.TERMINATED]
 
 
 def _security(db: Session, funding_id: int) -> Funding:
@@ -67,6 +68,7 @@ def security_detail(funding_id: int, db: Session = Depends(get_db), user: User |
         Trade.funding_id == f.id, Trade.created_at >= clock.now() - timedelta(days=7))).one()
     div4 = round(sum(r.per_unit_gross for r in runs[:4]), 2)
     price = f.last_price or f.unit_price
+    rec, term = product.recoup_status(db, f), product.termination_check(db, f)
     mine = None
     if user:
         mine = db.scalar(select(Holding).where(Holding.user_id == user.id, Holding.funding_id == f.id,
@@ -74,11 +76,14 @@ def security_detail(funding_id: int, db: Session = Depends(get_db), user: User |
     return SecurityDetailOut(
         **_list_item(f, work.title).model_dump(), security_code=iss.security_code if iss else None,
         listed_at=f.listed_at, total_units=total_units, price_band={"min": lo, "max": hi},
-        royalty_holder_bps=f.royalty_holder_bps,
+        royalty_holder_bps=rec["holder_bps_now"],
         cumulative_dividend_per_unit=round(sum(r.per_unit_gross for r in runs), 2),
         last_dividend=DividendRunOut.model_validate(runs[0]) if runs else None,
         volume_7d=int(vol), trades_7d=cnt, dividend_4q_per_unit=div4,
-        price_to_dividend=round(price / div4, 1) if div4 else None, maturity_date=funding_svc.maturity_date(f),
+        price_to_dividend=round(price / div4, 1) if div4 else None,
+        recoup_phase=rec["phase"], recoup_progress_pct=rec["progress_pct"],
+        royalty_holder_after_bps=f.royalty_holder_after_bps, buyback_price=term["buyback_price"],
+        terminate_due_at=term["terminate_due_at"],
         my_units=mine.units if mine else (0 if user else None), my_avg_price=mine.avg_price if mine else None,
     )
 

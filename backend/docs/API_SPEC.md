@@ -96,6 +96,9 @@
 | `GET` | `/fundings/{funding_id}/limits` | 내 남은 투자 한도 | 회원 |  | LimitsOut |
 | `POST` | `/fundings/{funding_id}/subscriptions` | 조각 청약 (예치금 묶임) | 회원 | SubscribeIn | SubscriptionOut |
 | `GET` | `/fundings/{funding_id}/breakeven` | 손익분기 독자 규모 (청약 전 공시) | 공개 |  | BreakevenOut |
+| `GET` | `/works/{work_id}/funding-gate` | 펀딩 개설 조건·목표 금액 상한 (파일럿 4주 열람자 기준) | 공개 |  | FundingGateOut |
+| `GET` | `/fundings/{funding_id}/buyback-quote` | 종료 규칙 상태와 작가 매입가 (상장 후) | 공개 |  | TerminationOut |
+| `POST` | `/fundings/{funding_id}/buyback` | 작가 매입 옵션 실행 (작가 본인, 전량 매입 후 권리 종료) | 창작자 |  |  |
 | `GET` | `/fundings/{funding_id}/subscriptions/me` | 내 청약 조회 | 회원 |  | SubscriptionOut |
 | `PATCH` | `/fundings/{funding_id}/subscriptions/me` | 청약 수량·리워드 변경 (감액은 마감 1시간 전까지) | 회원 | SubscriptionPatch | SubscriptionOut |
 | `DELETE` | `/fundings/{funding_id}/subscriptions/me` | 청약 취소 (마감 1시간 전까지) | 회원 |  | SubscriptionOut |
@@ -151,7 +154,8 @@
 | `POST` | `/admin/works/{work_id}/review` | 작품 공개 심사 (권리 확인) | 운영자 | ReviewIn | WorkOut |
 | `POST` | `/admin/works/{work_id}/hide` | 비공개 처리 (권리 분쟁 등) | 운영자 | ReasonIn | WorkOut |
 | `GET` | `/admin/works/{work_id}/review-metrics` | 펀딩 심사 지표 (본인인증 계정만, 조작 의심 신호) | 운영자 |  | ReviewMetricsOut |
-| `PATCH` | `/admin/episodes/{episode_id}/pricing` | 회차 유료 지정 (상장 작품만) | 운영자 | EpisodePricingIn | EpisodeOut |
+| `GET` | `/admin/works/{work_id}/pre-issuance-settlement` | 발행 전 유료 미리보기 정산 (작가 70 / DIBS 30) | 운영자 |  |  |
+| `PATCH` | `/admin/episodes/{episode_id}/pricing` | 유료 미리보기 지정 (4화부터, 기본 300원, 공개 21일 후 무료) | 운영자 | EpisodePricingIn | EpisodeOut |
 | `GET` | `/admin/fundings` | 펀딩 목록 (전체 상태) | 운영자 |  | FundingOut[] |
 | `GET` | `/admin/fundings/{funding_id}` | 펀딩 상세 (모든 상태) | 운영자 |  | FundingDetailOut |
 | `POST` | `/admin/fundings/{funding_id}/review` | 펀딩 심사·발행 조건 확정 | 운영자 | FundingReviewIn | FundingDetailOut |
@@ -164,7 +168,8 @@
 | `POST` | `/admin/fundings/{funding_id}/issuance/fail` | 발행 실패 (전액 환불·리워드 취소) | 운영자 | ReasonIn | FundingOut |
 | `POST` | `/admin/fundings/{funding_id}/suspension` | 거래 정지 / 해제 | 운영자 | SuspendIn | FundingOut |
 | `POST` | `/admin/fundings/{funding_id}/discontinue` | 연재 중단 확정 (남은 작가 지급분을 주주에게 분배, 거래 정지) | 운영자 | ReasonIn | DiscontinueOut |
-| `POST` | `/admin/fundings/{funding_id}/mature` | 만기 처리 (상장폐지, 원금 상환 없음) | 운영자 |  | FundingOut |
+| `POST` | `/admin/fundings/{funding_id}/complete` | 연재 완결 확정 (종료 규칙 3년 시작) | 운영자 |  | FundingOut |
+| `POST` | `/admin/fundings/{funding_id}/terminate` | 권리 종료 (완결 후 3년 또는 저매출 2분기 연속, 원금 상환 없음) | 운영자 |  | FundingOut |
 | `GET` | `/admin/fundings/{funding_id}/payouts` | 작가 지급 일정 | 운영자 |  | PayoutOut[] |
 | `POST` | `/admin/fundings/{funding_id}/payouts/{seq}/pay` | 마일스톤 지급 실행 | 운영자 |  | PayoutOut |
 | `POST` | `/admin/revenues` | 매출 입력 (광고·굿즈 등) | 운영자 | RevenueIn | RevenueOut |
@@ -186,6 +191,7 @@
 
 | code | 기본 메시지 |
 |---|---|
+| `ALREADY_COMPLETED` | 이미 완결 처리된 작품이에요 |
 | `ALREADY_DISCONTINUED` | 이미 연재 중단 처리된 종목이에요 |
 | `ALREADY_REPORTED` | 이미 신고한 글이에요 |
 | `ALREADY_SUBSCRIBED` | 이미 청약했어요. 수량 변경을 이용해 주세요 |
@@ -208,12 +214,13 @@
 | `EXCLUSIVE_PERIOD` | 선공개 독점 기간에는 외부 연재 수익을 넣을 수 없어요 |
 | `FORBIDDEN_ROLE` | 권한이 없어요 |
 | `FUNDING_ALREADY_ACTIVE` | 이 작품은 이미 진행 중인 펀딩이 있어요 |
+| `FUNDING_GATE_NOT_MET` | 파일럿 4주 열람자가 {g['gate_threshold']:,}명 이상이어야 펀딩을 열 수 있어요  |
 | `FUNDING_NOT_CLOSED_YET` | 아직 마감 시각이 아니에요 |
 | `FUNDING_NOT_FOUND` | 펀딩을 찾을 수 없어요 |
 | `FUNDING_NOT_IN_PERIOD` | 모집 기간이 아니에요 |
 | `HOLDERS_ONLY` | 이 작품 조각을 가진 주주만 볼 수 있어요 |
 | `IMAGE_REQUIRED` | 팬아트 이미지를 올려 주세요 |
-| `INSUFFICIENT_BALANCE` | 예치금이 부족해요 / 코인이 부족해요 |
+| `INSUFFICIENT_BALANCE` | 매입가 {price:,}원이 예치금보다 많아요 |
 | `INSUFFICIENT_UNITS` | 매도 가능 수량이 부족해요 |
 | `INVALID_AMOUNT` | 1원 이상 {MAX_CHARGE:,}원 이하로 입력해 주세요 |
 | `INVALID_ANSWERS` | 각 문항은 1~4점이에요 |
@@ -223,7 +230,6 @@
 | `INVALID_ORDER` | 가격과 수량은 1 이상이어야 해요 |
 | `INVALID_PAYOUT_SCHEDULE` | 작가 지급 비율 합계는 100%여야 해요 |
 | `INVALID_PERIOD` | 기간은 '2027Q1' 형식이에요 |
-| `INVALID_PRICE` | 유료 회차 가격을 입력해 주세요 |
 | `INVALID_REVENUE` | 매출과 공제액을 확인해 주세요 |
 | `INVALID_TERMS` | 모금액 배분율 합계는 100%여야 해요 |
 | `INVALID_TOKEN` | 로그인이 필요해요 |
@@ -235,20 +241,18 @@
 | `LISTED_AFTER_RECORD_DATE` | 기준일 이후 상장된 종목이에요 |
 | `LIVE_DISABLED` | 실거래는 인가 후 열려요. 지금은 모의투자만 가능해요 |
 | `MARKET_MAINTENANCE` | {settings.maintenance_start}~{settings.maintenance_end} 점검 중이에요 |
-| `MATURITY_NOT_REACHED` | 만기일({due.date()}) 전이에요 |
-| `MAX_UNITS_EXCEEDED` | 1인 최대 {f.max_units_per_user}조각까지 청약할 수 있어요 |
+| `MAX_UNITS_EXCEEDED` | 1인 최대 {cap}조각까지 청약할 수 있어요 |
 | `MOCK_DEPOSIT_TO_COIN` | 모의 예치금은 코인으로 바꿀 수 없어요 |
 | `NESTED_REPLY` | 답글에는 답글을 달 수 없어요 |
 | `NOTICE_NOT_FOUND` | 공지를 찾을 수 없어요 |
 | `NOTIFICATION_NOT_FOUND` | 알림을 찾을 수 없어요 |
 | `NOT_AUTHOR` | 내가 쓴 글만 지울 수 있어요 |
-| `NOT_LISTED` | 상장된 종목만 배당할 수 있어요 |
-| `NOT_LISTED_WORK` | 상장된 작품만 유료 회차를 지정할 수 있어요 |
+| `NOT_LISTED` | 상장 후에 확인할 수 있어요 |
 | `NOT_TRADABLE` | 거래할 수 없는 종목이에요 (미상장 또는 거래 정지) |
 | `NOT_WORK_OWNER` | 내 작품만 관리할 수 있어요 |
+| `NO_DIVIDEND_HISTORY` | 배당 이력이 있어야 매입가를 정할 수 있어요 |
 | `NO_EPISODES` | 회차를 1개 이상 등록해 주세요 |
 | `NO_HOLDERS` | 기준일 보유자가 없어요 |
-| `NO_PRINCIPAL_NOTICE_REQUIRED` | 만기 시 원금이 상환되지 않는다는 고지에 동의해 주세요 |
 | `ORDER_NOT_FOUND` | 주문을 찾을 수 없어요 |
 | `ORDER_NOT_OPEN` | 이미 체결되었거나 취소된 주문이에요 |
 | `PAYMENT_REQUIRED` | 이어서 보려면 {e.price_coin}코인이 필요해요 |
@@ -256,6 +260,7 @@
 | `PAYOUT_NOT_FOUND` | 지급 일정을 찾을 수 없어요 |
 | `PERIOD_CLOSED` | 이미 배당을 계산한 분기예요 |
 | `PERIOD_NOT_ENDED` | {period}이 끝난 뒤({record_date} 이후)에 계산할 수 있어요 |
+| `PILOT_FREE` | 파일럿 {settings.pilot_free_episodes}화까지는 무료예요 |
 | `POLICY_NOT_FOUND` | 문서를 찾을 수 없어요 |
 | `POST_NOT_FOUND` | 글을 찾을 수 없어요 |
 | `PRICE_OUT_OF_BAND` | 주문 가능 가격은 {lo:,}~{hi:,}원이에요 |
@@ -273,7 +278,9 @@
 | `SHORT_REQUIRED` | 댓글을 달 숏츠를 지정해 주세요 |
 | `SUBSCRIPTION_LOCKED` | 마감 {settings.subscription_lock_minutes}분 전부터는 감액·취소할 수 없어요 |
 | `SUBSCRIPTION_NOT_FOUND` | 청약 내역이 없어요 |
-| `SYSTEM_SOURCE` | 거래 수수료 적립분은 배당 계산 때 자동으로 집계돼요 |
+| `TARGET_OVER_CAP` | 목표 금액은 {g['target_cap']:,}원을 넘을 수 없어요 |
+| `TERMINATION_NOTICE_REQUIRED` | 만기 없음·종료 규칙 고지에 동의해 주세요 |
+| `TERMINATION_NOT_DUE` | 종료 조건(완결 후 3년 또는 저매출 2분기 연속)을 충족하지 않았어요 |
 | `TIER_MIN_UNITS` | 이 리워드는 {tier.min_units}조각 이상 청약해야 받을 수 있어요 |
 | `TIER_NOT_FOUND` | 리워드를 찾을 수 없어요 |
 | `TIER_SOLD_OUT` | 한정 수량이 모두 찼어요 |

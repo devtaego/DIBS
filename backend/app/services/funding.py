@@ -3,7 +3,7 @@
 상태 흐름:
   IN_REVIEW → APPROVED → OPEN → (마감) → ALLOCATED → ISSUING → LISTED
                  ↘ REJECTED        ↘ FAILED (목표 미달)  ↘ ISSUE_FAILED (발행 실패)
-  LISTED ⇄ SUSPENDED (거래 정지),  LISTED → MATURED (만료 처리 방식 미정)
+  LISTED ⇄ SUSPENDED (거래 정지),  LISTED → TERMINATED (만기 없음. 종료 규칙·작가 매입은 services/product.py)
 """
 import calendar
 from dataclasses import dataclass, field
@@ -26,7 +26,7 @@ from app.models.enums import (
     SubscriptionStatus,
     WorkStatus,
 )
-from app.services import ledger
+from app.services import ledger, product
 from app.services.allocation import STRATEGIES, AllocationRequest, get_strategy
 from app.services.ledger import Leg
 from app.services.policy import check_investment_limit, current_mode, ensure_mode_allowed, notify
@@ -42,7 +42,8 @@ REVIEWABLE_TERMS = {
     "unit_price", "target_units", "max_units_per_user", "open_at", "close_at", "security_type",
     "creator_bps", "issuance_cost_bps", "platform_fee_bps",
     "royalty_platform_bps", "royalty_creator_bps", "royalty_holder_bps",
-    "allocation_strategy", "allocation_params", "operating_period_months", "maturity_policy", "risk_note",
+    "royalty_platform_after_bps", "royalty_creator_after_bps", "royalty_holder_after_bps",
+    "allocation_strategy", "allocation_params", "risk_note",
 }
 
 
@@ -62,7 +63,9 @@ def _validate_terms(f: Funding) -> None:
     if f.creator_bps + f.issuance_cost_bps + f.platform_fee_bps != 10000:
         raise DomainError("INVALID_TERMS", "모금액 배분율 합계는 100%여야 해요")
     if f.royalty_platform_bps + f.royalty_creator_bps + f.royalty_holder_bps != 10000:
-        raise DomainError("INVALID_TERMS", "저작권료 배분율 합계는 100%여야 해요")
+        raise DomainError("INVALID_TERMS", "회수 전 배당 재원 배분율 합계는 100%여야 해요")
+    if f.royalty_platform_after_bps + f.royalty_creator_after_bps + f.royalty_holder_after_bps != 10000:
+        raise DomainError("INVALID_TERMS", "회수 후 배당 재원 배분율 합계는 100%여야 해요")
     if f.allocation_strategy not in STRATEGIES:
         raise DomainError("INVALID_TERMS", f"배정 방식은 {STRATEGIES} 중 하나여야 해요")
     get_strategy(f.allocation_strategy, f.allocation_params)  # 파라미터 검증
@@ -71,7 +74,10 @@ def _validate_terms(f: Funding) -> None:
         if not settings.min_funding_days <= days <= settings.max_funding_days:
             raise DomainError("INVALID_TERMS", f"모집 기간은 {settings.min_funding_days}~{settings.max_funding_days}일이에요")
     if not settings.min_target_amount <= f.target_amount <= settings.max_target_amount:
-        raise DomainError("INVALID_TERMS", "모집 목표금액이 허용 범위를 벗어나요")
+        raise DomainError("INVALID_TERMS", f"모집 목표금액은 {settings.min_target_amount:,}원 이상이어야 해요")
+    cap = product.per_user_cap_amount(f.target_amount) // f.unit_price
+    if f.max_units_per_user is None or f.max_units_per_user > cap:
+        f.max_units_per_user = max(1, cap)  # 1인 한도: 3,000만 원과 발행액 5% 중 작은 금액
 
 
 # ───────────────────────────── 신청·심사·오픈 ─────────────────────────────
@@ -91,6 +97,7 @@ def apply_funding(db: Session, creator: User, work: Work, data: dict, tiers: lis
     db.add(f)
     db.flush()
     _validate_terms(f)
+    product.check_funding_gate(db, work.id, f.target_amount)  # 파일럿 열람자 기준선·목표 금액 상한
     for t in tiers:
         db.add(RewardTier(funding_id=f.id, **t))
     db.flush()
@@ -159,8 +166,9 @@ def _validate_units_and_tier(db: Session, f: Funding, units: int, tier_id: int |
                              shipping: dict | None, exclude_sub_id: int | None = None) -> None:
     if units < 1:
         raise DomainError("INVALID_UNITS", "1조각 이상 청약해 주세요")
-    if f.max_units_per_user and units > f.max_units_per_user:
-        raise DomainError("MAX_UNITS_EXCEEDED", f"1인 최대 {f.max_units_per_user}조각까지 청약할 수 있어요")
+    cap = product.per_user_cap_units(f)
+    if units > cap:
+        raise DomainError("MAX_UNITS_EXCEEDED", f"1인 최대 {cap}조각까지 청약할 수 있어요")
     if tier_id is None:
         return
     tier = db.get(RewardTier, tier_id)
@@ -299,7 +307,8 @@ def close_funding(db: Session, f: Funding, force: bool = False) -> CloseResult:
         return CloseResult(f.status, total, f.target_units)
 
     strategy = get_strategy(f.allocation_strategy, f.allocation_params)
-    reqs = [AllocationRequest(s.id, s.units, (s.first_subscribed_at, s.id)) for s in subs]
+    early = early_readers(db, f)
+    reqs = [AllocationRequest(s.id, s.units, (s.first_subscribed_at, s.id), s.user_id in early) for s in subs]
     alloc = strategy.allocate(reqs, f.target_units)
 
     legs, escrow_total, result = [], 0, []
@@ -311,7 +320,8 @@ def close_funding(db: Session, f: Funding, force: bool = False) -> CloseResult:
         escrow_total += cost
         s.allocated_units = a
         s.status = SubscriptionStatus.ALLOCATED if a > 0 else SubscriptionStatus.REFUNDED
-        result.append({"subscription_id": s.id, "user_id": s.user_id, "requested": s.units, "allocated": a})
+        result.append({"subscription_id": s.id, "user_id": s.user_id, "requested": s.units, "allocated": a,
+                       "early_reader": s.user_id in early})
         if a > 0:
             notify(db, s.user_id, "ALLOCATED", f"「{work.title}」 {a}조각이 배정됐어요",
                    f"청약 {s.units}조각 중 {a}조각 배정, {refund:,}원은 바로 돌려드렸어요.", "funding", f.id)
@@ -324,6 +334,12 @@ def close_funding(db: Session, f: Funding, force: bool = False) -> CloseResult:
     _assign_rewards(db, f, subs, work)
     f.status = FundingStatus.ALLOCATED
     return CloseResult(f.status, total, f.target_units, result)
+
+
+def early_readers(db: Session, f: Funding) -> set[int]:
+    """초기 독자 = 모집 시작 전에 이 작품을 찜한 회원 (v4.0 초기 독자 우선 배정)."""
+    cutoff = f.open_at or clock.now()
+    return set(db.scalars(select(Dib.user_id).where(Dib.work_id == f.work_id, Dib.created_at < cutoff)))
 
 
 def _assign_rewards(db: Session, f: Funding, subs: list[Subscription], work: Work) -> None:
@@ -486,10 +502,6 @@ def add_months(dt, months: int):
     return dt.replace(year=year, month=month, day=min(dt.day, calendar.monthrange(year, month)[1]))
 
 
-def maturity_date(f: Funding):
-    return add_months(f.listed_at, f.operating_period_months) if f.listed_at else None
-
-
 def _holders(db: Session, f: Funding) -> list[Holding]:
     return list(db.scalars(select(Holding).where(Holding.funding_id == f.id, Holding.mode == f.mode,
                                                  Holding.units > 0).order_by(Holding.user_id)))
@@ -523,33 +535,21 @@ def discontinue(db: Session, f: Funding, reason: str) -> dict:
     return {"cancelled_payout_amount": remaining, "distributed": distributed, "holders": len(holders)}
 
 
-def mature(db: Session, f: Funding, force: bool = False) -> Funding:
-    """운용 기간 만기 (v3.0): 상장폐지·증권 소멸. 원금 상환 없음. 마지막 분기 배당은 만기 후에도 계산할 수 있다."""
-    _require(f, FundingStatus.LISTED, FundingStatus.SUSPENDED)
-    due = maturity_date(f)
-    if not force and clock.now() < due:
-        raise Conflict("MATURITY_NOT_REACHED", f"만기일({due.date()}) 전이에요")
-    work = db.get(Work, f.work_id)
-    for h in _holders(db, f):
-        notify(db, h.user_id, "MATURED", f"「{work.title}」 운용 기간이 끝나 상장폐지됐어요",
-               "마지막 분기 배당은 예정대로 지급돼요. 원금 상환은 없어요.", "funding", f.id)
-    f.status, f.matured_at = FundingStatus.MATURED, clock.now()
-    return f
-
-
-def breakeven(f: Funding, price_coin: int, monthly_episodes: int, target_yield_bps: int = 500) -> list[dict]:
-    """손익분기 독자 규모 공시 (기획안 v3.0 6장). 1년차 DIBS 안 유료 회차 매출만으로 계산."""
-    raise_amount = f.target_amount
-    years = max(1, f.operating_period_months // 12)
+def breakeven(f: Funding, price_coin: int, monthly_episodes: int) -> list[dict]:
+    """손익분기 독자 규모 공시 (v4.0). 회수 전 투자자 몫(세후)으로 원금을 4년·발행액만큼 돌려받는 데 필요한 규모."""
     out = []
-    for label, holder_need in [(f"연 배당수익률 {target_yield_bps / 100:g}%", raise_amount * target_yield_bps // 10000),
-                               (f"{years}년 안에 원금만큼 배당", raise_amount // years)]:
-        net_need = holder_need * 10000 / f.royalty_holder_bps
+    tax = 1 - settings.dividend_tax_bps / 10000
+    holder = f.royalty_holder_bps / 10000
+    for months in (settings.recoup_target_months, 24):
+        holder_need = f.target_amount / months  # 월 투자자 몫(세후)
+        net_need = holder_need / tax / holder
         gross_need = net_need * 10000 / (10000 - settings.inapp_fee_bps)
-        monthly_unlocks = gross_need / 12 / price_coin
-        out.append({"goal": label, "holder_dividend_per_year": int(holder_need), "net_revenue_per_year": round(net_need),
-                    "paid_unlocks_per_month": round(monthly_unlocks),
-                    "buyers_per_episode": round(monthly_unlocks / monthly_episodes)})
+        unlocks = gross_need / price_coin
+        payers_per_ep = unlocks / monthly_episodes
+        out.append({"goal": f"{months // 12}년 안에 원금 회수", "holder_dividend_per_year": round(holder_need * 12),
+                    "net_revenue_per_year": round(net_need * 12), "paid_unlocks_per_month": round(unlocks),
+                    "buyers_per_episode": round(payers_per_ep),
+                    "monthly_readers": round(payers_per_ep / (settings.assumed_pay_rate_bps / 10000))})
     return out
 
 

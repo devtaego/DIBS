@@ -38,7 +38,7 @@ class Order(TimestampMixin, Base):
     units: Mapped[int] = mapped_column(Integer)
     remaining_units: Mapped[int] = mapped_column(Integer)
     status: Mapped[OrderStatus] = enum_col(OrderStatus, default=OrderStatus.OPEN, index=True)
-    fee_bps: Mapped[int] = mapped_column(Integer)
+    fee_ppm: Mapped[int] = mapped_column(Integer)  # 거래 수수료율 (100만분의 1, 0.015% = 150)
     locked_amount: Mapped[int] = mapped_column(BigInteger, default=0)  # 매수: 남은 묶인 예치금
     trade_date: Mapped[date] = mapped_column(Date, index=True)  # 자정 자동 취소 기준일
 
@@ -57,6 +57,5 @@ class Trade(Base):
     seller_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
     buy_fee: Mapped[int] = mapped_column(BigInteger)
     sell_fee: Mapped[int] = mapped_column(BigInteger)
-    fee_reserve: Mapped[int] = mapped_column(BigInteger, default=0)  # 수수료 중 종목 배당 재원 적립분 (v3.0)
     journal_id: Mapped[int] = mapped_column(ForeignKey("journals.id"))
     created_at: Mapped[datetime] = mapped_column(DateTime, default=clock.now, index=True)

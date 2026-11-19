@@ -46,24 +46,31 @@ class Funding(TimestampMixin, Base):
     issuance_cost_bps: Mapped[int] = mapped_column(Integer, default=settings.issuance_cost_bps)
     platform_fee_bps: Mapped[int] = mapped_column(Integer, default=settings.platform_fee_bps)
 
-    # 저작권료 배분 (bps)
+    # 배당 재원(순매출) 배분 (bps) — v4.0 회수 우선 배분
+    # 회수 전 (기본 작가 30 / 투자자 45 / DIBS 25)
     royalty_platform_bps: Mapped[int] = mapped_column(Integer, default=settings.royalty_platform_bps)
     royalty_creator_bps: Mapped[int] = mapped_column(Integer, default=settings.royalty_creator_bps)
     royalty_holder_bps: Mapped[int] = mapped_column(Integer, default=settings.royalty_holder_bps)
+    # 회수 후 (기본 작가 40 / 투자자 35 / DIBS 25)
+    royalty_platform_after_bps: Mapped[int] = mapped_column(Integer, default=settings.royalty_platform_after_bps)
+    royalty_creator_after_bps: Mapped[int] = mapped_column(Integer, default=settings.royalty_creator_after_bps)
+    royalty_holder_after_bps: Mapped[int] = mapped_column(Integer, default=settings.royalty_holder_after_bps)
+    # 회수 판정: 누적 세전 분배금이 발행액에 닿은 분기. 다음 분기부터 '회수 후' 비율
+    recouped_period: Mapped[str | None] = mapped_column(String(7))
 
-    # 배정 방식 (기획 확정 전: PRO_RATA 기본, EQUAL_THEN_PRO_RATA 대안)
+    # 배정 방식 (v4.0: 균등 20 / 비례 80, 균등분 중 발행량 10%는 초기 독자 우선)
     allocation_strategy: Mapped[str] = mapped_column(String(50), default=settings.default_allocation_strategy)
     allocation_params: Mapped[dict] = mapped_column(
-        JSON, default=lambda: {"equal_ratio_bps": settings.default_equal_ratio_bps})
+        JSON, default=lambda: {"equal_ratio_bps": settings.default_equal_ratio_bps,
+                               "early_reader_bps": settings.default_early_reader_bps})
 
-    # 운용 기간·만기 (v3.0: 3년, 만기 시 상장폐지·원금 상환 없음)
-    operating_period_months: Mapped[int] = mapped_column(Integer, default=settings.operating_period_months)
-    maturity_policy: Mapped[str] = mapped_column(String(50), default="DELIST_NO_REDEMPTION")
-    # 선공개 독점·외부 진출 (v3.0 B안)
+    # 만기 없음 (v4.0). 종료 규칙: 완결 후 3년 또는 저매출 2분기 연속, 작가 매입 옵션
     exclusive_months: Mapped[int] = mapped_column(Integer, default=settings.exclusive_months)
     exclusive_until: Mapped[datetime | None] = mapped_column(DateTime)  # 상장 시 계산
     external_share_bps: Mapped[int] = mapped_column(Integer, default=settings.external_share_bps)
-    matured_at: Mapped[datetime | None] = mapped_column(DateTime)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime)  # 연재 완결 확정
+    terminated_at: Mapped[datetime | None] = mapped_column(DateTime)
+    termination_reason: Mapped[str | None] = mapped_column(String(50))  # COMPLETED_3Y | LOW_REVENUE | BUYBACK
     discontinued_at: Mapped[datetime | None] = mapped_column(DateTime)  # 연재 중단 확정
 
     # 마켓

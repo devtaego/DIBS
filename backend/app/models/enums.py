@@ -57,7 +57,7 @@ class AccountKind(StrEnum):
     SYS_PLATFORM_REVENUE = "SYS_PLATFORM_REVENUE"
     SYS_ROYALTY_POOL = "SYS_ROYALTY_POOL"  # 배당 재원
     SYS_TAX_WITHHOLDING = "SYS_TAX_WITHHOLDING"
-    SYS_FEE_RESERVE = "SYS_FEE_RESERVE"  # 거래 수수료 중 종목 배당 재원 적립분
+    SYS_BROKER_FEE = "SYS_BROKER_FEE"  # 거래 수수료 0.015% (거래소·증권사 몫, 모의)
 
 
 USER_ACCOUNT_KINDS = {AccountKind.COIN, AccountKind.DEPOSIT, AccountKind.DEPOSIT_LOCKED}
@@ -81,7 +81,7 @@ class FundingStatus(StrEnum):
     ISSUE_FAILED = "ISSUE_FAILED"  # 발행 실패 → 전액 환불
     LISTED = "LISTED"  # 상장·거래 가능
     SUSPENDED = "SUSPENDED"  # 거래 정지
-    MATURED = "MATURED"  # 운용 기간 만료 (처리 방식 미정)
+    TERMINATED = "TERMINATED"  # 권리 종료 (완결 후 3년·저매출 2분기 연속·작가 매입)
 
 
 class IssuanceStep(StrEnum):
@@ -134,16 +134,11 @@ class PayoutStatus(StrEnum):
 
 
 class RevenueSource(StrEnum):
-    # 순매출을 DIBS / 작가 / 주주로 나누는 재원
+    # 모두 순매출 → 작가 / 투자자 / DIBS 로 나뉜다 (v4.0)
     PAID_EPISODE = "PAID_EPISODE"
     AD = "AD"
     GOODS = "GOODS"
-    # 전액 주주 몫으로 들어가는 재원 (v3.0)
-    EXTERNAL_SERIAL = "EXTERNAL_SERIAL"  # 외부 연재 수익 중 작가 몫 × external_share_bps
-    FEE_RESERVE = "FEE_RESERVE"  # 거래 수수료 적립분
-
-
-HOLDER_ONLY_SOURCES = {RevenueSource.EXTERNAL_SERIAL, RevenueSource.FEE_RESERVE}
+    EXTERNAL_SERIAL = "EXTERNAL_SERIAL"  # 독점 종료 후 외부 연재·영상화 수익 중 작가 몫 × 20%
 
 
 class PostKind(StrEnum):

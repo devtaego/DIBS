@@ -26,10 +26,11 @@ def now():
 @pytest.fixture(autouse=True)
 def small_fundings(monkeypatch):
     """대부분의 흐름 테스트는 100조각(100만 원) 소액 펀딩으로 계산을 쉽게 한다.
-    v3.0 실제 최소 모집 금액(1,000만 원)은 test_v3.py 에서 따로 검증한다."""
+    v4.0 실제 최소 모집 금액(3,000만 원)과 1인 한도(발행액 5%)는 test_v4.py 에서 따로 검증한다."""
     from app.core.config import settings
 
     monkeypatch.setattr(settings, "min_target_amount", 1_000_000)
+    monkeypatch.setattr(settings, "max_subscription_bps", 100_000)  # 소액 흐름 테스트는 1인 한도를 사실상 끈다
 
 
 @pytest.fixture
@@ -103,12 +104,12 @@ def iso(dt: datetime) -> str:
 
 @pytest.fixture
 def published_work(api):
-    """관리자·창작자 로그인 + 공개된 작품(회차 3개) 1개."""
+    """관리자·창작자 로그인 + 공개된 작품(회차 4개: 파일럿 1~3화 + 4화) 1개."""
     api.login("admin", "ADMIN")
     api.creator_id = api.login("creator", "CREATOR")
     w = api.ok("creator", "post", "/works", json={"title": "악녀인데 남주들이 나를 숭배한다", "type": "WEBTOON",
                                                   "genre": "로맨스 판타지", "rights_declared": True})
-    for i in (1, 2, 3):
+    for i in (1, 2, 3, 4):
         api.ok("creator", "post", f"/works/{w['id']}/episodes",
                json={"no": i, "title": f"{i}화", "content_url": f"s3://dibs/ep{i}"})
     api.ok("creator", "post", f"/works/{w['id']}/submit")

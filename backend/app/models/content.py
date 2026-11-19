@@ -38,9 +38,15 @@ class Episode(TimestampMixin, Base):
     no: Mapped[int] = mapped_column(Integer)
     title: Mapped[str] = mapped_column(String(200))
     content_url: Mapped[str] = mapped_column(String(500))  # 이미지 묶음/본문 저장 위치
-    # 발행 전에는 항상 무료. 상장 후 운영자가 회차별로 유료 지정 (기본 무료)
-    is_paid: Mapped[bool] = mapped_column(Boolean, default=False)
+    # v4.0: 파일럿 1~3화 무료, 이후 유료 미리보기(회당 300원)는 공개 21일 뒤 무료
+    paid_preview: Mapped[bool] = mapped_column(Boolean, default=False)
     price_coin: Mapped[int] = mapped_column(Integer, default=0)
+    free_unlock_at: Mapped[datetime | None] = mapped_column(DateTime)  # 이 시각부터 무료
+
+    @property
+    def is_paid(self) -> bool:
+        """지금 결제가 필요한가 (유료 미리보기 기간 중)."""
+        return self.paid_preview and (self.free_unlock_at is None or clock.now() < self.free_unlock_at)
 
     work: Mapped[Work] = relationship(back_populates="episodes")
 

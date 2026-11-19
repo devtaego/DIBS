@@ -4,8 +4,10 @@
     DIBS_DATABASE_URL=sqlite:///./demo.db python -m scripts.seed_demo
 
 만들어지는 것
-- 작품 A 「악녀인데 남주들이 나를 숭배한다」: 펀딩 모집 중, 목표 1,000조각(1,000만 원)에 8,420조각 청약 (842%)
-- 작품 B 「검을 거둔 아이」: 펀딩 성공(균등 20% + 비례 배정) → 상장, 마켓 체결·호가·주주 게시판 글 있음
+- 작품 A 「악녀인데 남주들이 나를 숭배한다」: 펀딩 모집 중, 목표 5,000조각(5,000만 원)에 7,020조각 청약 (140%)
+  · 1인 한도 250조각 (3,000만 원과 발행액 5% 중 작은 금액), reader1~3 은 모집 전 찜한 초기 독자
+  · 파일럿 1~3화 무료, 4화부터 유료 미리보기 300원 (공개 21일 뒤 무료)
+- 작품 B 「검을 거둔 아이」: 목표 3,000만 원, 균등 20%(초기 독자 우선 10%) + 비례 배정 → 상장, 마켓 체결·호가 있음
 - 계정: admin@ / creator@ / reader1~30@dibs.dev  (POST /auth/dev-login 으로 토큰 발급)
   reader30 은 아무것도 청약하지 않은 계정 → 시연에서 새로 청약해 보기용
 """
@@ -16,7 +18,7 @@ from fastapi.testclient import TestClient
 from app.core import clock
 from app.main import app
 
-SUB = {"agree_risk_notice": True, "agree_no_principal_return": True}
+SUB = {"agree_risk_notice": True, "agree_termination_rule": True}
 
 
 def main() -> None:
@@ -62,7 +64,7 @@ def main() -> None:
                 "target_units": target, "open_at": now.isoformat(), "close_at": (now + timedelta(days=14)).isoformat(),
                 "use_of_funds": "작화 외주 60% · 편집 20% · 마케팅 20%", "reward_tiers": tiers})
             call("admin", "post", f"/admin/fundings/{f['id']}/review",
-                 json={"approve": True, "terms": {"max_units_per_user": 300}})  # 배정·지급은 v3.0 기본값
+                 json={"approve": True, "terms": {}})  # 배분·배정·한도는 v4.0 기본값
             call("admin", "post", f"/admin/fundings/{f['id']}/open")
             return f["id"]
 
@@ -71,17 +73,21 @@ def main() -> None:
         for r in readers[:3]:
             call(r, "put", f"/works/{a}/dib")
         call("creator", "patch", "/me", json={"bio": "로맨스 판타지를 그리는 신인 작가"})
-        fa = make_funding(a, 1000, [{"title": "에필로그 크레딧 등재", "min_units": 1},
+        for ep in call("creator", "get", f"/works/{a}/episodes")[3:]:  # 4화부터 유료 미리보기
+            call("admin", "patch", f"/admin/episodes/{ep['id']}/pricing", json={"is_paid": True})
+        fa = make_funding(a, 5000, [{"title": "에필로그 크레딧 등재", "min_units": 1},
                                     {"title": "한정판 양장본 + 넘버링 카드", "min_units": 30, "limited_qty": 50,
                                      "requires_shipping": True}])
-        for i, r in enumerate(readers[:29]):  # 28명 × 300 + 20 = 8,420조각
-            call(r, "post", f"/fundings/{fa}/subscriptions", json={**SUB, "units": 300 if i < 28 else 20})
+        for i, r in enumerate(readers[:29]):  # 28명 × 250 + 20 = 7,020조각
+            call(r, "post", f"/fundings/{fa}/subscriptions", json={**SUB, "units": 250 if i < 28 else 20})
 
         # 작품 B: 상장 + 거래
         b = make_work("검을 거둔 아이", "무협", 8)
-        fb = make_funding(b, 1000, [])
-        for r in readers[:12]:  # 12명 × 100 = 1,200조각 (120%)
-            call(r, "post", f"/fundings/{fb}/subscriptions", json={**SUB, "units": 100})
+        for r in readers[3:6]:
+            call(r, "put", f"/works/{b}/dib")  # 모집 전 찜 → 초기 독자 우선 배정
+        fb = make_funding(b, 3000, [])
+        for r in readers[:25]:  # 25명 × 150 = 3,750조각 (125%), 1인 한도 150조각
+            call(r, "post", f"/fundings/{fb}/subscriptions", json={**SUB, "units": 150})
         call("admin", "post", f"/admin/fundings/{fb}/close", params={"force": True})
         call("admin", "post", f"/admin/fundings/{fb}/issuance", json={"broker_name": "제휴증권(모의)"})
         for step, extra in [("FILED", {}), ("ISSUED", {"security_code": "KRDIBS0000002", "trustee": "모의신탁"}),

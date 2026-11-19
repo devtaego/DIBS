@@ -61,7 +61,7 @@ class OrderOut(ORM):
     units: int
     remaining_units: int
     status: OrderStatus
-    fee_bps: int
+    fee_ppm: int = Field(description="거래 수수료율 (100만분의 1, 0.015% = 150)")
     locked_amount: int
     trade_date: date
     created_at: datetime
@@ -114,7 +114,8 @@ class DividendRunOut(ORM):
     record_date: date
     pay_date: date
     net_revenue: int
-    holder_direct: int
+    phase: str = Field(description="BEFORE_RECOUP(투자자 45%) | AFTER_RECOUP(35%)")
+    recouped_now: bool = Field(description="이 분기로 원금 회수 달성 → 다음 분기부터 회수 후 비율")
     holder_pool: int
     creator_amount: int
     platform_amount: int
@@ -151,7 +152,11 @@ class SecurityDetailOut(SecurityListItem):
     trades_7d: int
     dividend_4q_per_unit: float = Field(description="최근 4분기 주당 배당 합계 (세전)")
     price_to_dividend: float | None = Field(description="현재가 ÷ 최근 4분기 주당 배당. 배당 없으면 null")
-    maturity_date: datetime | None
+    recoup_phase: str = Field(description="BEFORE_RECOUP | AFTER_RECOUP")
+    recoup_progress_pct: float = Field(description="누적 세전 분배금 ÷ 발행액")
+    royalty_holder_after_bps: int
+    buyback_price: int | None = Field(description="작가 매입가 (최근 4분기 보유자 분배금 × 3)")
+    terminate_due_at: datetime | None = Field(description="완결 후 3년 (완결 전이면 null). 만기는 없음")
     my_units: int | None = Field(default=None, description="로그인 시 내 보유 수량")
     my_avg_price: int | None = None
 
@@ -174,7 +179,7 @@ class OrderPreviewOut(BaseModel):
     price: int
     units: int
     gross: int
-    fee_bps: int
+    fee_ppm: int = Field(description="0.015% = 150 (거래소·증권사 몫)")
     fee: int
     total: int = Field(description="매수: 결제 예정액(금액+수수료) / 매도: 수령 예정액(금액-수수료)")
     price_band: PriceBand

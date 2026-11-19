@@ -103,7 +103,7 @@ export default function SubscribeScreen() {
           ['배정 발표', f.close_at ? `${dateText(f.close_at)} 마감 후` : '마감 후'],
           ['청약 금액', won(amount)],
         ],
-        note: `목표를 넘게 모이면 발행량의 ${equalPct}%는 고르게${earlyPct ? `(그중 ${earlyPct}%는 먼저 찜한 독자 우선)` : ''}, 나머지는 청약 비율대로 배정하고 남은 금액은 돌려드려요.`,
+        note: `목표를 넘게 모이면 발행량의 ${equalPct}%는 고르게${earlyPct ? `(그중 ${earlyPct}%는 미리 찜하고 완독한 초기 독자 우선)` : ''}, 나머지는 청약 비율대로 배정하고 남은 금액은 돌려드려요.`,
         aLabel: '홈으로',
         aHref: '/',
         bLabel: '내 청약 보기',

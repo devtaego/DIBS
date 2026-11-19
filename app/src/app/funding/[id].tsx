@@ -80,9 +80,9 @@ export default function FundingScreen() {
       <Card>
         <T>발행량의 <T weight="700" color={colors.accent}>{bps(t.allocation_params.equal_ratio_bps ?? 0)}</T>는 참여자 모두에게 고르게, 나머지는 청약 비율대로 배정해요.</T>
         {t.allocation_params.early_reader_bps ? (
-          <T style={{ marginTop: space(1) }}>그중 <T weight="700" color={colors.accent}>{bps(t.allocation_params.early_reader_bps)}</T>는 모집 전에 이 작품을 찜한 초기 독자에게 먼저 나눠요.</T>
+          <T style={{ marginTop: space(1) }}>그중 <T weight="700" color={colors.accent}>{bps(t.allocation_params.early_reader_bps)}</T>는 모집 7일 전까지 찜하고 파일럿을 완독한 초기 독자에게 먼저 나눠요.</T>
         ) : null}
-        <Muted style={{ marginTop: space(1) }}>배정 못 받은 금액은 마감 직후 바로 돌려드려요.</Muted>
+        <Muted style={{ marginTop: space(1) }}>비례분은 청약 수량대로 나누고, 균등분이 모자라면 공개 추첨해요. 배정 못 받은 금액은 마감 직후 바로 돌려드려요.</Muted>
       </Card>
 
       <H2>손익분기 독자 규모</H2>

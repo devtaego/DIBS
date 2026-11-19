@@ -21,7 +21,7 @@ pip install -r requirements.txt
 
 python -m scripts.seed_demo          # 데모 데이터 (5,000만 원 목표 140% 펀딩, 상장 종목 + 호가 + 게시판)
 uvicorn app.main:app --reload        # http://localhost:8000/docs  (Swagger UI)
-pytest -q                            # 테스트 52개
+pytest -q                            # 테스트 53개
 python -m scripts.export_docs        # docs/API_SPEC.md · ERD.md · openapi.json 재생성
 ```
 

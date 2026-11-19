@@ -68,13 +68,14 @@ class Funding(TimestampMixin, Base):
     # 증권은 작품별로 따로 발행한다 (묶음 상품 아님)
     offering_round: Mapped[str | None] = mapped_column(String(7), index=True)
 
-    # 만기 없음 (v4.0). 종료 규칙: 완결 후 3년 또는 저매출 2분기 연속, 작가 매입 옵션
+    # 시즌 단위 (v5.0). 종료 규칙: 완결 후 12개월 또는 저매출 2분기 연속. 작가 매입은 선택 사항
     exclusive_months: Mapped[int] = mapped_column(Integer, default=settings.exclusive_months)
     exclusive_until: Mapped[datetime | None] = mapped_column(DateTime)  # 상장 시 계산
     external_share_bps: Mapped[int] = mapped_column(Integer, default=settings.external_share_bps)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime)  # 연재 완결 확정
     terminated_at: Mapped[datetime | None] = mapped_column(DateTime)
-    termination_reason: Mapped[str | None] = mapped_column(String(50))  # COMPLETED_3Y | LOW_REVENUE | BUYBACK
+    termination_reason: Mapped[str | None] = mapped_column(String(50))  # COMPLETED_TERM | LOW_REVENUE | BUYBACK
+    buyback_enabled: Mapped[bool] = mapped_column(Boolean, default=False)  # 작가 매입 옵션 (선택 사항)
     discontinued_at: Mapped[datetime | None] = mapped_column(DateTime)  # 연재 중단 확정
 
     # 마켓

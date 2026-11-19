@@ -152,6 +152,7 @@ erDiagram
         integer work_id FK
         integer price_coin
         integer journal_id FK
+        integer funding_id FK
         datetime unlocked_at
     }
     episodes {
@@ -198,6 +199,7 @@ erDiagram
         datetime completed_at
         datetime terminated_at
         string termination_reason
+        boolean buyback_enabled
         datetime discontinued_at
         integer reference_price
         integer last_price
@@ -431,6 +433,7 @@ erDiagram
     episodes ||--o{ posts : "episode_id"
     fundings ||--o{ content_events : "funding_id"
     fundings ||--o{ dividend_runs : "funding_id"
+    fundings ||--o{ episode_unlocks : "funding_id"
     fundings ||--o{ holdings : "funding_id"
     fundings ||--o{ issuances : "funding_id"
     fundings ||--o{ notices : "funding_id"

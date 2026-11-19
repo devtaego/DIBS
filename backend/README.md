@@ -1,7 +1,7 @@
 # DIBS Backend (v0.1 기초)
 
 웹툰·웹소설 IP 크라우드펀딩 및 토큰증권 조각투자 플랫폼 **DIBS** 백엔드입니다.
-서비스 기획서 v4.0의 흐름(작품 → 찜 → 청약 → 안분 배정 → 발행·상장 → 거래 → 분기 배당 → 종료·작가 매입)을 API로 구현했습니다.
+서비스 기획서 v5.0의 흐름(작품 → 찜·유료 미리보기 → 청약 → 안분 배정 → 발행·상장 → 결제 시점 신탁 분할 → 분기 배당·공시 → 시즌 종료)을 API로 구현했습니다.
 규칙 값과 구현 위치는 [docs/OPEN_DECISIONS.md](docs/OPEN_DECISIONS.md)에 정리했습니다.
 투자 기능은 **모의투자 모드**가 기본입니다.
 
@@ -78,7 +78,7 @@ tests/         배정 알고리즘 단위 테스트 + 전체 흐름 E2E
 | `DIBS_JWT_SECRET` | 개발용 값 | 운영에서 반드시 교체 |
 | `DIBS_TRADING_MODE` | `MOCK` | `MOCK` / `LIVE` |
 | `DIBS_LIVE_ENABLED` | `false` | 인가 전에는 false 유지 |
-| `DIBS_ENFORCE_GATE` | `false` | `true`면 펀딩 개설 조건(파일럿 열람자 기준선)을 신청 때 강제 |
+| `DIBS_ENFORCE_GATE` | `false` | `true`면 펀딩 개설 조건(파일럿 유료 구매자 기준선)을 신청 때 강제 |
 
 ## 아직 안 한 것 (다음 단계)
 

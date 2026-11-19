@@ -34,6 +34,13 @@ def is_listed(db: Session, work_id: int) -> bool:
         Funding.work_id == work_id, Funding.status.in_([FundingStatus.LISTED, FundingStatus.SUSPENDED]))) > 0
 
 
+def live_funding(db: Session, work_id: int) -> Funding | None:
+    """매출이 투자자에게 배분되는 펀딩 (상장·거래정지 상태). 시즌이 끝나 종료되면 None."""
+    return db.scalar(select(Funding).where(Funding.work_id == work_id, Funding.listed_at.is_not(None),
+                                           Funding.status.in_([FundingStatus.LISTED, FundingStatus.SUSPENDED]))
+                     .order_by(Funding.listed_at.desc()).limit(1))
+
+
 def can_read(db: Session, ep: Episode, user: User | None) -> bool:
     if not ep.is_paid:
         return True
@@ -51,10 +58,13 @@ def unlock_episode(db: Session, user: User, ep: Episode) -> EpisodeUnlock:
     if existing:
         return existing
     coin = ledger.get_account(db, AccountKind.COIN, COIN_MODE, user.id)
-    j = ledger.post(db, "EPISODE_UNLOCK", [Leg(coin, -ep.price_coin),
-                                           Leg(ledger.sys(db, AccountKind.SYS_COIN_REVENUE, COIN_MODE), ep.price_coin)],
-                    COIN_MODE, "episode", ep.id)
-    u = EpisodeUnlock(user_id=user.id, episode_id=ep.id, work_id=ep.work_id, price_coin=ep.price_coin, journal_id=j.id)
+    # 결제 시점 분할: 상장 중인 작품의 매출은 DIBS 매출 계정을 거치지 않고 신탁 계좌로 바로 들어간다
+    live = live_funding(db, ep.work_id)
+    dest = AccountKind.SYS_TRUST_RECEIVABLE if live else AccountKind.SYS_COIN_REVENUE
+    j = ledger.post(db, "EPISODE_UNLOCK", [Leg(coin, -ep.price_coin), Leg(ledger.sys(db, dest, COIN_MODE), ep.price_coin)],
+                    COIN_MODE, "episode", ep.id, memo=f"trust:funding:{live.id}" if live else None)
+    u = EpisodeUnlock(user_id=user.id, episode_id=ep.id, work_id=ep.work_id, price_coin=ep.price_coin, journal_id=j.id,
+                      funding_id=live.id if live else None)
     db.add(u)
     db.flush()
     return u

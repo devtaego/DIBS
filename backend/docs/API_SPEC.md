@@ -96,8 +96,9 @@
 | `GET` | `/fundings/{funding_id}/limits` | 내 남은 투자 한도 | 회원 |  | LimitsOut |
 | `POST` | `/fundings/{funding_id}/subscriptions` | 조각 청약 (예치금 묶임) | 회원 | SubscribeIn | SubscriptionOut |
 | `GET` | `/fundings/{funding_id}/breakeven` | 손익분기 독자 규모 (청약 전 공시) | 공개 |  | BreakevenOut |
-| `GET` | `/works/{work_id}/funding-gate` | 펀딩 개설 조건·목표 금액 상한 (파일럿 4주 열람자 기준) | 공개 |  | FundingGateOut |
-| `GET` | `/fundings/{funding_id}/indicators` | 투자 지표 카드 (찜 속도·파일럿 연독률·원금 회수 기간 범위) | 회원 |  | FundingIndicatorsOut |
+| `GET` | `/works/{work_id}/funding-gate` | 펀딩 개설 조건·목표 금액 상한 (파일럿 4주 유료 구매자 기준) | 공개 |  | FundingGateOut |
+| `GET` | `/fundings/{funding_id}/indicators` | 투자 지표 카드 (찜 속도·연독률·유료 팬·시나리오별 배수와 회수 기간) | 회원 |  | FundingIndicatorsOut |
+| `GET` | `/fundings/{funding_id}/disclosure` | 공시: 투자금 쓰임·매출 배분·상품 기간·분기별 정산 대사와 원장 해시 | 회원 |  | DisclosureOut |
 | `GET` | `/fundings/{funding_id}/buyback-quote` | 종료 규칙 상태와 작가 매입가 (상장 후) | 공개 |  | TerminationOut |
 | `POST` | `/fundings/{funding_id}/buyback` | 작가 매입 옵션 실행 (작가 본인, 전량 매입 후 권리 종료) | 창작자 |  |  |
 | `GET` | `/fundings/{funding_id}/subscriptions/me` | 내 청약 조회 | 회원 |  | SubscriptionOut |
@@ -169,8 +170,8 @@
 | `POST` | `/admin/fundings/{funding_id}/issuance/fail` | 발행 실패 (전액 환불·리워드 취소) | 운영자 | ReasonIn | FundingOut |
 | `POST` | `/admin/fundings/{funding_id}/suspension` | 거래 정지 / 해제 | 운영자 | SuspendIn | FundingOut |
 | `POST` | `/admin/fundings/{funding_id}/discontinue` | 연재 중단 확정 (남은 작가 지급분을 주주에게 분배, 거래 정지) | 운영자 | ReasonIn | DiscontinueOut |
-| `POST` | `/admin/fundings/{funding_id}/complete` | 연재 완결 확정 (종료 규칙 3년 시작) | 운영자 |  | FundingOut |
-| `POST` | `/admin/fundings/{funding_id}/terminate` | 권리 종료 (완결 후 3년 또는 저매출 2분기 연속, 원금 상환 없음) | 운영자 |  | FundingOut |
+| `POST` | `/admin/fundings/{funding_id}/complete` | 연재 완결 확정 (완결 후 12개월 기간 시작, 다음 시즌 펀딩 신청 가능) | 운영자 |  | FundingOut |
+| `POST` | `/admin/fundings/{funding_id}/terminate` | 권리 종료 (완결 후 12개월 또는 저매출 2분기 연속, 원금 상환 없음) | 운영자 |  | FundingOut |
 | `GET` | `/admin/fundings/{funding_id}/payouts` | 작가 지급 일정 | 운영자 |  | PayoutOut[] |
 | `POST` | `/admin/fundings/{funding_id}/payouts/{seq}/pay` | 마일스톤 지급 실행 | 운영자 |  | PayoutOut |
 | `POST` | `/admin/revenues` | 매출 입력 (광고·굿즈 등) | 운영자 | RevenueIn | RevenueOut |
@@ -199,6 +200,7 @@
 | `ANNUAL_LIMIT_EXCEEDED` | 연간 투자 한도({annual:,}원)를 넘어요 |
 | `ANON_ID_REQUIRED` | 비로그인 이벤트에는 anon_id 가 필요해요 |
 | `BEFORE_PAY_DATE` | 지급일({run.pay_date}) 전이에요 |
+| `BUYBACK_NOT_ENABLED` | 이 펀딩은 작가 매입 옵션을 선택하지 않았어요 |
 | `COIN_TO_DEPOSIT_FORBIDDEN` | 코인은 예치금으로 바꿀 수 없어요 |
 | `CREATOR_NOT_FOUND` | 작가를 찾을 수 없어요 |
 | `CREATOR_ONLY` | 작가 게시판 글은 작가만 쓸 수 있어요. 답글로 참여해 주세요 |
@@ -215,7 +217,7 @@
 | `EXCLUSIVE_PERIOD` | 선공개 독점 기간에는 외부 연재 수익을 넣을 수 없어요 |
 | `FORBIDDEN_ROLE` | 권한이 없어요 |
 | `FUNDING_ALREADY_ACTIVE` | 이 작품은 이미 진행 중인 펀딩이 있어요 |
-| `FUNDING_GATE_NOT_MET` | 파일럿 4주 열람자가 {g['gate_threshold']:,}명 이상이어야 펀딩을 열 수 있어요  |
+| `FUNDING_GATE_NOT_MET` | 파일럿 4주 유료 구매자가 {g['gate_threshold']:,}명 이상이어야 펀딩을 열 수 있어요  |
 | `FUNDING_NOT_CLOSED_YET` | 아직 마감 시각이 아니에요 |
 | `FUNDING_NOT_FOUND` | 펀딩을 찾을 수 없어요 |
 | `FUNDING_NOT_IN_PERIOD` | 모집 기간이 아니에요 |
@@ -281,7 +283,7 @@
 | `SUBSCRIPTION_NOT_FOUND` | 청약 내역이 없어요 |
 | `TARGET_OVER_CAP` | 목표 금액은 {g['target_cap']:,}원을 넘을 수 없어요 |
 | `TERMINATION_NOTICE_REQUIRED` | 만기 없음·종료 규칙 고지에 동의해 주세요 |
-| `TERMINATION_NOT_DUE` | 종료 조건(완결 후 3년 또는 저매출 2분기 연속)을 충족하지 않았어요 |
+| `TERMINATION_NOT_DUE` | 종료 조건(완결 후 12개월 또는 저매출 2분기 연속)을 충족하지 않았어요 |
 | `TIER_MIN_UNITS` | 이 리워드는 {tier.min_units}조각 이상 청약해야 받을 수 있어요 |
 | `TIER_NOT_FOUND` | 리워드를 찾을 수 없어요 |
 | `TIER_SOLD_OUT` | 한정 수량이 모두 찼어요 |

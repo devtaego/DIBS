@@ -44,7 +44,7 @@ REVIEWABLE_TERMS = {
     "creator_bps", "issuance_cost_bps", "platform_fee_bps",
     "royalty_platform_bps", "royalty_creator_bps", "royalty_holder_bps",
     "royalty_platform_after_bps", "royalty_creator_after_bps", "royalty_holder_after_bps",
-    "allocation_strategy", "allocation_params", "offering_round", "risk_note",
+    "allocation_strategy", "allocation_params", "offering_round", "risk_note", "buyback_enabled",
 }
 
 
@@ -90,7 +90,9 @@ def apply_funding(db: Session, creator: User, work: Work, data: dict, tiers: lis
         raise Forbidden("NOT_WORK_OWNER", "내 작품만 펀딩을 신청할 수 있어요")
     if work.status != WorkStatus.PUBLISHED:
         raise Conflict("WORK_NOT_PUBLISHED", "공개된 작품만 펀딩을 신청할 수 있어요")
-    exists = db.scalar(select(Funding.id).where(Funding.work_id == work.id, Funding.status.in_(ACTIVE_FUNDING_STATUSES)))
+    # 이전 시즌이 완결 처리됐으면(완결 후 12개월 꼬리 기간) 다음 시즌 펀딩을 열 수 있다
+    exists = db.scalar(select(Funding.id).where(Funding.work_id == work.id, Funding.status.in_(ACTIVE_FUNDING_STATUSES),
+                                                Funding.completed_at.is_(None)))
     if exists:
         raise Conflict("FUNDING_ALREADY_ACTIVE", "이 작품은 이미 진행 중인 펀딩이 있어요")
     if len(tiers) > MAX_REWARD_TIERS:
@@ -342,12 +344,22 @@ def close_funding(db: Session, f: Funding, force: bool = False) -> CloseResult:
     return CloseResult(f.status, total, f.target_units, result)
 
 
-def early_readers(db: Session, f: Funding) -> set[int]:
-    """초기 독자 (v4.0 초기 독자 우선 배정).
+def prior_season_holders(db: Session, f: Funding) -> set[int]:
+    """같은 작품 이전 시즌 펀딩을 보유한 회원 (다음 시즌 우선 청약, v5.0)."""
+    return set(db.scalars(select(Holding.user_id).join(Funding, Funding.id == Holding.funding_id).where(
+        Funding.work_id == f.work_id, Funding.id != f.id, Holding.mode == f.mode, Holding.units > 0)))
 
-    공짜 찜만으로 우선권을 얻지 못하도록 세 조건을 모두 본다.
+
+def early_readers(db: Session, f: Funding) -> set[int]:
+    """우선 배정 대상 = 초기 독자 ∪ 이전 시즌 보유자.
+
+    초기 독자는 공짜 찜만으로 우선권을 얻지 못하도록 세 조건을 모두 본다.
     1) 모집 시작 7일 전까지 찜  2) 모집 시작 전 이 작품 회차 완독 1회 이상  3) 본인인증 계정
     """
+    return _early_readers(db, f) | prior_season_holders(db, f)
+
+
+def _early_readers(db: Session, f: Funding) -> set[int]:
     open_at = f.open_at or clock.now()
     dib_cutoff = open_at - timedelta(days=settings.early_reader_dib_days_before)
     dibbed = set(db.scalars(select(Dib.user_id).join(User, User.id == Dib.user_id).where(
@@ -554,17 +566,23 @@ def discontinue(db: Session, f: Funding, reason: str) -> dict:
 
 
 def breakeven(f: Funding, price_coin: int, monthly_episodes: int) -> list[dict]:
-    """손익분기 독자 규모 공시 (v4.0). 회수 전 투자자 몫(세후)으로 원금을 4년·발행액만큼 돌려받는 데 필요한 규모."""
+    """손익분기 규모 공시 (v5.0). 회수 전 투자자 몫(세후)으로 시즌 안·상품 기간 안에 원금을 돌려받는 데 필요한 규모.
+
+    완결 후 매출은 연재 때보다 작으므로 시즌 매출 곡선으로 '연재 수준 환산 개월'을 쓴다.
+    """
     out = []
     tax = 1 - settings.dividend_tax_bps / 10000
     holder = f.royalty_holder_bps / 10000
-    for months in (settings.recoup_target_months, 24):
-        holder_need = f.target_amount / months  # 월 투자자 몫(세후)
+    curve = product.season_curve()
+    for label, months in (("시즌 연재 기간 안에 원금 회수", settings.season_months),
+                          ("상품 기간 안에 원금 회수", product.term_months())):
+        eff = sum(curve[:months])  # 연재 수준으로 환산한 개월 수
+        holder_need = f.target_amount / eff  # 연재 중 월 투자자 몫(세후)
         net_need = holder_need / tax / holder
         gross_need = net_need * 10000 / (10000 - settings.inapp_fee_bps)
         unlocks = gross_need / price_coin
         payers_per_ep = unlocks / monthly_episodes
-        out.append({"goal": f"{months // 12}년 안에 원금 회수", "holder_dividend_per_year": round(holder_need * 12),
+        out.append({"goal": f"{label} ({months}개월)", "holder_dividend_per_year": round(holder_need * 12),
                     "net_revenue_per_year": round(net_need * 12), "paid_unlocks_per_month": round(unlocks),
                     "buyers_per_episode": round(payers_per_ep),
                     "monthly_readers": round(payers_per_ep / (settings.assumed_pay_rate_bps / 10000))})

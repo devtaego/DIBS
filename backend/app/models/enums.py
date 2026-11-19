@@ -56,6 +56,8 @@ class AccountKind(StrEnum):
     SYS_ISSUANCE_COST = "SYS_ISSUANCE_COST"
     SYS_PLATFORM_REVENUE = "SYS_PLATFORM_REVENUE"
     SYS_ROYALTY_POOL = "SYS_ROYALTY_POOL"  # 배당 재원
+    # 상장 작품 유료 회차 매출: 결제 시점에 신탁 계좌로 바로 분할 (DIBS 매출 계정을 거치지 않음)
+    SYS_TRUST_RECEIVABLE = "SYS_TRUST_RECEIVABLE"
     SYS_TAX_WITHHOLDING = "SYS_TAX_WITHHOLDING"
     SYS_BROKER_FEE = "SYS_BROKER_FEE"  # 거래 수수료 0.015% (거래소·증권사 몫, 모의)
 
@@ -81,7 +83,7 @@ class FundingStatus(StrEnum):
     ISSUE_FAILED = "ISSUE_FAILED"  # 발행 실패 → 전액 환불
     LISTED = "LISTED"  # 상장·거래 가능
     SUSPENDED = "SUSPENDED"  # 거래 정지
-    TERMINATED = "TERMINATED"  # 권리 종료 (완결 후 3년·저매출 2분기 연속·작가 매입)
+    TERMINATED = "TERMINATED"  # 권리 종료 (완결 후 12개월·저매출 2분기 연속·작가 매입)
 
 
 class IssuanceStep(StrEnum):

@@ -205,13 +205,13 @@ def discontinue(funding_id: int, body: ReasonIn, db: Session = Depends(get_db)):
     return out
 
 
-@router.post("/fundings/{funding_id}/complete", response_model=FundingOut, summary="연재 완결 확정 (종료 규칙 3년 시작)")
+@router.post("/fundings/{funding_id}/complete", response_model=FundingOut, summary="연재 완결 확정 (완결 후 12개월 기간 시작, 다음 시즌 펀딩 신청 가능)")
 def complete(funding_id: int, db: Session = Depends(get_db)):
     return product.mark_completed(db, svc.get_funding(db, funding_id))
 
 
 @router.post("/fundings/{funding_id}/terminate", response_model=FundingOut,
-             summary="권리 종료 (완결 후 3년 또는 저매출 2분기 연속, 원금 상환 없음)")
+             summary="권리 종료 (완결 후 12개월 또는 저매출 2분기 연속, 원금 상환 없음)")
 def terminate(funding_id: int, force: bool = Query(default=False, description="조건 충족 전 처리 (시연용)"),
               db: Session = Depends(get_db)):
     f = svc.get_funding(db, funding_id)

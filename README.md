@@ -40,4 +40,4 @@ npx expo start           # QR 코드를 폰 카메라(iOS) 또는 Expo Go(Androi
 
 - [화면 ↔ API 연결표](backend/docs/SCREEN_API_MAP.md)
 - [API 명세](backend/docs/API_SPEC.md) · [ERD·돈 흐름](backend/docs/ERD.md)
-- [이벤트 스키마 (데이터 분석)](backend/docs/EVENTS.md) · [v4.0 규칙과 코드 위치](backend/docs/OPEN_DECISIONS.md)
+- [이벤트 스키마 (데이터 분석)](backend/docs/EVENTS.md) · [v5.0 규칙과 코드 위치](backend/docs/OPEN_DECISIONS.md)

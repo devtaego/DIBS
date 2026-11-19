@@ -156,7 +156,7 @@ class SecurityDetailOut(SecurityListItem):
     recoup_progress_pct: float = Field(description="누적 세전 분배금 ÷ 발행액")
     royalty_holder_after_bps: int
     buyback_price: int | None = Field(description="작가 매입가 (최근 4분기 보유자 분배금 × 3)")
-    terminate_due_at: datetime | None = Field(description="완결 후 3년 (완결 전이면 null). 만기는 없음")
+    terminate_due_at: datetime | None = Field(description="완결 후 12개월 (완결 전이면 null)")
     my_units: int | None = Field(default=None, description="로그인 시 내 보유 수량")
     my_avg_price: int | None = None
 

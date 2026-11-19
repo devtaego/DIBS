@@ -69,12 +69,16 @@ def add_revenue(db: Session, f: Funding, period: str, source: RevenueSource, gro
 
 
 def aggregate_paid_episode_revenue(db: Session, f: Funding, period: str) -> RevenueRecord:
-    """유료 회차 코인 매출을 집계해 PAID_EPISODE 매출로 기록 (같은 분기 재집계 시 교체)."""
+    """유료 회차 코인 매출을 집계해 PAID_EPISODE 매출로 기록 (같은 분기 재집계 시 교체).
+
+    결제 시점에 신탁 계좌로 분할된 결제(EpisodeUnlock.funding_id == f.id)만 센다. 정산 기준은 결제액이고
+    공제는 인앱결제 수수료뿐이라, 열람 기록을 바꿔도 분배금은 달라지지 않는다.
+    """
     _listed(f)
     start, end = parse_period(period)
     since = max(datetime.combine(start, time.min), f.listed_at)
     gross = int(db.scalar(select(func.coalesce(func.sum(EpisodeUnlock.price_coin), 0)).where(
-        EpisodeUnlock.work_id == f.work_id, EpisodeUnlock.unlocked_at >= since,
+        EpisodeUnlock.funding_id == f.id, EpisodeUnlock.unlocked_at >= since,
         EpisodeUnlock.unlocked_at < datetime.combine(end + timedelta(days=1), time.min))))
     for old in db.scalars(select(RevenueRecord).where(RevenueRecord.funding_id == f.id, RevenueRecord.period == period,
                                                       RevenueRecord.source == RevenueSource.PAID_EPISODE)):

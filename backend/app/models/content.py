@@ -87,6 +87,8 @@ class EpisodeUnlock(Base):
     work_id: Mapped[int] = mapped_column(ForeignKey("works.id"), index=True)
     price_coin: Mapped[int] = mapped_column(Integer)
     journal_id: Mapped[int] = mapped_column(ForeignKey("journals.id"))
+    # 상장 중인 펀딩이 있으면 그 펀딩 id. 이 결제는 신탁 계좌(SYS_TRUST_RECEIVABLE)로 바로 들어간다
+    funding_id: Mapped[int | None] = mapped_column(ForeignKey("fundings.id"), index=True)
     unlocked_at: Mapped[datetime] = mapped_column(DateTime, default=clock.now, index=True)
 
 

@@ -14,6 +14,7 @@ from app.models.enums import FundingStatus
 from app.schemas.common import LimitsOut
 from app.schemas.funding import (
     BreakevenOut,
+    DisclosureOut,
     FundingApplyIn,
     FundingGateOut,
     FundingIndicatorsOut,
@@ -124,20 +125,32 @@ def breakeven(funding_id: int, price_coin: int = Query(default=300, gt=0), month
 
 
 @router.get("/works/{work_id}/funding-gate", response_model=FundingGateOut,
-            summary="펀딩 개설 조건·목표 금액 상한 (파일럿 4주 열람자 기준)")
-def funding_gate(work_id: int, target_amount: int = Query(default=50_000_000, gt=0), db: Session = Depends(get_db)):
+            summary="펀딩 개설 조건·목표 금액 상한 (파일럿 4주 유료 구매자 기준)")
+def funding_gate(work_id: int, target_amount: int = Query(default=10_000_000, gt=0), db: Session = Depends(get_db)):
     content_svc.get_work(db, work_id)
     return FundingGateOut(work_id=work_id, target_amount=target_amount,
                           **product.funding_gate(db, work_id, target_amount))
 
 
 @router.get("/fundings/{funding_id}/indicators", response_model=FundingIndicatorsOut,
-            summary="투자 지표 카드 (찜 속도·파일럿 연독률·원금 회수 기간 범위)")
+            summary="투자 지표 카드 (찜 속도·연독률·유료 팬·시나리오별 배수와 회수 기간)")
 def funding_indicators(funding_id: int, db: Session = Depends(get_db)):
     f = svc.get_funding(db, funding_id)
     if f.status not in PUBLIC_STATUSES:
         raise NotFound("FUNDING_NOT_FOUND", "펀딩을 찾을 수 없어요")
     return FundingIndicatorsOut(**product.indicators(db, f))
+
+
+@router.get("/fundings/{funding_id}/disclosure", response_model=DisclosureOut,
+            summary="공시: 투자금 쓰임·매출 배분·상품 기간·분기별 정산 대사와 원장 해시")
+def funding_disclosure(funding_id: int, db: Session = Depends(get_db)):
+    from app.core import clock
+    from app.services import disclosure
+
+    f = svc.get_funding(db, funding_id)
+    if f.status not in PUBLIC_STATUSES:
+        raise NotFound("FUNDING_NOT_FOUND", "펀딩을 찾을 수 없어요")
+    return DisclosureOut(**disclosure.disclosure(db, f, clock.now()))
 
 
 @router.get("/fundings/{funding_id}/buyback-quote", response_model=TerminationOut,

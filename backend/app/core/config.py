@@ -31,29 +31,31 @@ class Settings(BaseModel):
     default_unit_price: int = 10_000
     min_funding_days: int = 7
     max_funding_days: int = 60
-    min_target_amount: int = 30_000_000  # v4.0: 작품당 3,000만 원 이상 (발행 실비 감당)
+    min_target_amount: int = 10_000_000  # v5.0: 작품당 1,000만 원 이상 (월 공모 회차로 발행 실비를 나눔)
     max_target_amount: int = 500_000_000  # 작품당 상한 (실제 상한은 데이터 기반 목표 금액 상한)
     # 1인 청약 한도 (v4.0, 금융위 예시): 3,000만 원과 발행액 5% 중 작은 금액
     max_subscription_amount: int = 30_000_000
     max_subscription_bps: int = 500
     subscription_lock_minutes: int = 60  # 마감 N분 전부터 감액·취소 불가
 
-    # 모금액 배분 (bps, 1bps = 0.01%) — v4.0: 작가 80 / 발행 실비 12 / DIBS 8
-    creator_bps: int = 8000
+    # 모금액 배분 (bps, 1bps = 0.01%) — v5.0: 작가 85 / 발행 실비 12 / DIBS 3
+    # DIBS 발행 수수료를 실비 수준으로 낮춰 '많이 발행할수록 버는 구조'를 피한다. DIBS는 주로 매출 배분 25%로 번다
+    creator_bps: int = 8500
     issuance_cost_bps: int = 1200
-    platform_fee_bps: int = 800
+    platform_fee_bps: int = 300
 
-    # v4.0 상품 구조: 만기 없음 + 종료 규칙 + 작가 매입 옵션
+    # v5.0 상품 구조: 시즌 단위. 시즌 연재(약 12개월) + 완결 후 12개월이 지나면 권리 소멸
     exclusive_months: int = 12  # 상장 후 DIBS 선공개 독점 기간
     external_share_bps: int = 2000  # 독점 종료 후 외부 연재·영상화 수익 중 작가 몫의 20%를 순매출에 포함
-    termination_after_completion_months: int = 36  # 완결 후 3년이면 권리 종료
+    termination_after_completion_months: int = 12  # 완결 후 12개월이면 권리 종료
     low_revenue_bps: int = 50  # 분기 순매출이 발행액의 0.5% 미만이면 '저매출 분기'
     low_revenue_quarters: int = 2  # 저매출 분기가 연속 2번이면 권리 종료
-    buyback_multiple: int = 3  # 작가 매입가 = 최근 4분기 보유자 분배금 합계 × 3
+    buyback_multiple: int = 3  # 작가 매입가 = 최근 4분기 보유자 분배금 합계 × 3 (펀딩별 선택 사항)
     default_allocation_strategy: str = "EQUAL_THEN_PRO_RATA"
     default_equal_ratio_bps: int = 2000  # 발행량의 20% 균등 배정
     default_early_reader_bps: int = 1000  # 그중 절반(발행량의 10%)은 초기 독자 우선
     # 초기 독자 자격: 모집 시작 7일 전까지 찜 + 파일럿 완독 1회 이상 + 본인인증 계정 (공짜 찜 남용 방지)
+    # 또는 같은 작품 이전 시즌 보유자 (다음 시즌 우선 청약)
     early_reader_dib_days_before: int = 7
 
     # 발행 전 콘텐츠 (v4.0)
@@ -63,13 +65,16 @@ class Settings(BaseModel):
     pre_issuance_creator_bps: int = 7000  # 발행 전 순매출 작가 70 / DIBS 30
     reward_support_fee_bps: int = 800  # 리워드 후원 수수료 8%
 
-    # 펀딩 개설 조건·목표 금액 상한 (v4.0)
+    # 펀딩 개설 조건·목표 금액 상한 (v5.0: 유료 팬 기준)
     enforce_funding_gate: bool = _env_bool("DIBS_ENFORCE_GATE", False)  # 시연 데이터가 작아 기본 꺼짐
-    gate_ratio_bps: int = 5000  # 파일럿 4주 열람자 ≥ 필요 열람자의 50%
-    recoup_target_months: int = 48  # 4년 안 원금 회수 기준
-    assumed_pay_rate_bps: int = 1500  # 결제 이용자 비율 15% (가정)
-    assumed_monthly_episodes: int = 4
-    assumed_retention_bps: int = 7000  # 유료화 후 남는 열람자 비율 70% (가정)
+    gate_ratio_bps: int = 10000  # 파일럿 4주 유료 구매자 ≥ 필요 유료 팬의 100%
+    season_months: int = 12  # 시즌 연재 기간 (매출 수준 100%)
+    tail_months: int = 12  # 완결 후 권리 유지 기간
+    tail_level_bps: int = 4000  # 완결 직후 매출 = 연재 때의 40%
+    tail_decay_bps_per_year: int = 3000  # 완결 후 매출이 1년에 30%씩 줄어듦
+    cap_safety_bps: int = 7000  # 목표 금액 상한 = 예상 투자자 몫(세후, 상품 기간 전체) × 70%
+    assumed_pay_rate_bps: int = 1500  # 참고용: 열람자 중 결제 비율 15% (네이버 플랫폼 평균, 작품 단위에는 상한값)
+    assumed_monthly_episodes: int = 4  # 유료 팬 1명이 한 달에 구매하는 미리보기 회차
     # 작가 분할 지급 기본 일정 (bps, trigger, 마일스톤 설명)
     default_payout_schedule: list = [
         {"bps": 4000, "trigger": "ON_LISTED", "milestone_note": "상장"},

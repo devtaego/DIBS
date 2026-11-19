@@ -34,6 +34,7 @@ class FundingApplyIn(BaseModel):
     open_at: datetime
     close_at: datetime
     use_of_funds: str = Field(description="자금 사용 계획")
+    buyback_enabled: bool = Field(default=False, description="작가 매입 옵션 (선택 사항)")
     reward_tiers: list[RewardTierIn] = Field(default_factory=list, max_length=5)
 
 
@@ -68,6 +69,7 @@ class FundingTermsOut(ORM):
     allocation_params: dict = Field(description="equal_ratio_bps(균등 20%), early_reader_bps(초기 독자 우선 10%)")
     exclusive_months: int = Field(description="상장 후 DIBS 선공개 독점 기간(개월)")
     exclusive_until: datetime | None
+    buyback_enabled: bool = Field(default=False, description="작가 매입 옵션 선택 여부")
     external_share_bps: int = Field(description="독점 종료 후 외부 연재·영상화 수익 중 작가 몫에서 순매출에 넣는 비율")
 
 
@@ -87,49 +89,80 @@ class RecoupOut(BaseModel):
 
 class TerminationOut(BaseModel):
     completed_at: datetime | None
-    terminate_due_at: datetime | None = Field(description="완결 후 3년")
+    terminate_due_at: datetime | None = Field(description="완결 후 12개월")
     low_revenue_threshold: int = Field(description="분기 순매출이 이보다 작으면 저매출 분기 (발행액 0.5%)")
     low_revenue_streak: int
     eligible: bool
     reason: str | None
-    buyback_price: int | None = Field(description="작가 매입가 = 최근 4분기 보유자 분배금 합계 × 3")
+    buyback_enabled: bool = Field(description="작가 매입 옵션 선택 여부 (선택 사항)")
+    buyback_price: int | None = Field(description="작가 매입가 = 최근 4분기 보유자 분배금 합계 × 3 (선택한 펀딩만)")
 
 
-class PaybackRange(BaseModel):
-    conservative: float | None = Field(description="보수: 결제율 10%, 월 3화")
-    base: float | None = Field(description="기준: 결제율 15%, 월 4화")
-    optimistic: float | None = Field(description="낙관: 결제율 20%, 월 5화")
+class ScenarioOut(BaseModel):
+    fan_ratio: float = Field(description="파일럿 유료 팬 대비 실제 유료 팬 비율")
+    multiple: float | None = Field(description="상품 기간 총회수 배수 (세후)")
+    payback_months: int | None = Field(description="원금 회수 달 (세후, 없으면 기간 안에 회수 못 함)")
 
 
 class FundingIndicatorsOut(BaseModel):
-    """발행 전 투자 지표 카드 (청약 화면)."""
+    """발행 전 투자 지표 카드 (청약 화면). 기간이 짧아 연 수익률 대신 배수와 회수 기간만 보여 준다."""
 
     funding_id: int
     dibs_total: int
     dibs_7d: int = Field(description="최근 7일 찜 (찜 속도)")
-    pilot_readers_4w: int = Field(description="최근 4주 파일럿 열람자")
+    pilot_readers_4w: int = Field(description="최근 4주 파일럿 열람자 (참고)")
     pilot_read_through: float | None = Field(description="파일럿 연독률 (마지막 무료 회차 완독 ÷ 1화 완독)")
-    expected_monthly_readers: int = Field(description="파일럿 열람자 × 유료화 후 남는 비율 70%")
+    pilot_paying_fans_4w: int = Field(description="최근 4주 유료 미리보기 구매자 = 월 유료 팬")
+    paying_fans_needed: int = Field(description="이 목표 금액에 필요한 월 유료 팬")
     gate_threshold: int
     passes_gate: bool
     target_cap: int
-    payback_years: PaybackRange = Field(description="원금 회수 기간 범위 (세후, 월 단위 올림)")
+    season_months: int
+    tail_months: int
+    scenarios: dict[str, ScenarioOut] = Field(description="downside 0.4 · conservative 0.7 · base 1.0 · optimistic 1.5")
+    per_user_cap_amount: int = Field(description="1인 청약 한도 (3,000만 원과 발행액 5% 중 작은 금액)")
+    per_user_max_loss_downside: int = Field(description="한도까지 청약했을 때 downside 시나리오 손실액")
     note: str
 
 
 class FundingGateOut(BaseModel):
-    """펀딩 개설 조건과 목표 금액 상한 (v4.0)."""
+    """펀딩 개설 조건과 목표 금액 상한 (v5.0: 유료 팬 기준)."""
 
     work_id: int
     target_amount: int
-    pilot_readers_4w: int
-    readers_needed_for_4y: int
-    gate_threshold: int = Field(description="필요 열람자의 50%")
+    pilot_readers_4w: int = Field(description="참고: 최근 4주 파일럿 열람자")
+    pilot_paying_fans_4w: int = Field(description="최근 4주 유료 미리보기 구매자")
+    paying_fans_needed: int
+    gate_threshold: int = Field(description="필요 유료 팬의 100%")
     passes_gate: bool
-    expected_monthly_readers: int
-    target_cap: int = Field(description="예상 월 투자자 몫(세후) × 48개월")
+    target_cap: int = Field(description="유료 팬 × 1명당 상품 기간 투자자 몫(세후) × 70%")
     within_cap: bool
     enforced: bool
+
+
+class ReconciliationOut(BaseModel):
+    period: str
+    unlock_gross: int = Field(description="이 펀딩으로 표시된 유료 결제 합계 (결제 원천)")
+    trust_inflow: int = Field(description="신탁 계좌에 실제로 들어간 금액 (원장)")
+    recorded_gross: int | None = Field(description="배당 재원으로 기록된 유료 회차 매출 (집계 전이면 null)")
+    leaked_unlocks: int = Field(description="상장 후인데 신탁 계좌를 거치지 않은 결제 건수 (0이어야 정상)")
+    matched: bool
+    ledger_hash: str = Field(description="해당 분기 신탁 결제 기록의 SHA-256 연쇄 해시 (공시용)")
+    records: int
+
+
+class DisclosureOut(BaseModel):
+    """공시 묶음 (v5.0): 투자금 쓰임, 매출 배분, 상품 기간, 1인 한도, 분기별 정산 대사와 원장 해시."""
+
+    funding_id: int
+    cost_per_100: dict = Field(description="투자금 100원 중 작가·발행 실비·DIBS 몫")
+    revenue_split: dict = Field(description="순매출 배분 (회수 전·후)")
+    term: dict = Field(description="시즌 연재 + 완결 후 기간, 원금 상환 없음")
+    per_user_cap_amount: int
+    buyback_enabled: bool
+    settlement_basis: str
+    verification: list[str]
+    reconciliation: list[ReconciliationOut]
 
 
 class FundingOut(ORM):
@@ -326,11 +359,11 @@ class BreakevenLine(BaseModel):
     net_revenue_per_year: int
     paid_unlocks_per_month: int
     buyers_per_episode: int
-    monthly_readers: int = Field(description="결제율 가정으로 환산한 필요 월 열람자")
+    monthly_readers: int = Field(description="참고: 결제율 15%(플랫폼 평균, 상한값)로 환산한 월 열람자")
 
 
 class BreakevenOut(BaseModel):
-    """손익분기 독자 규모 공시 (청약 화면). 회수 전 투자자 몫(세후)으로 4년·2년 안에 원금을 돌려받는 데 필요한 규모."""
+    """손익분기 규모 공시 (청약 화면). 회수 전 투자자 몫(세후)으로 시즌 안·상품 기간 안에 원금을 돌려받는 데 필요한 규모."""
 
     funding_id: int
     target_amount: int

@@ -4,11 +4,13 @@
     DIBS_DATABASE_URL=sqlite:///./demo.db python -m scripts.seed_demo
 
 만들어지는 것
-- 파일럿 열람 이벤트: A 3.2만 명, B 2만 명 (지표 카드·펀딩 개설 조건이 실제 규모로 보이게)
-- 작품 A 「악녀인데 남주들이 나를 숭배한다」: 펀딩 모집 중, 목표 5,000조각(5,000만 원)에 7,020조각 청약 (140%)
-  · 1인 한도 250조각 (3,000만 원과 발행액 5% 중 작은 금액), reader1~3 은 모집 전 찜한 초기 독자
+- 파일럿 열람 이벤트: A 3.2만 명, B 2만 명 / 유료 미리보기 구매자(월 유료 팬): A 5,200명, B 3,500명
+  (v5.0 발행 조건·목표 금액 상한은 유료 팬 기준. 1,000만 원에 약 3,400명 필요)
+- 작품 A 「악녀인데 남주들이 나를 숭배한다」: 펀딩 모집 중, 목표 1,500조각(1,500만 원)에 2,175조각 청약 (145%)
+  · 1인 한도 75조각 (3,000만 원과 발행액 5% 중 작은 금액), reader1~3 은 모집 전 찜한 초기 독자
   · 파일럿 1~3화 무료, 4화부터 유료 미리보기 300원 (공개 21일 뒤 무료)
-- 작품 B 「검을 거둔 아이」: 목표 3,000만 원, 균등 20%(초기 독자 우선 10%) + 비례 배정 → 상장, 마켓 체결·호가 있음
+- 작품 B 「검을 거둔 아이」: 목표 1,000만 원, 균등 20%(초기 독자 우선 10%) + 비례 배정 → 상장, 마켓 체결·호가 있음
+  · 상장 후 결제는 신탁 계좌로 바로 분할 → GET /fundings/{id}/disclosure 에서 대사·원장 해시 확인
 - 계정: admin@ / creator@ / reader1~30@dibs.dev  (POST /auth/dev-login 으로 토큰 발급)
   reader30 은 아무것도 청약하지 않은 계정 → 시연에서 새로 청약해 보기용
 """
@@ -20,8 +22,8 @@ from fastapi.testclient import TestClient
 from app.core import clock
 from app.core.db import SessionLocal
 from app.main import app
-from app.models import ContentEvent, Episode
-from app.models.enums import EventType
+from app.models import ContentEvent, Episode, EpisodeUnlock, Journal, User
+from app.models.enums import EventType, Mode
 
 
 def seed_pilot_events(work_id: int, readers: int, finish_1: float, finish_3: float) -> None:
@@ -44,6 +46,26 @@ def seed_pilot_events(work_id: int, readers: int, finish_1: float, finish_3: flo
     db.bulk_insert_mappings(ContentEvent, rows)
     db.commit()
     db.close()
+
+def seed_paying_fans(work_id: int, fans: int) -> None:
+    """최근 4주 유료 미리보기 구매자 (4화 300원). 시연용이라 분개 1건을 공유하고 계정만 따로 만든다."""
+    rnd = random.Random(work_id * 7)
+    now = clock.now()
+    db = SessionLocal()
+    ep = db.query(Episode).filter(Episode.work_id == work_id, Episode.no == 4).one()
+    j = Journal(kind="SEED_PILOT_PURCHASES", mode=Mode.LIVE, memo=f"work {work_id} 파일럿 유료 구매 (시연)")
+    db.add(j)
+    db.flush()
+    start = (db.query(User.id).order_by(User.id.desc()).first() or (0,))[0] + 1
+    db.bulk_insert_mappings(User, [dict(id=start + i, email=f"fan{work_id}-{i}@seed.dibs.dev", nickname=f"팬{i}",
+                                        kyc_verified=True) for i in range(fans)])
+    db.bulk_insert_mappings(EpisodeUnlock, [dict(user_id=start + i, episode_id=ep.id, work_id=work_id, price_coin=300,
+                                                 journal_id=j.id,
+                                                 unlocked_at=now - timedelta(minutes=rnd.randint(60, 27 * 24 * 60)))
+                                            for i in range(fans)])
+    db.commit()
+    db.close()
+
 
 SUB = {"agree_risk_notice": True, "agree_termination_rule": True}
 
@@ -97,26 +119,30 @@ def main() -> None:
 
         # 작품 A: 모집 중 842%
         a = make_work("악녀인데 남주들이 나를 숭배한다", "로맨스 판타지", 14)
-        seed_pilot_events(a, 32_000, 0.85, 0.55)  # 예상 월 열람자 약 2.2만 명 → 목표 5,000만 원 개설 가능
+        seed_pilot_events(a, 32_000, 0.85, 0.55)
         for r in readers[:3]:
             call(r, "put", f"/works/{a}/dib")
         call("creator", "patch", "/me", json={"bio": "로맨스 판타지를 그리는 신인 작가"})
         for ep in call("creator", "get", f"/works/{a}/episodes")[3:]:  # 4화부터 유료 미리보기
             call("admin", "patch", f"/admin/episodes/{ep['id']}/pricing", json={"is_paid": True})
-        fa = make_funding(a, 5000, [{"title": "에필로그 크레딧 등재", "min_units": 1},
+        seed_paying_fans(a, 5_200)  # 유료 팬 5,200명 → 목표 금액 상한 1,500만 원
+        fa = make_funding(a, 1500, [{"title": "에필로그 크레딧 등재", "min_units": 1},
                                     {"title": "한정판 양장본 + 넘버링 카드", "min_units": 30, "limited_qty": 50,
                                      "requires_shipping": True}])
-        for i, r in enumerate(readers[:29]):  # 28명 × 250 + 20 = 7,020조각
-            call(r, "post", f"/fundings/{fa}/subscriptions", json={**SUB, "units": 250 if i < 28 else 20})
+        for r in readers[:29]:  # 29명 × 75 = 2,175조각 (145%), 1인 한도 75조각 = 75만 원
+            call(r, "post", f"/fundings/{fa}/subscriptions", json={**SUB, "units": 75})
 
         # 작품 B: 상장 + 거래
         b = make_work("검을 거둔 아이", "무협", 8)
         seed_pilot_events(b, 20_000, 0.8, 0.5)
+        for ep in call("creator", "get", f"/works/{b}/episodes")[3:]:
+            call("admin", "patch", f"/admin/episodes/{ep['id']}/pricing", json={"is_paid": True})
+        seed_paying_fans(b, 3_500)  # 유료 팬 3,500명 → 상한 1,000만 원
         for r in readers[3:6]:
             call(r, "put", f"/works/{b}/dib")  # 모집 전 찜 → 초기 독자 우선 배정
-        fb = make_funding(b, 3000, [])
-        for r in readers[:25]:  # 25명 × 150 = 3,750조각 (125%), 1인 한도 150조각
-            call(r, "post", f"/fundings/{fb}/subscriptions", json={**SUB, "units": 150})
+        fb = make_funding(b, 1000, [])
+        for r in readers[:25]:  # 25명 × 50 = 1,250조각 (125%), 1인 한도 50조각 = 50만 원
+            call(r, "post", f"/fundings/{fb}/subscriptions", json={**SUB, "units": 50})
         call("admin", "post", f"/admin/fundings/{fb}/close", params={"force": True})
         call("admin", "post", f"/admin/fundings/{fb}/issuance", json={"broker_name": "제휴증권(모의)"})
         for step, extra in [("FILED", {}), ("ISSUED", {"security_code": "KRDIBS0000002", "trustee": "모의신탁"}),
@@ -127,6 +153,9 @@ def main() -> None:
         call("reader2", "post", "/market/orders", json={**order, "side": "BUY", "price": 11_500, "units": 6})
         call("reader3", "post", "/market/orders", json={**order, "side": "SELL", "price": 12_000, "units": 5})
         call("reader4", "post", "/market/orders", json={**order, "side": "BUY", "price": 11_000, "units": 8})
+        b_eps = call("creator", "get", f"/works/{b}/episodes")
+        for r in readers[5:15]:  # 상장 후 유료 구매 → 신탁 계좌로 바로 분할 (공시 대사 시연)
+            call(r, "post", f"/episodes/{b_eps[4]['id']}/unlock")
 
         call("creator", "post", f"/works/{b}/posts", json={"kind": "BOARD", "body": "9화는 다음 주 화요일에 올라와요"})
         call("reader1", "post", f"/works/{b}/posts", json={"kind": "HOLDER_BOARD", "body": "첫 분기 배당 기대돼요"})

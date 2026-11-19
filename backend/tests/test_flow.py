@@ -83,11 +83,11 @@ def test_full_flow(api, published_work, now):
     iss = api.ok("admin", "post", f"/admin/fundings/{fid}/issuance/advance", json={"step": "LISTED"})
     assert len(iss["history"]) == 5
 
-    # 보유 증권 반영 + 작가 지급: 작가 몫 80만 원(모금액의 80%) 중 상장 시 40%만 (v3.0 분할 지급)
+    # 보유 증권 반영 + 작가 지급: 작가 몫 85만 원(모금액의 85%) 중 상장 시 40%만 (v3.0 분할 지급)
     assert api.ok("a", "get", "/me/holdings")[0]["units"] == 48
-    assert wallet(api, "creator")["deposit_available"] == 320_000
+    assert wallet(api, "creator")["deposit_available"] == 340_000
     payouts = api.ok("admin", "get", f"/admin/fundings/{fid}/payouts")
-    assert [(p["amount"], p["status"]) for p in payouts] == [(320_000, "PAID"), (240_000, "PENDING"), (240_000, "PENDING")]
+    assert [(p["amount"], p["status"]) for p in payouts] == [(340_000, "PAID"), (255_000, "PENDING"), (255_000, "PENDING")]
     assert_books_balance(api)
 
     # ── STEP 5. 마켓 ──
@@ -157,7 +157,7 @@ def test_full_flow(api, published_work, now):
     mine = api.ok("a", "get", "/me/dividends")[0]
     assert (mine["units"], mine["gross"], mine["tax"], mine["net"]) == (42, 24_702, 3_804, 20_898)
     assert wallet(api, "a")["deposit_available"] == before + 20_898
-    assert wallet(api, "creator")["deposit_available"] == 320_000 + 39_210
+    assert wallet(api, "creator")["deposit_available"] == 340_000 + 39_210
     assert api.ok("a", "get", "/me/notifications")[0]["type"] == "DIVIDEND_PAID"
     assert_books_balance(api)
 

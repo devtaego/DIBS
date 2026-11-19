@@ -4927,7 +4927,7 @@
         "tags": [
           "fundings"
         ],
-        "summary": "펀딩 개설 조건·목표 금액 상한 (파일럿 4주 열람자 기준)",
+        "summary": "펀딩 개설 조건·목표 금액 상한 (파일럿 4주 유료 구매자 기준)",
         "operationId": "funding_gate_works__work_id__funding_gate_get",
         "parameters": [
           {
@@ -4946,7 +4946,7 @@
             "schema": {
               "type": "integer",
               "exclusiveMinimum": 0,
-              "default": 50000000,
+              "default": 10000000,
               "title": "Target Amount"
             }
           }
@@ -5030,7 +5030,7 @@
         "tags": [
           "fundings"
         ],
-        "summary": "투자 지표 카드 (찜 속도·파일럿 연독률·원금 회수 기간 범위)",
+        "summary": "투자 지표 카드 (찜 속도·연독률·유료 팬·시나리오별 배수와 회수 기간)",
         "operationId": "funding_indicators_fundings__funding_id__indicators_get",
         "parameters": [
           {
@@ -5050,6 +5050,98 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/FundingIndicatorsOut"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/fundings/{funding_id}/disclosure": {
+      "get": {
+        "tags": [
+          "fundings"
+        ],
+        "summary": "공시: 투자금 쓰임·매출 배분·상품 기간·분기별 정산 대사와 원장 해시",
+        "operationId": "funding_disclosure_fundings__funding_id__disclosure_get",
+        "parameters": [
+          {
+            "name": "funding_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Funding Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DisclosureOut"
                 }
               }
             }
@@ -10760,7 +10852,7 @@
         "tags": [
           "admin"
         ],
-        "summary": "연재 완결 확정 (종료 규칙 3년 시작)",
+        "summary": "연재 완결 확정 (완결 후 12개월 기간 시작, 다음 시즌 펀딩 신청 가능)",
         "operationId": "complete_admin_fundings__funding_id__complete_post",
         "parameters": [
           {
@@ -10868,7 +10960,7 @@
         "tags": [
           "admin"
         ],
-        "summary": "권리 종료 (완결 후 3년 또는 저매출 2분기 연속, 원금 상환 없음)",
+        "summary": "권리 종료 (완결 후 12개월 또는 저매출 2분기 연속, 원금 상환 없음)",
         "operationId": "terminate_admin_fundings__funding_id__terminate_post",
         "parameters": [
           {
@@ -12890,6 +12982,7 @@
           "SYS_ISSUANCE_COST",
           "SYS_PLATFORM_REVENUE",
           "SYS_ROYALTY_POOL",
+          "SYS_TRUST_RECEIVABLE",
           "SYS_TAX_WITHHOLDING",
           "SYS_BROKER_FEE"
         ],
@@ -12994,7 +13087,7 @@
           "monthly_readers": {
             "type": "integer",
             "title": "Monthly Readers",
-            "description": "결제율 가정으로 환산한 필요 월 열람자"
+            "description": "참고: 결제율 15%(플랫폼 평균, 상한값)로 환산한 월 열람자"
           }
         },
         "type": "object",
@@ -13053,7 +13146,7 @@
           "lines"
         ],
         "title": "BreakevenOut",
-        "description": "손익분기 독자 규모 공시 (청약 화면). 회수 전 투자자 몫(세후)으로 4년·2년 안에 원금을 돌려받는 데 필요한 규모."
+        "description": "손익분기 규모 공시 (청약 화면). 회수 전 투자자 몫(세후)으로 시즌 안·상품 기간 안에 원금을 돌려받는 데 필요한 규모."
       },
       "BrokerAccountIn": {
         "properties": {
@@ -13232,6 +13325,72 @@
           "email"
         ],
         "title": "DevLoginIn"
+      },
+      "DisclosureOut": {
+        "properties": {
+          "funding_id": {
+            "type": "integer",
+            "title": "Funding Id"
+          },
+          "cost_per_100": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Cost Per 100",
+            "description": "투자금 100원 중 작가·발행 실비·DIBS 몫"
+          },
+          "revenue_split": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Revenue Split",
+            "description": "순매출 배분 (회수 전·후)"
+          },
+          "term": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Term",
+            "description": "시즌 연재 + 완결 후 기간, 원금 상환 없음"
+          },
+          "per_user_cap_amount": {
+            "type": "integer",
+            "title": "Per User Cap Amount"
+          },
+          "buyback_enabled": {
+            "type": "boolean",
+            "title": "Buyback Enabled"
+          },
+          "settlement_basis": {
+            "type": "string",
+            "title": "Settlement Basis"
+          },
+          "verification": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Verification"
+          },
+          "reconciliation": {
+            "items": {
+              "$ref": "#/components/schemas/ReconciliationOut"
+            },
+            "type": "array",
+            "title": "Reconciliation"
+          }
+        },
+        "type": "object",
+        "required": [
+          "funding_id",
+          "cost_per_100",
+          "revenue_split",
+          "term",
+          "per_user_cap_amount",
+          "buyback_enabled",
+          "settlement_basis",
+          "verification",
+          "reconciliation"
+        ],
+        "title": "DisclosureOut",
+        "description": "공시 묶음 (v5.0): 투자금 쓰임, 매출 배분, 상품 기간, 1인 한도, 분기별 정산 대사와 원장 해시."
       },
       "DiscontinueOut": {
         "properties": {
@@ -14038,6 +14197,12 @@
             "title": "Use Of Funds",
             "description": "자금 사용 계획"
           },
+          "buyback_enabled": {
+            "type": "boolean",
+            "title": "Buyback Enabled",
+            "description": "작가 매입 옵션 (선택 사항)",
+            "default": false
+          },
           "reward_tiers": {
             "items": {
               "$ref": "#/components/schemas/RewardTierIn"
@@ -14384,29 +14549,31 @@
           },
           "pilot_readers_4w": {
             "type": "integer",
-            "title": "Pilot Readers 4W"
+            "title": "Pilot Readers 4W",
+            "description": "참고: 최근 4주 파일럿 열람자"
           },
-          "readers_needed_for_4y": {
+          "pilot_paying_fans_4w": {
             "type": "integer",
-            "title": "Readers Needed For 4Y"
+            "title": "Pilot Paying Fans 4W",
+            "description": "최근 4주 유료 미리보기 구매자"
+          },
+          "paying_fans_needed": {
+            "type": "integer",
+            "title": "Paying Fans Needed"
           },
           "gate_threshold": {
             "type": "integer",
             "title": "Gate Threshold",
-            "description": "필요 열람자의 50%"
+            "description": "필요 유료 팬의 100%"
           },
           "passes_gate": {
             "type": "boolean",
             "title": "Passes Gate"
           },
-          "expected_monthly_readers": {
-            "type": "integer",
-            "title": "Expected Monthly Readers"
-          },
           "target_cap": {
             "type": "integer",
             "title": "Target Cap",
-            "description": "예상 월 투자자 몫(세후) × 48개월"
+            "description": "유료 팬 × 1명당 상품 기간 투자자 몫(세후) × 70%"
           },
           "within_cap": {
             "type": "boolean",
@@ -14422,16 +14589,16 @@
           "work_id",
           "target_amount",
           "pilot_readers_4w",
-          "readers_needed_for_4y",
+          "pilot_paying_fans_4w",
+          "paying_fans_needed",
           "gate_threshold",
           "passes_gate",
-          "expected_monthly_readers",
           "target_cap",
           "within_cap",
           "enforced"
         ],
         "title": "FundingGateOut",
-        "description": "펀딩 개설 조건과 목표 금액 상한 (v4.0)."
+        "description": "펀딩 개설 조건과 목표 금액 상한 (v5.0: 유료 팬 기준)."
       },
       "FundingIndicatorsOut": {
         "properties": {
@@ -14451,7 +14618,7 @@
           "pilot_readers_4w": {
             "type": "integer",
             "title": "Pilot Readers 4W",
-            "description": "최근 4주 파일럿 열람자"
+            "description": "최근 4주 파일럿 열람자 (참고)"
           },
           "pilot_read_through": {
             "anyOf": [
@@ -14465,10 +14632,15 @@
             "title": "Pilot Read Through",
             "description": "파일럿 연독률 (마지막 무료 회차 완독 ÷ 1화 완독)"
           },
-          "expected_monthly_readers": {
+          "pilot_paying_fans_4w": {
             "type": "integer",
-            "title": "Expected Monthly Readers",
-            "description": "파일럿 열람자 × 유료화 후 남는 비율 70%"
+            "title": "Pilot Paying Fans 4W",
+            "description": "최근 4주 유료 미리보기 구매자 = 월 유료 팬"
+          },
+          "paying_fans_needed": {
+            "type": "integer",
+            "title": "Paying Fans Needed",
+            "description": "이 목표 금액에 필요한 월 유료 팬"
           },
           "gate_threshold": {
             "type": "integer",
@@ -14482,9 +14654,31 @@
             "type": "integer",
             "title": "Target Cap"
           },
-          "payback_years": {
-            "$ref": "#/components/schemas/PaybackRange",
-            "description": "원금 회수 기간 범위 (세후, 월 단위 올림)"
+          "season_months": {
+            "type": "integer",
+            "title": "Season Months"
+          },
+          "tail_months": {
+            "type": "integer",
+            "title": "Tail Months"
+          },
+          "scenarios": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/ScenarioOut"
+            },
+            "type": "object",
+            "title": "Scenarios",
+            "description": "downside 0.4 · conservative 0.7 · base 1.0 · optimistic 1.5"
+          },
+          "per_user_cap_amount": {
+            "type": "integer",
+            "title": "Per User Cap Amount",
+            "description": "1인 청약 한도 (3,000만 원과 발행액 5% 중 작은 금액)"
+          },
+          "per_user_max_loss_downside": {
+            "type": "integer",
+            "title": "Per User Max Loss Downside",
+            "description": "한도까지 청약했을 때 downside 시나리오 손실액"
           },
           "note": {
             "type": "string",
@@ -14498,15 +14692,20 @@
           "dibs_7d",
           "pilot_readers_4w",
           "pilot_read_through",
-          "expected_monthly_readers",
+          "pilot_paying_fans_4w",
+          "paying_fans_needed",
           "gate_threshold",
           "passes_gate",
           "target_cap",
-          "payback_years",
+          "season_months",
+          "tail_months",
+          "scenarios",
+          "per_user_cap_amount",
+          "per_user_max_loss_downside",
           "note"
         ],
         "title": "FundingIndicatorsOut",
-        "description": "발행 전 투자 지표 카드 (청약 화면)."
+        "description": "발행 전 투자 지표 카드 (청약 화면). 기간이 짧아 연 수익률 대신 배수와 회수 기간만 보여 준다."
       },
       "FundingOut": {
         "properties": {
@@ -14786,6 +14985,12 @@
               }
             ],
             "title": "Exclusive Until"
+          },
+          "buyback_enabled": {
+            "type": "boolean",
+            "title": "Buyback Enabled",
+            "description": "작가 매입 옵션 선택 여부",
+            "default": false
           },
           "external_share_bps": {
             "type": "integer",
@@ -15808,53 +16013,6 @@
         ],
         "title": "OrderStatus"
       },
-      "PaybackRange": {
-        "properties": {
-          "conservative": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Conservative",
-            "description": "보수: 결제율 10%, 월 3화"
-          },
-          "base": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Base",
-            "description": "기준: 결제율 15%, 월 4화"
-          },
-          "optimistic": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Optimistic",
-            "description": "낙관: 결제율 20%, 월 5화"
-          }
-        },
-        "type": "object",
-        "required": [
-          "conservative",
-          "base",
-          "optimistic"
-        ],
-        "title": "PaybackRange"
-      },
       "PayoutIn": {
         "properties": {
           "bps": {
@@ -16270,6 +16428,66 @@
           "reason"
         ],
         "title": "ReasonIn"
+      },
+      "ReconciliationOut": {
+        "properties": {
+          "period": {
+            "type": "string",
+            "title": "Period"
+          },
+          "unlock_gross": {
+            "type": "integer",
+            "title": "Unlock Gross",
+            "description": "이 펀딩으로 표시된 유료 결제 합계 (결제 원천)"
+          },
+          "trust_inflow": {
+            "type": "integer",
+            "title": "Trust Inflow",
+            "description": "신탁 계좌에 실제로 들어간 금액 (원장)"
+          },
+          "recorded_gross": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recorded Gross",
+            "description": "배당 재원으로 기록된 유료 회차 매출 (집계 전이면 null)"
+          },
+          "leaked_unlocks": {
+            "type": "integer",
+            "title": "Leaked Unlocks",
+            "description": "상장 후인데 신탁 계좌를 거치지 않은 결제 건수 (0이어야 정상)"
+          },
+          "matched": {
+            "type": "boolean",
+            "title": "Matched"
+          },
+          "ledger_hash": {
+            "type": "string",
+            "title": "Ledger Hash",
+            "description": "해당 분기 신탁 결제 기록의 SHA-256 연쇄 해시 (공시용)"
+          },
+          "records": {
+            "type": "integer",
+            "title": "Records"
+          }
+        },
+        "type": "object",
+        "required": [
+          "period",
+          "unlock_gross",
+          "trust_inflow",
+          "recorded_gross",
+          "leaked_unlocks",
+          "matched",
+          "ledger_hash",
+          "records"
+        ],
+        "title": "ReconciliationOut"
       },
       "RecoupOut": {
         "properties": {
@@ -16836,6 +17054,46 @@
         ],
         "title": "RoyaltyLine"
       },
+      "ScenarioOut": {
+        "properties": {
+          "fan_ratio": {
+            "type": "number",
+            "title": "Fan Ratio",
+            "description": "파일럿 유료 팬 대비 실제 유료 팬 비율"
+          },
+          "multiple": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Multiple",
+            "description": "상품 기간 총회수 배수 (세후)"
+          },
+          "payback_months": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Payback Months",
+            "description": "원금 회수 달 (세후, 없으면 기간 안에 회수 못 함)"
+          }
+        },
+        "type": "object",
+        "required": [
+          "fan_ratio",
+          "multiple",
+          "payback_months"
+        ],
+        "title": "ScenarioOut"
+      },
       "SecurityDetailOut": {
         "properties": {
           "funding_id": {
@@ -17004,7 +17262,7 @@
               }
             ],
             "title": "Terminate Due At",
-            "description": "완결 후 3년 (완결 전이면 null). 만기는 없음"
+            "description": "완결 후 12개월 (완결 전이면 null)"
           },
           "my_units": {
             "anyOf": [
@@ -17793,7 +18051,7 @@
               }
             ],
             "title": "Terminate Due At",
-            "description": "완결 후 3년"
+            "description": "완결 후 12개월"
           },
           "low_revenue_threshold": {
             "type": "integer",
@@ -17819,6 +18077,11 @@
             ],
             "title": "Reason"
           },
+          "buyback_enabled": {
+            "type": "boolean",
+            "title": "Buyback Enabled",
+            "description": "작가 매입 옵션 선택 여부 (선택 사항)"
+          },
           "buyback_price": {
             "anyOf": [
               {
@@ -17829,7 +18092,7 @@
               }
             ],
             "title": "Buyback Price",
-            "description": "작가 매입가 = 최근 4분기 보유자 분배금 합계 × 3"
+            "description": "작가 매입가 = 최근 4분기 보유자 분배금 합계 × 3 (선택한 펀딩만)"
           }
         },
         "type": "object",
@@ -17840,6 +18103,7 @@
           "low_revenue_streak",
           "eligible",
           "reason",
+          "buyback_enabled",
           "buyback_price"
         ],
         "title": "TerminationOut"

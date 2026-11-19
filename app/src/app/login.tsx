@@ -53,7 +53,7 @@ export default function Login() {
   return (
     <Screen edges={['top', 'bottom']}>
       <View style={{ marginTop: space(8), marginBottom: space(6) }}>
-        <T size={40} weight="800" color={colors.accent}>DIBS</T>
+        <T size={40} weight="700" color={colors.accent}>DIBS</T>
         <T size={16} color={colors.muted}>가능성을 먼저 발견하다</T>
       </View>
 

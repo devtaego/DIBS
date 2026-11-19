@@ -47,7 +47,7 @@ export default function RiskProfile() {
                 key={opt}
                 onPress={() => setAnswers(answers.map((a, i) => (i === qi ? oi + 1 : a)))}
                 style={{ marginTop: space(2), padding: space(3.5), borderRadius: 12, backgroundColor: on ? colors.button : colors.card }}>
-                <T color={on ? colors.deepest : colors.text} weight={on ? '700' : '400'}>{opt}</T>
+                <T color={on ? colors.onPrimary : colors.text} weight={on ? '700' : '400'}>{opt}</T>
               </Pressable>
             );
           })}

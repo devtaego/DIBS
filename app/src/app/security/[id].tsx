@@ -58,9 +58,9 @@ export default function SecurityScreen() {
         {d.security_code ? <Badge label={d.security_code} /> : null}
         {!tradable ? <Badge label={FUNDING_STATUS[d.status]} tone="danger" /> : null}
       </Row>
-      <T size={20} weight="800" style={{ marginTop: space(2) }}>{d.work_title}</T>
+      <T size={20} weight="700" style={{ marginTop: space(2) }}>{d.work_title}</T>
       <Row style={{ alignItems: 'baseline', marginTop: space(1) }}>
-        <T size={32} weight="800">{won(d.last_price)}</T>
+        <T size={32} weight="700">{won(d.last_price)}</T>
         <T size={16} weight="700" color={changeColor(d.change_pct)}>{pct(d.change_pct, 2)}</T>
       </Row>
       <Muted>기준가 {won(d.reference_price)} · 주문 가능 {won(d.price_band.min)} ~ {won(d.price_band.max)}</Muted>

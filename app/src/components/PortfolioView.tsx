@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { Alert, View } from 'react-native';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 
 import { Badge, Button, Card, Empty, ErrorBox, KV, Loading, MockBadge, Muted, Row, Screen, Segmented, T, changeColor } from '@/components/ui';
 import { api, ApiError, type Holding, type MySubscription, type Order, type Wallet } from '@/lib/api';
@@ -10,7 +10,8 @@ import { useApi } from '@/lib/useApi';
 
 type Tab = 'holdings' | 'subs' | 'orders';
 
-export default function Portfolio() {
+// 증권 탭의 '내 자산' 화면 (예전 portfolio 탭)
+export function PortfolioView({ header }: { header?: ReactNode }) {
   const [tab, setTab] = useState<Tab>('holdings');
   const { data, error, loading, reload } = useApi(async () => {
     const [wallet, holdings, subs, orders] = await Promise.all([
@@ -31,11 +32,12 @@ export default function Portfolio() {
     }
   };
 
-  if (loading && !data) return <Screen><Loading /></Screen>;
+  if (loading && !data) return <Screen>{header}<Loading /></Screen>;
   const evalTotal = data?.holdings.reduce((a, h) => a + h.eval_amount, 0) ?? 0;
 
   return (
     <Screen onRefresh={reload}>
+      {header}
       <ErrorBox error={error} onRetry={reload} />
       {data ? (
         <Card style={{ backgroundColor: colors.cardAlt }}>
@@ -43,7 +45,7 @@ export default function Portfolio() {
             <Muted>내 조각 평가금액</Muted>
             <MockBadge mode={data.wallet.mode} />
           </Row>
-          <T size={28} weight="800">{won(evalTotal)}</T>
+          <T size={28} weight="700">{won(evalTotal)}</T>
           <KV k="투자 가능 예치금" v={won(data.wallet.deposit_available)} />
           <KV k="청약·주문에 묶인 금액" v={won(data.wallet.deposit_locked)} />
           <Row style={{ gap: space(2), marginTop: space(2) }}>
@@ -94,7 +96,7 @@ export default function Portfolio() {
               {sub.allocated_units !== null ? (
                 <View style={{ marginTop: space(2) }}>
                   <T size={17} weight="700">
-                    신청 {sub.units}조각 → <T size={17} weight="800" color={colors.accent}>{sub.allocated_units}조각 배정</T>
+                    신청 {sub.units}조각 → <T size={17} weight="700" color={colors.accent}>{sub.allocated_units}조각 배정</T>
                   </T>
                   {sub.units > sub.allocated_units ? <Muted>나머지 {won((sub.units - sub.allocated_units) * sub.unit_price)}은 바로 돌려받았어요</Muted> : null}
                 </View>

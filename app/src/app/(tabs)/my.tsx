@@ -14,7 +14,7 @@ export default function My() {
     <Screen onRefresh={refreshMe}>
       <Card style={{ backgroundColor: colors.cardAlt }}>
         <Row style={{ justifyContent: 'space-between' }}>
-          <T size={20} weight="800">{me.nickname}</T>
+          <T size={20} weight="700">{me.nickname}</T>
           <Badge label={ROLE[me.role]} tone="accent" />
         </Row>
         <Muted>{me.email}</Muted>

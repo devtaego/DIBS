@@ -3,13 +3,13 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { SessionProvider } from '@/lib/session';
-import { colors } from '@/lib/theme';
+import { colors, MODE } from '@/lib/theme';
 
 export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <SessionProvider>
-        <StatusBar style="light" />
+        <StatusBar style={MODE === 'light' ? 'dark' : 'light'} />
         <Stack
           screenOptions={{
             headerStyle: { backgroundColor: colors.bg },

@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
 import { ScrollView, View } from 'react-native';
 
+import { ExploreCard } from '@/components/ExploreCard';
 import { Badge, Card, ErrorBox, H2, Loading, Muted, ProgressBar, Row, Screen, T, changeColor } from '@/components/ui';
 import { api, type FundingCard, type SecurityItem, type WorkCard } from '@/lib/api';
 import { FUNDING_STATUS, pct, won } from '@/lib/format';
@@ -31,7 +32,7 @@ export default function Home() {
             <Badge label={f.days_left !== null ? `D-${f.days_left}` : FUNDING_STATUS[f.status]} tone="accent" />
           </Row>
           <Row style={{ marginTop: space(2), alignItems: 'baseline' }}>
-            <T size={26} weight="800" color={colors.accent}>{f.progress.achievement_pct.toLocaleString('ko-KR')}%</T>
+            <T size={26} weight="700" color={colors.highlight}>{f.progress.achievement_pct.toLocaleString('ko-KR')}%</T>
             <Muted>{f.progress.participants}명 참여 · 목표 {won(f.target_amount)}</Muted>
           </Row>
           <ProgressBar pct={f.progress.achievement_pct} />
@@ -41,16 +42,17 @@ export default function Home() {
       <H2>가장 많이 찜한 작품</H2>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: space(3) }}>
         {data?.works.map((w) => (
-          <Card key={w.id} onPress={() => router.push(`/work/${w.id}`)} style={{ width: 168, height: 190, justifyContent: 'space-between', backgroundColor: colors.cardAlt }}>
-            <View>
-              <Muted>{w.genre}</Muted>
-              <T weight="700" numberOfLines={3} style={{ marginTop: space(1) }}>{w.title}</T>
-            </View>
-            <View>
-              {w.funding_status ? <Badge label={FUNDING_STATUS[w.funding_status]} tone={w.funding_status === 'OPEN' ? 'accent' : 'default'} /> : null}
-              <Muted style={{ marginTop: space(1) }}>♥ {w.dib_count.toLocaleString('ko-KR')}</Muted>
-            </View>
-          </Card>
+          <View key={w.id} style={{ width: 132 }}>
+            <ExploreCard
+              id={w.id}
+              title={w.title}
+              meta={w.genre}
+              stat={w.funding_status ? FUNDING_STATUS[w.funding_status] : `관심 ${w.dib_count.toLocaleString('ko-KR')}`}
+              statIcon={w.funding_status === 'OPEN' ? 'trending-up' : w.funding_status === 'LISTED' ? 'stats-chart' : 'star'}
+              coverUrl={w.cover_url}
+              onPress={() => router.push(`/work/${w.id}`)}
+            />
+          </View>
         ))}
       </ScrollView>
 
@@ -58,10 +60,10 @@ export default function Home() {
       {data?.securities.slice(0, 5).map((sec) => (
         <Card key={sec.funding_id} onPress={() => router.push(`/security/${sec.funding_id}`)}>
           <Row style={{ justifyContent: 'space-between' }}>
-            <T weight="700" style={{ flex: 1 }} numberOfLines={1}>{sec.work_title}</T>
+            <T weight="600" style={{ flex: 1 }} numberOfLines={1}>{sec.work_title}</T>
             <View style={{ alignItems: 'flex-end' }}>
               <T weight="700">{won(sec.last_price)}</T>
-              <T size={13} color={changeColor(sec.change_pct)}>{pct(sec.change_pct, 2)}</T>
+              <T size={13} weight="600" color={changeColor(sec.change_pct)}>{pct(sec.change_pct, 2)}</T>
             </View>
           </Row>
         </Card>

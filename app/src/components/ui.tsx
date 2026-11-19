@@ -14,7 +14,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import type { ApiError } from '@/lib/api';
-import { colors, radius, space } from '@/lib/theme';
+import { colors, radii, radius, space, type as ts } from '@/lib/theme';
 
 export function Screen({ children, onRefresh, edges = ['bottom'] }: { children: ReactNode; onRefresh?: () => Promise<unknown>; edges?: ('top' | 'bottom')[] }) {
   const [refreshing, setRefreshing] = useState(false);
@@ -43,16 +43,16 @@ export function Screen({ children, onRefresh, edges = ['bottom'] }: { children: 
 
 export function T({ children, style, size = 15, weight = '400', color = colors.text, numberOfLines }: { children: ReactNode; style?: StyleProp<TextStyle>; size?: number; weight?: TextStyle['fontWeight']; color?: string; numberOfLines?: number }) {
   return (
-    <Text numberOfLines={numberOfLines} style={[{ fontSize: size, fontWeight: weight, color, lineHeight: size * 1.4 }, style]}>
+    <Text numberOfLines={numberOfLines} style={[{ fontSize: size, fontWeight: weight, color, lineHeight: Math.round(size * 1.45), letterSpacing: size >= 18 ? -0.02 * size : -0.01 * size }, style]}>
       {children}
     </Text>
   );
 }
 
-export const H1 = ({ children }: { children: ReactNode }) => <T size={24} weight="700" style={{ marginBottom: space(2) }}>{children}</T>;
+export const H1 = ({ children }: { children: ReactNode }) => <T size={ts.title3.fontSize} weight="700" style={{ marginBottom: space(2) }}>{children}</T>;
 export const H2 = ({ children, right }: { children: ReactNode; right?: ReactNode }) => (
   <View style={[s.row, { marginTop: space(6), marginBottom: space(3), justifyContent: 'space-between' }]}>
-    <T size={18} weight="700">{children}</T>
+    <T size={ts.headline1.fontSize} weight="700">{children}</T>
     {right}
   </View>
 );
@@ -84,14 +84,14 @@ export function KV({ k, v, vColor }: { k: string; v: ReactNode; vColor?: string 
 
 export function Button({ title, onPress, kind = 'primary', disabled, loading, style }: { title: string; onPress: () => void; kind?: 'primary' | 'ghost' | 'danger'; disabled?: boolean; loading?: boolean; style?: StyleProp<ViewStyle> }) {
   const bg = kind === 'primary' ? colors.button : 'transparent';
-  const fg = kind === 'primary' ? colors.deepest : kind === 'danger' ? colors.danger : colors.text;
+  const fg = kind === 'primary' ? colors.onPrimary : kind === 'danger' ? colors.danger : colors.text;
   return (
     <Pressable
       disabled={disabled || loading}
       onPress={onPress}
       style={({ pressed }) => [
         s.button,
-        { backgroundColor: bg, borderColor: kind === 'primary' ? bg : kind === 'danger' ? colors.danger : colors.line, opacity: disabled ? 0.4 : pressed ? 0.8 : 1 },
+        { backgroundColor: bg, borderColor: kind === 'primary' ? bg : kind === 'danger' ? colors.danger : colors.lineStrong, opacity: disabled ? 0.4 : pressed ? 0.8 : 1 },
         style,
       ]}>
       {loading ? <ActivityIndicator color={fg} /> : <T size={16} weight="700" color={fg}>{title}</T>}
@@ -100,10 +100,11 @@ export function Button({ title, onPress, kind = 'primary', disabled, loading, st
 }
 
 export function Badge({ label, tone = 'default' }: { label: string; tone?: 'default' | 'accent' | 'mock' | 'up' | 'down' | 'danger' }) {
-  const c = { default: colors.muted, accent: colors.accent, mock: colors.glow, up: colors.up, down: colors.down, danger: colors.danger }[tone];
+  const c = { default: colors.muted, accent: colors.highlight, mock: colors.highlight, up: colors.up, down: colors.down, danger: colors.danger }[tone];
+  const bg = { default: colors.fillNormal, accent: colors.highlightFill, mock: colors.highlightFill, up: colors.riseFill, down: colors.fallFill, danger: colors.riseFill }[tone];
   return (
-    <View style={[s.badge, { borderColor: c }]}>
-      <T size={11} weight="700" color={c}>{label}</T>
+    <View style={[s.badge, { backgroundColor: bg }]}>
+      <T size={11} weight="600" color={c}>{label}</T>
     </View>
   );
 }
@@ -149,8 +150,8 @@ export function Segmented<K extends string>({ value, options, onChange }: { valu
   return (
     <Row style={s.segment}>
       {options.map((o) => (
-        <Pressable key={o.key} onPress={() => onChange(o.key)} style={[s.segItem, value === o.key && { backgroundColor: colors.card }]}>
-          <T size={14} weight={value === o.key ? '700' : '400'} color={value === o.key ? colors.text : colors.muted}>{o.label}</T>
+        <Pressable key={o.key} onPress={() => onChange(o.key)} style={[s.segItem, value === o.key && s.segOn]}>
+          <T size={14} weight={value === o.key ? '600' : '400'} color={value === o.key ? colors.text : colors.muted}>{o.label}</T>
         </Pressable>
       ))}
     </Row>
@@ -161,7 +162,7 @@ export function Check({ checked, onToggle, label }: { checked: boolean; onToggle
   return (
     <Pressable onPress={onToggle} style={[s.row, { paddingVertical: space(2), alignItems: 'flex-start' }]}>
       <View style={[s.checkbox, checked && { backgroundColor: colors.button, borderColor: colors.button }]}>
-        {checked ? <T size={13} weight="900" color={colors.deepest}>✓</T> : null}
+        {checked ? <T size={13} weight="700" color={colors.onPrimary}>✓</T> : null}
       </View>
       <T size={14} style={{ flex: 1 }}>{label}</T>
     </Pressable>
@@ -187,15 +188,16 @@ export const changeColor = (n: number | null | undefined) => (!n ? colors.muted 
 
 export const s = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
-  scroll: { padding: space(5), paddingBottom: space(16) },
+  scroll: { padding: space(5), paddingBottom: 120 },
   row: { flexDirection: 'row', alignItems: 'center', gap: space(2) },
-  card: { backgroundColor: colors.card, borderRadius: radius, padding: space(4), marginBottom: space(3) },
+  card: { backgroundColor: colors.card, borderRadius: radii.card, padding: space(4), marginBottom: space(3) },
   button: { height: 52, borderRadius: radius, alignItems: 'center', justifyContent: 'center', borderWidth: 1, paddingHorizontal: space(4) },
-  badge: { borderWidth: 1, borderRadius: 999, paddingHorizontal: space(2), paddingVertical: 1 },
-  track: { height: 8, borderRadius: 4, backgroundColor: 'rgba(243,232,238,0.15)', overflow: 'hidden', marginVertical: space(2) },
-  fill: { height: 8, borderRadius: 4, backgroundColor: colors.accent },
+  badge: { borderRadius: radii.tag, paddingHorizontal: space(1.5), paddingVertical: 2 },
+  track: { height: 6, borderRadius: 3, backgroundColor: colors.fillNormal, overflow: 'hidden', marginVertical: space(2) },
+  fill: { height: 6, borderRadius: 3, backgroundColor: colors.progress },
   segment: { backgroundColor: colors.deepest, borderRadius: radius, padding: 4, gap: 4, marginBottom: space(4) },
   segItem: { flex: 1, alignItems: 'center', paddingVertical: space(2.5), borderRadius: radius - 4 },
+  segOn: { backgroundColor: colors.surface, shadowColor: '#191F28', shadowOpacity: 0.08, shadowRadius: 4, shadowOffset: { width: 0, height: 1 }, elevation: 1 },
   checkbox: { width: 22, height: 22, borderRadius: 6, borderWidth: 1.5, borderColor: colors.muted, alignItems: 'center', justifyContent: 'center', marginTop: 1 },
   stepBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.cardAlt, alignItems: 'center', justifyContent: 'center' },
 });

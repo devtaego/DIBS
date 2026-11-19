@@ -47,7 +47,7 @@ export default function FundingScreen() {
 
       <Card>
         <Row style={{ alignItems: 'baseline' }}>
-          <T size={34} weight="800" color={colors.accent}>{f.progress.achievement_pct.toLocaleString('ko-KR')}%</T>
+          <T size={34} weight="700" color={colors.accent}>{f.progress.achievement_pct.toLocaleString('ko-KR')}%</T>
           <Muted>달성</Muted>
         </Row>
         <ProgressBar pct={f.progress.achievement_pct} />
@@ -63,7 +63,7 @@ export default function FundingScreen() {
         <Card style={{ borderWidth: 1, borderColor: colors.accent }}>
           <T weight="700">내 청약 · {SUB_STATUS[sub.status]}</T>
           {sub.allocated_units !== null ? (
-            <T size={18} weight="800" color={colors.accent} style={{ marginTop: space(1) }}>신청 {sub.units}조각 → {sub.allocated_units}조각 배정</T>
+            <T size={18} weight="700" color={colors.accent} style={{ marginTop: space(1) }}>신청 {sub.units}조각 → {sub.allocated_units}조각 배정</T>
           ) : (
             <Muted>{sub.units}조각 청약 · 마감 후 배정돼요</Muted>
           )}
@@ -82,7 +82,7 @@ export default function FundingScreen() {
 
       <H2>목표를 넘으면 이렇게 나눠요</H2>
       <Card>
-        <T>목표의 <T weight="800" color={colors.accent}>{bps(t.allocation_params.equal_ratio_bps ?? 0)}</T>는 참여자 모두에게 고르게, 나머지는 청약 비율대로 배정해요.</T>
+        <T>목표의 <T weight="700" color={colors.accent}>{bps(t.allocation_params.equal_ratio_bps ?? 0)}</T>는 참여자 모두에게 고르게, 나머지는 청약 비율대로 배정해요.</T>
         <Muted style={{ marginTop: space(1) }}>배정 못 받은 금액은 마감 직후 바로 돌려드려요.</Muted>
       </Card>
 

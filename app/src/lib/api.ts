@@ -96,7 +96,7 @@ export type Me = {
   broker_name: string | null; broker_account_masked: string | null;
 };
 export type Progress = { requested_units: number; raised_amount: number; participants: number; achievement_pct: number };
-export type WorkCard = { id: number; title: string; genre: string; type: string; synopsis: string; creator_id: number; dib_count: number; funding_id: number | null; funding_status: string | null };
+export type WorkCard = { id: number; title: string; genre: string; type: string; synopsis: string; cover_url?: string | null; creator_id: number; dib_count: number; funding_id: number | null; funding_status: string | null };
 export type WorkDetail = WorkCard & { is_dibbed: boolean; episode_count: number };
 export type Episode = { id: number; no: number; title: string; is_paid: boolean; price_coin: number; unlocked: boolean };
 export type FundingCard = { id: number; work_id: number; work_title: string; status: string; mode: string; unit_price: number; target_units: number; target_amount: number; close_at: string | null; days_left: number | null; progress: Progress };

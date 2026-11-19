@@ -91,7 +91,7 @@ export default function SubscribeScreen() {
   return (
     <Screen>
       <Row style={{ justifyContent: 'space-between' }}>
-        <T size={20} weight="800" style={{ flex: 1 }}>{f.work_title}</T>
+        <T size={20} weight="700" style={{ flex: 1 }}>{f.work_title}</T>
         <MockBadge mode={wallet.mode} />
       </Row>
 
@@ -105,7 +105,7 @@ export default function SubscribeScreen() {
             </Pressable>
           ))}
         </Row>
-        <T size={24} weight="800" color={colors.accent} style={{ marginTop: space(3) }}>{won(amount)}</T>
+        <T size={24} weight="700" color={colors.accent} style={{ marginTop: space(3) }}>{won(amount)}</T>
       </Card>
 
       <Card>

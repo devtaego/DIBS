@@ -4,6 +4,7 @@ import { View } from 'react-native';
 import { ErrorBox } from '@/components/ui';
 import { Button, DScreen, GroupLabel, Icon, ListCell, Panel, TopAppBar, Txt, color, radius, spacing } from '@/ds';
 import { api, type Holding, type MySubscription, type Wallet } from '@/lib/api';
+import { DEMO } from '@/lib/demo';
 import { useSession } from '@/lib/session';
 import { useApi } from '@/lib/useApi';
 
@@ -93,7 +94,7 @@ export default function My() {
         <ListCell title="알림" icon="bell" onPress={() => router.push('/notifications')} />
         {me.role === 'ADMIN' ? <ListCell title="시연용 운영자 패널" icon="gear" onPress={() => router.push('/admin')} divider={false} /> : null}
       </View>
-      <Txt v="caption2" c={color.labelAssistive}>서버: {baseUrl}</Txt>
+      <Txt v="caption2" c={color.labelAssistive}>{DEMO ? '정적 데모 · 시연 데이터로 동작 (실제 저장 없음)' : `서버: ${baseUrl}`}</Txt>
       <Button label="로그아웃" variant="Outlined" tone="Assistive" size="Medium" onPress={async () => { await logout(); router.replace('/login'); }} />
     </DScreen>
   );

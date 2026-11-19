@@ -7,6 +7,7 @@ import { Button, Icon, LinearProgress, Txt, color, radius, spacing } from '@/ds'
 import { api, track, type FundingCard, type ShortItem } from '@/lib/api';
 import { ddayText, manwon } from '@/lib/cards';
 import { useApi } from '@/lib/useApi';
+import { ShortVideo } from '@/components/ShortVideo';
 
 // V2 03 쇼츠 (전 화면 중 유일한 다크) — 세로로 넘기는 1분 하이라이트 + 펀딩 바로가기 카드
 export default function Shorts() {
@@ -48,10 +49,7 @@ export default function Shorts() {
               const on = !!liked[sh.id];
               return (
                 <View style={{ height: h, paddingHorizontal: spacing.insetL, paddingBottom: 104 }}>
-                  <View style={s.video}>
-                    <Icon name="play" size={56} c="rgba(243,232,238,0.85)" />
-                    <Txt v="caption1" c="rgba(243,232,238,0.6)">{sh.duration_sec}초 · 영상 자리 (시연용)</Txt>
-                  </View>
+                  <ShortVideo url={sh.video_url} durationSec={sh.duration_sec} />
                   <View style={s.actions}>
                     {[
                       { icon: on ? 'heartF' : 'heart', label: on ? '좋아요 취소' : '좋아요', c: on ? '#F6A9BF' : color.shortsLabel, onPress: () => setLiked({ ...liked, [sh.id]: !on }) },
@@ -101,7 +99,6 @@ export default function Shorts() {
 
 const s = StyleSheet.create({
   top: { height: 56, flexDirection: 'row', alignItems: 'baseline', gap: spacing.gapM, paddingHorizontal: spacing.screen, paddingTop: 14 },
-  video: { flex: 1, borderRadius: radius.sheet, backgroundColor: '#1B1C29', alignItems: 'center', justifyContent: 'center', gap: spacing.gapM },
   actions: { position: 'absolute', right: spacing.insetL + 8, bottom: 300, gap: spacing.gapL },
   act: { width: 48, height: 48, borderRadius: 24, backgroundColor: 'rgba(0,0,0,0.35)', alignItems: 'center', justifyContent: 'center' },
   card: { position: 'absolute', left: spacing.insetL + 12, right: spacing.insetL + 12, bottom: 116, gap: spacing.gapS, padding: spacing.insetL, borderRadius: radius.card, backgroundColor: 'rgba(14,15,23,0.72)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)' },

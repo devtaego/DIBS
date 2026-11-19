@@ -1,5 +1,7 @@
 // DIBS 백엔드 API 클라이언트. 엔드포인트 목록은 백엔드 docs/SCREEN_API_MAP.md 기준.
 import AsyncStorage from '@react-native-async-storage/async-storage';
+
+import { DEMO, demoRequest } from './demo';
 import Constants from 'expo-constants';
 
 const KEY_BASE = 'dibs.baseUrl';
@@ -14,21 +16,29 @@ export function guessBaseUrl(): string {
   return host ? `http://${host}:8000` : 'http://localhost:8000';
 }
 
+// 저장소를 못 쓰는 환경(샌드박스 프레임 등)에서도 앱이 멈추지 않게 한다
+const store = {
+  get: async (k: string) => { try { return await AsyncStorage.getItem(k); } catch { return null; } },
+  set: async (k: string, v: string) => { try { await AsyncStorage.setItem(k, v); } catch { /* 무시 */ } },
+  del: async (k: string) => { try { await AsyncStorage.removeItem(k); } catch { /* 무시 */ } },
+};
+
 export async function loadConfig() {
-  baseUrl = (await AsyncStorage.getItem(KEY_BASE)) || guessBaseUrl();
-  token = await AsyncStorage.getItem(KEY_TOKEN);
+  baseUrl = (await store.get(KEY_BASE)) || guessBaseUrl();
+  token = await store.get(KEY_TOKEN);
+  if (DEMO && !token) token = 'demo-token'; // 정적 데모: 시연 계정(reader1)으로 바로 시작
   return { baseUrl, token };
 }
 
 export async function setBaseUrl(url: string) {
   baseUrl = url.replace(/\/+$/, '');
-  await AsyncStorage.setItem(KEY_BASE, baseUrl);
+  await store.set(KEY_BASE, baseUrl);
 }
 
 export async function setToken(t: string | null) {
   token = t;
-  if (t) await AsyncStorage.setItem(KEY_TOKEN, t);
-  else await AsyncStorage.removeItem(KEY_TOKEN);
+  if (t) await store.set(KEY_TOKEN, t);
+  else await store.del(KEY_TOKEN);
 }
 
 export const getBaseUrl = () => baseUrl;
@@ -42,6 +52,14 @@ export class ApiError extends Error {
 type Query = Record<string, string | number | boolean | undefined | null>;
 
 async function request<T>(method: string, path: string, body?: unknown, query?: Query): Promise<T> {
+  if (DEMO) {
+    try {
+      return (await demoRequest(method, path, body, query)) as T;
+    } catch (e) {
+      const x = e as { status?: number; code?: string; message: string };
+      throw new ApiError(x.status ?? 400, x.code ?? 'DEMO', x.message);
+    }
+  }
   const qs = query
     ? '?' +
       Object.entries(query)
@@ -173,5 +191,5 @@ export type Order = { id: number; funding_id: number; side: 'BUY' | 'SELL'; pric
 export type Holding = { funding_id: number; work_title: string; mode: string; units: number; locked_units: number; avg_price: number; last_price: number | null; eval_amount: number; pnl: number; pnl_pct: number | null };
 export type DividendPayment = { run_id: number; funding_id: number; work_title: string; period: string; pay_date: string; status: string; units: number; gross: number; tax: number; net: number };
 export type Notification = { id: number; type: string; title: string; body: string; ref_type: string | null; ref_id: number | null; is_read: boolean; created_at: string };
-export type ShortItem = { id: number; work_id: number; title: string; duration_sec: number; work_title: string; funding_id: number | null; funding_status: string | null };
+export type ShortItem = { id: number; work_id: number; title: string; video_url: string; duration_sec: number; work_title: string; funding_id: number | null; funding_status: string | null };
 export type LedgerLine = { journal_id: number; kind: string; account: string; amount: number; created_at: string };

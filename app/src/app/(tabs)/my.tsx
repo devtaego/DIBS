@@ -34,7 +34,6 @@ export default function My() {
   }
 
   const active = (data?.subs ?? []).filter((x) => x.status === 'ACTIVE');
-  const activeAmt = active.reduce((a, x) => a + x.units * x.unit_price, 0);
   const deposit = data?.wallet.deposit_available ?? 0;
   const units = (data?.holdings ?? []).reduce((a, h) => a + h.units, 0);
 
@@ -54,19 +53,6 @@ export default function My() {
           </View>
           <Txt v="caption1" c={color.labelAlternative}>{me.email}</Txt>
         </View>
-      </View>
-
-      <View style={{ flexDirection: 'row', paddingVertical: spacing.insetM }}>
-        {[
-          [`${data?.holdings.length ?? 0}종목`, '보유 조각'],
-          [activeAmt ? `${(activeAmt / 10000).toLocaleString('ko-KR', { maximumFractionDigits: 1 })}만` : '0', '진행 중 펀딩'],
-          [`${active.length}건`, '청약 신청'],
-        ].map(([v, l], i) => (
-          <View key={l} style={[{ flex: 1, alignItems: 'center', gap: spacing.gap2xs }, i > 0 && { borderLeftWidth: 1, borderLeftColor: color.lineAlternative }]}>
-            <Txt v="body1" w="bold" c={color.labelStrong}>{v}</Txt>
-            <Txt v="caption1" w="medium" c={color.labelAlternative}>{l}</Txt>
-          </View>
-        ))}
       </View>
 
       <Greet

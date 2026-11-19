@@ -2,8 +2,8 @@
 // 사용 원칙(디자인팀): 결제·청약·주문의 로딩과 완료, 빈 화면, 위험 안내에만 등장.
 // 호가·차트 본문에는 넣지 않고, 수익·가격 상승을 축하하지 않는다. 한 화면에 한 번만.
 import { LinearGradient } from 'expo-linear-gradient';
-import { useEffect, useRef, type ReactNode } from 'react';
-import { Animated, Easing, Image, Modal, StyleSheet, View, type ImageSourcePropType, type StyleProp, type ViewStyle } from 'react-native';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { Animated, Easing, Image, Modal, Pressable, StyleSheet, View, type ImageSourcePropType, type StyleProp, type ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Button, T } from '@/components/ui';
@@ -157,13 +157,30 @@ export function SecH({ title, right }: { title: string; right?: ReactNode }) {
   );
 }
 
-/** 진행 막대 위를 달리는 디비 */
-export function Ride({ pct, pose = 'run' }: { pct: number; pose?: Pose }) {
+/** 진행 막대 위를 달리는 디비. label 을 주면 디비에 마우스를 올리거나(웹) 누르면 머리 위에 작게 보여 준다 */
+export function Ride({ pct, pose = 'run', label }: { pct: number; pose?: Pose; label?: string }) {
   const p = Math.max(0, Math.min(100, pct));
+  const [show, setShow] = useState(false);
+  // 막대 끝 쪽에서는 말풍선이 패널 밖으로 나가지 않게 한쪽으로 붙인다
+  const align = p > 85 ? 'flex-end' : p < 15 ? 'flex-start' : 'center';
   return (
-    <View style={{ paddingTop: 34, marginVertical: space(1) }}>
-      <View style={{ position: 'absolute', top: 0, left: `${p}%`, marginLeft: -18 }}>
-        <Dibby pose={pose} size={36} />
+    <View style={{ paddingTop: 34, marginVertical: space(1), zIndex: 2 }}>
+      <View style={{ position: 'absolute', top: 0, left: `${p}%`, marginLeft: -18, zIndex: 2 }}>
+        {label && show ? (
+          <View pointerEvents="none" style={[s.tipWrap, { alignItems: align }, align === 'flex-end' ? { right: 0 } : align === 'flex-start' ? { left: 0 } : { left: -42 }]}>
+            <View style={s.tip}>
+              <T size={11} weight="700" color="#FFFFFF">{label}</T>
+            </View>
+          </View>
+        ) : null}
+        <Pressable
+          onHoverIn={() => setShow(true)}
+          onHoverOut={() => setShow(false)}
+          onPress={() => setShow((v) => !v)}
+          accessibilityRole="button"
+          accessibilityLabel={label ?? '디비'}>
+          <Dibby pose={pose} size={36} />
+        </Pressable>
       </View>
       <View style={s.prog}>
         <View style={[s.progFill, { width: `${p}%` }]} />
@@ -202,6 +219,8 @@ const s = StyleSheet.create({
   moon: { position: 'absolute', width: '62%', aspectRatio: 1, borderRadius: 999, right: '-14%', top: '-8%', backgroundColor: 'rgba(255,255,255,0.22)' },
   cvTitle: { position: 'absolute', left: 12, right: 12, bottom: 14, letterSpacing: -0.6, textShadowColor: 'rgba(0,0,0,0.25)', textShadowRadius: 10, textShadowOffset: { width: 0, height: 2 } },
   chip: { height: 26, paddingHorizontal: 10, borderRadius: radii.chip, alignItems: 'center', justifyContent: 'center', alignSelf: 'flex-start' },
+  tipWrap: { position: 'absolute', bottom: 38, width: 120 },
+  tip: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999, backgroundColor: 'rgba(25,31,40,0.88)' },
   prog: { height: 6, borderRadius: 999, backgroundColor: colors.fillNormal, overflow: 'hidden' },
   progFill: { height: 6, borderRadius: 999, backgroundColor: colors.progress },
   cta: { position: 'absolute', left: 0, right: 0, bottom: 0, paddingHorizontal: 20, paddingTop: 12, flexDirection: 'row', gap: 8, backgroundColor: colors.bg, borderTopWidth: 1, borderTopColor: colors.line },

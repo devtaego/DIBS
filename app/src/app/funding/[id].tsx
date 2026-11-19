@@ -99,11 +99,6 @@ export default function FundingScreen() {
         mainSub={`${manwon(f.progress.raised_amount)} / 목표 ${manwon(f.target_amount)}`}
         progress={pct}
         ride={open}
-        stats={[
-          { label: '1조각 공모가', value: `${f.unit_price.toLocaleString('ko-KR')}원` },
-          { label: '정산 주기', value: '분기' },
-          { label: '위험 등급', value: f.risk_grade || '매우 높음' },
-        ]}
       />
 
       <Tabs value={tab} onChange={setTab} options={[{ key: 'invest', label: '투자 정보' }, { key: 'work', label: '작품 소개' }, { key: 'serial', label: '연재 약정' }, { key: 'disclosure', label: '공시' }]} />
@@ -114,11 +109,11 @@ export default function FundingScreen() {
             <OfferingTable
               rows={[
                 { k: '모집 금액', v: manwon(f.target_amount), strong: true },
-                { k: '1조각', v: `${f.unit_price.toLocaleString('ko-KR')}원` },
                 { k: '1인 한도', v: `${f.per_user_cap_units.toLocaleString('ko-KR')}조각 (${manwon(f.per_user_cap_units * f.unit_price)})` },
                 { k: '상품 기간', v: `시즌 ${ind.season_months}개월 + 완결 후 ${ind.tail_months}개월` },
                 { k: '매출 배분', v: `회수 전 ${bps(f.terms.royalty_holder_bps)} → 회수 후 ${bps(f.terms.royalty_holder_after_bps)}` },
-                { k: '배정', v: `균등 ${bps(f.terms.allocation_params.equal_ratio_bps ?? 2000)} · 비례 ${bps(10000 - (f.terms.allocation_params.equal_ratio_bps ?? 2000))}` },
+                { k: '정산', v: '분기마다' },
+                { k: '목표 초과 시 배정', v: `${bps(f.terms.allocation_params.equal_ratio_bps ?? 2000)}는 고르게, 나머지는 청약 비율대로` },
                 { k: '원금 상환', v: '없음 (분배금으로 회수)' },
               ]}
             />
@@ -134,7 +129,7 @@ export default function FundingScreen() {
               ]}
             />
           </Section>
-          <RiskLevel level={5} note={`원금을 잃을 수 있고 예금자 보호 대상이 아니에요. 1인 최대 손실(유료 팬이 예상의 40%일 때) 약 ${manwon(ind.per_user_max_loss_downside)}.`} />
+          <RiskLevel level={5} note={`1인 최대 손실(유료 팬이 예상의 40%일 때) 약 ${manwon(ind.per_user_max_loss_downside)}`} />
           <ReturnSim
             amount={amount}
             rows={[
@@ -146,12 +141,7 @@ export default function FundingScreen() {
             note="연 수익률은 기간이 짧아 과장되므로 배수와 회수 달만 보여 드려요. 과거·예상 수치는 미래 수익을 보장하지 않아요."
           />
           <Panel>
-            <Txt v="body1" w="bold" c={color.labelStrong}>목표를 넘으면 이렇게 나눠요</Txt>
-            <Txt v="body2" c={color.labelNormal}>{`목표의 ${bps(f.terms.allocation_params.equal_ratio_bps ?? 2000)}는 참여자 모두에게 고르게, 나머지는 청약 비율대로 배정해요. 배정 못 받은 금액은 마감 직후 바로 돌려드려요.`}</Txt>
-          </Panel>
-          <Panel>
             <Txt v="body1" w="bold" c={color.labelStrong}>수요 지표</Txt>
-            <KV k="관심(찜) · 최근 7일" v={`${ind.dibs_total.toLocaleString('ko-KR')}명 · +${ind.dibs_7d.toLocaleString('ko-KR')}`} />
             <KV k="파일럿 4주 유료 팬" v={`${ind.pilot_paying_fans_4w.toLocaleString('ko-KR')}명`} />
             <KV k="이 금액에 필요한 유료 팬" v={`${ind.paying_fans_needed.toLocaleString('ko-KR')}명`} vColor={ind.passes_gate ? color.positive : color.cautionary} />
           </Panel>
@@ -213,8 +203,7 @@ export default function FundingScreen() {
         </>
       ) : null}
 
-      <DNote title="잠깐, 꼭 확인해 주세요" text="만기에는 마지막 정산 후 상장폐지되고 원금은 상환되지 않아요. 원금 손실이 날 수 있고 예금자 보호 대상이 아니에요." style={{ marginTop: 0 }} />
-      <DisclosureBar />
+      <DNote title="잠깐, 꼭 확인해 주세요" text="원금 손실이 날 수 있고 예금자 보호 대상이 아니에요. 만기에는 마지막 정산 후 상장폐지돼요." style={{ marginTop: 0 }} />
     </DScreen>
   );
 }

@@ -1,14 +1,14 @@
 import { router } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { View } from 'react-native';
 
 import { ErrorBox, Loading } from '@/components/ui';
 import {
-  Button, ChipRow, DisclosureBar, DScreen, Empty, IndexChart, MarketCell, Panel, PortfolioSummary, Section, Segmented, TopAppBar, Txt, WorkCard,
+  Button, DisclosureBar, DScreen, Panel, PortfolioSummary, Section, TopAppBar, Txt, WorkCard,
   color, spacing,
 } from '@/ds';
-import { api, type FundingCard, type Holding, type MySubscription, type SecurityItem, type Wallet, type WorkCard as Work } from '@/lib/api';
-import { fundingToCard, manwon, marketIndex, signedPct, trendOf, typeLabel } from '@/lib/cards';
+import { api, type FundingCard, type Holding, type MySubscription, type Wallet, type WorkCard as Work } from '@/lib/api';
+import { fundingToCard, manwon, trendOf } from '@/lib/cards';
 import { useSession } from '@/lib/session';
 import { DEmpty, Greet } from '@/components/dibby';
 import { useApi } from '@/lib/useApi';
@@ -16,13 +16,10 @@ import { useApi } from '@/lib/useApi';
 // V2 04 홈
 export default function Home() {
   const { me } = useSession();
-  const [tab, setTab] = useState<'sub' | 'trade'>('sub');
-  const [chip, setChip] = useState('전체');
   const { data, error, loading, reload } = useApi(async () => {
-    const [fundings, works, securities] = await Promise.all([
+    const [fundings, works] = await Promise.all([
       api.get<FundingCard[]>('/fundings', { status: 'OPEN' }),
       api.get<Work[]>('/works', { limit: 100 }),
-      api.get<SecurityItem[]>('/market/securities', { sort: 'change' }),
     ]);
     let mine: { wallet: Wallet; holdings: Holding[]; subs: MySubscription[] } | null = null;
     if (me) {
@@ -31,14 +28,13 @@ export default function Home() {
       ]);
       mine = { wallet, holdings, subs };
     }
-    return { fundings, works, securities, mine };
+    return { fundings, works, mine };
   }, [me?.id]);
 
   const workById = useMemo(() => new Map((data?.works ?? []).map((w) => [w.id, w])), [data]);
   const cards = (data?.fundings ?? []).map((f) => ({ f, c: fundingToCard(f, workById.get(f.work_id)) }));
   const soon = [...cards].filter((x) => (x.f.days_left ?? 99) <= 3).sort((a, b) => (a.f.days_left ?? 99) - (b.f.days_left ?? 99));
-  const filtered = cards.filter((x) => chip === '전체' || (chip === '목표 달성' ? x.c.pct >= 100 : x.c.format === chip));
-  const idx = marketIndex(data?.securities ?? []);
+  const rest = cards.filter((x) => !soon.includes(x)); // 마감 임박에 나온 펀딩은 다시 보여 주지 않는다
 
   const m = data?.mine;
   const activeSubs = (m?.subs ?? []).filter((x) => x.status === 'ACTIVE');
@@ -55,7 +51,7 @@ export default function Home() {
         <Greet
           pose="hello"
           title="오늘도 먼저 찜하러 왔군요!"
-          text={`지금 열린 청약 ${cards.length}건${soon.length ? ` · 마감 임박 ${soon.length}건` : ''}이 있어요.`}
+          text="읽던 작품의 조각을 먼저 모아 보세요."
           style={{ marginTop: 0 }}
         />
       ) : null}
@@ -80,55 +76,20 @@ export default function Home() {
         </Panel>
       )}
 
-      {data ? (
-        <IndexChart
-          name="조각 마켓 지수"
-          value={idx.value.toFixed(2)}
-          change={`${idx.change >= 0 ? '+' : '−'}${Math.abs(idx.change).toFixed(2)} (${signedPct(idx.changePct, 2)})`}
-          asof="모의 거래 기준"
-          values={[1000, (1000 + idx.value) / 2 - idx.change * 0.2, idx.value]}
-          up={idx.change >= 0}
-        />
+      {soon.length ? (
+        <Section title="청약 마감 임박" count={`${soon.length}건`}>
+          {soon.slice(0, 3).map((x, i, arr) => (
+            <WorkCard key={x.f.id} data={x.c} last={i === arr.length - 1} onPress={() => router.push(`/funding/${x.f.id}`)} />
+          ))}
+        </Section>
       ) : null}
 
-      <View style={{ gap: spacing.gapL }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-          <Segmented size="Small" value={tab} onChange={setTab} options={[{ key: 'sub', label: '청약' }, { key: 'trade', label: '거래' }]} />
-          <Txt v="caption1" w="medium" c={color.labelAlternative}>{tab === 'sub' ? '실시간 청약 중' : '모의 거래 시세'}</Txt>
-        </View>
-        {tab === 'sub' ? (
-          <Section title="청약 마감 임박" count={`${soon.length}건`}>
-            {soon.length ? soon.slice(0, 3).map((x, i, a) => (
-              <WorkCard key={x.f.id} data={x.c} last={i === a.length - 1} onPress={() => router.push(`/funding/${x.f.id}`)} />
-            )) : <Empty title="3일 안에 마감하는 청약이 없어요" />}
-          </Section>
-        ) : (
-          <Section title="오늘 많이 오른 조각" link="마켓" onLink={() => router.push('/market')}>
-            {(data?.securities ?? []).slice(0, 4).map((x, i, a) => (
-              <MarketCell
-                key={x.funding_id}
-                id={x.work_id}
-                title={x.work_title}
-                meta={`${typeLabel(workById.get(x.work_id)?.type)} · 공모가 ${manwon(x.unit_price)}`}
-                price={(x.last_price ?? x.unit_price).toLocaleString('ko-KR')}
-                change={signedPct(x.change_pct)}
-                trend={trendOf(x.change_pct)}
-                last={i === a.length - 1}
-                onPress={() => router.push(`/security/${x.funding_id}`)}
-              />
-            ))}
-            {data && !data.securities.length ? <Empty title="상장된 조각이 아직 없어요" /> : null}
-          </Section>
-        )}
-      </View>
-
-      <Section title="지금 모집 중" link="전체" onLink={() => router.push('/explore')} gap={spacing.gapM}>
-        <ChipRow items={['전체', '웹툰', '웹소설', '목표 달성']} value={chip} onChange={setChip} />
+      <Section title="지금 모집 중" link="전체" onLink={() => router.push('/explore')}>
         <View>
-          {filtered.map((x, i) => (
-            <WorkCard key={x.f.id} data={x.c} last={i === filtered.length - 1} onPress={() => router.push(`/funding/${x.f.id}`)} />
+          {rest.slice(0, 5).map((x, i, arr) => (
+            <WorkCard key={x.f.id} data={x.c} last={i === arr.length - 1} onPress={() => router.push(`/funding/${x.f.id}`)} />
           ))}
-          {data && !filtered.length ? <DEmpty pose="sleep" title="조건에 맞는 모집이 없어요" text="새 청약이 열리면 디비가 먼저 알려드릴게요." /> : null}
+          {data && !cards.length ? <DEmpty pose="sleep" title="지금 모집 중인 펀딩이 없어요" text="새 청약이 열리면 디비가 먼저 알려드릴게요." /> : null}
         </View>
       </Section>
 

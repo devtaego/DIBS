@@ -169,7 +169,7 @@ export default function SubscribeScreen() {
             })}
           </View>
         ) : null}
-        <DNote title="잠깐, 꼭 확인해 주세요" text={`위험 등급 ${f.risk_grade}. 원금을 잃을 수 있고 예금자 보호 대상이 아니에요. 발행이 실패하면 전액 돌려드려요.`} style={{ marginTop: 0 }} />
+        <DNote title={`위험 등급 ${f.risk_grade}`} text="목표에 못 미쳐 발행이 실패하면 전액 돌려드려요." style={{ marginTop: 0 }} />
         <Txt v="caption1" c={color.labelAlternative}>이 화면은 모의 청약이며 실제 청약은 증권사 화면에서 진행돼요.</Txt>
         <Button label={`${brokerName} 연결 흐름으로 청약 (B안 시연)`} variant="Text" tone="Assistive" size="Small" onPress={toBroker} />
         <ErrorBox error={error} />

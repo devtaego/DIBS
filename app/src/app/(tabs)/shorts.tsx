@@ -47,7 +47,6 @@ export default function Shorts() {
     <SafeAreaView style={{ flex: 1, backgroundColor: color.shortsBg }} edges={['top']}>
       <View style={s.top}>
         <Txt v="headline1" w="bold" c={color.shortsLabel}>쇼츠</Txt>
-        <Txt v="caption1" c="rgba(243,232,238,0.6)">1분 하이라이트</Txt>
       </View>
       <View style={{ flex: 1 }} onLayout={(e) => setH(e.nativeEvent.layout.height)}>
         {h ? (
@@ -107,7 +106,6 @@ export default function Shorts() {
                       <Txt v="body2" w="bold" c={color.shortsLabel} lines={1} style={{ flex: 1 }}>{sh.work_title}</Txt>
                       {f ? <Txt v="caption1" w="semibold" c="#F6A9BF">{ddayText(f) || '청약 중'}</Txt> : null}
                     </View>
-                    <Txt v="caption1" c="rgba(243,232,238,0.7)" lines={1}>{sh.title}</Txt>
                     {f ? (
                       <>
                         <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>

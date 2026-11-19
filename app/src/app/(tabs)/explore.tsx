@@ -31,7 +31,8 @@ export default function Explore() {
 
   const fundingByWork = useMemo(() => new Map((data?.fundings ?? []).map((f) => [f.work_id, f])), [data]);
   const genres = useMemo(() => ['전체', ...Array.from(new Set((data?.works ?? []).map((w) => w.genre).filter(Boolean))).slice(0, 6)], [data]);
-  const works = (data?.works ?? []).filter((w) => genre === '전체' || w.genre === genre);
+  const searching = q.trim().length > 0;
+  const works = (data?.works ?? []).filter((w) => searching || genre === '전체' || w.genre === genre);
   const ranked = useMemo(() => {
     const list = [...works];
     if (tab === 'recommend') list.sort((a, b) => Number(b.funding_status === 'OPEN') - Number(a.funding_status === 'OPEN'));
@@ -43,7 +44,7 @@ export default function Explore() {
   const cardOf = (w: Work) => {
     const f = fundingByWork.get(w.id);
     if (f) return fundingToCard(f, w);
-    return { id: w.id, title: w.title, genre: w.genre, format: typeLabel(w.type), likes: w.dib_count, pct: 0, raised: '', status: fundingStatus(w.funding_status), dday: w.funding_status === 'LISTED' ? '상장' : '', coverUrl: w.cover_url };
+    return { id: w.id, title: w.title, genre: w.genre, format: typeLabel(w.type), likes: w.dib_count, pct: 0, raised: '', status: fundingStatus(w.funding_status), dday: '', coverUrl: w.cover_url };
   };
   const open = (w: Work) => (w.funding_id ? router.push(w.funding_status === 'LISTED' ? `/security/${w.funding_id}` : `/funding/${w.funding_id}`) : router.push(`/work/${w.id}`));
 
@@ -61,15 +62,23 @@ export default function Explore() {
           accessibilityLabel="검색"
         />
       </View>
-      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-        <Segmented value={tab} onChange={setTab} options={[{ key: 'recommend', label: '추천' }, { key: 'rank', label: '랭킹' }, { key: 'new', label: '신작' }]} />
-        <Txt v="caption1" w="medium" c={color.labelAlternative}>실시간 청약 {data?.fundings.length ?? 0}건</Txt>
-      </View>
-      <ChipRow items={genres} value={genre} onChange={setGenre} />
+      {searching ? null : (
+        <>
+          <Segmented value={tab} onChange={setTab} options={[{ key: 'recommend', label: '추천' }, { key: 'rank', label: '랭킹' }, { key: 'new', label: '신작' }]} />
+          <ChipRow items={genres} value={genre} onChange={setGenre} />
+        </>
+      )}
       <ErrorBox error={error} onRetry={reload} />
       {loading && !data ? <Loading /> : null}
 
-      {tab === 'recommend' && hero ? (
+      {searching ? (
+        // 검색 중에는 검색 결과만
+        <Section title={`'${q.trim()}' 검색 결과`} count={`${works.length}작품`}>
+          {works.map((w, i) => <WorkCard key={w.id} data={cardOf(w)} last={i === works.length - 1} onPress={() => open(w)} />)}
+        </Section>
+      ) : null}
+
+      {!searching && tab === 'recommend' && hero ? (
         <Section title="오늘의 대표 작품">
           <InvestSummary
             compact
@@ -82,11 +91,6 @@ export default function Explore() {
             mainSub={`${manwon(hero.progress.raised_amount)} / 목표 ${manwon(hero.target_amount)}`}
             progress={hero.progress.achievement_pct}
             coverUrl={heroWork?.cover_url}
-            stats={[
-              { label: '1조각 공모가', value: `${hero.unit_price.toLocaleString('ko-KR')}원` },
-              { label: '정산 주기', value: '분기' },
-              { label: '위험 등급', value: '매우 높음' },
-            ]}
             actions={{
               left: { label: '1분 쇼츠 보기', icon: 'play', onPress: () => router.push('/shorts') },
               right: { label: '자세히 보기', icon: 'chev', onPress: () => router.push(`/funding/${hero.id}`) },
@@ -95,7 +99,7 @@ export default function Explore() {
         </Section>
       ) : null}
 
-      {tab === 'rank' ? (
+      {searching ? null : tab === 'rank' ? (
         <Section title="찜 많은 순" count={`${ranked.length}작품`}>
           {ranked.map((w, i) => (
             <View key={w.id} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.gapL }}>
@@ -115,7 +119,7 @@ export default function Explore() {
           </View>
         </Section>
       )}
-      {data && !ranked.length ? <Empty title="찾는 작품이 없어요" text="다른 검색어나 장르로 찾아보세요." /> : null}
+      {data && !works.length ? <Empty title="찾는 작품이 없어요" text="다른 검색어나 장르로 찾아보세요." /> : null}
       <DisclosureBar />
     </DScreen>
   );

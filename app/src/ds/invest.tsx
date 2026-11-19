@@ -49,12 +49,14 @@ export function FundingProgress({ pct, raised, goal, layout = 'Detailed', closed
 }
 
 // ── Work Card ──
-export type WorkStatus = '모집 중' | '모집 후' | '거래 중';
+export type WorkStatus = '모집 중' | '모집 후' | '거래 중' | '연재 중';
 export type WorkCardData = { id: number; title: string; by?: string; genre?: string; format?: string; pct: number; raised: string; goal?: string; dday?: string; likes?: number; status: WorkStatus; coverUrl?: string | null };
 export function WorkCard({ data: d, layout = 'Row', onPress, last }: { data: WorkCardData; layout?: 'Row' | 'List' | 'Grid' | 'Rail' | 'Hero'; onPress?: () => void; last?: boolean }) {
   const closed = d.status === '모집 후';
   const pc = closed ? color.labelAlternative : color.labelStrong;
   const btype: BadgeType = d.status === '모집 중' ? 'Recruiting' : d.status === '거래 중' ? 'Trading' : 'Closed';
+  // 펀딩이 없는 작품은 0% 막대 대신 찜 수만
+  const funded = d.status === '모집 중' || d.pct > 0;
   if (layout === 'Grid') {
     return (
       <Pressable onPress={onPress} style={{ flex: 1, gap: spacing.gapL }}>
@@ -63,9 +65,9 @@ export function WorkCard({ data: d, layout = 'Row', onPress, last }: { data: Wor
           <Txt v="body2" w="semibold" c={color.labelStrong} lines={1}>{d.title}</Txt>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
             <Txt v="caption1" c={color.labelAlternative} lines={1} style={{ flex: 1 }}>{d.genre}{d.likes != null ? ` · ${d.likes.toLocaleString('ko-KR')}명 찜` : ''}</Txt>
-            <Txt v="caption1" w="bold" c={pc}>{d.pct.toLocaleString('ko-KR')}%</Txt>
+            {funded ? <Txt v="caption1" w="bold" c={pc}>{d.pct.toLocaleString('ko-KR')}%</Txt> : null}
           </View>
-          <LinearProgress value={d.pct} closed={closed} />
+          {funded ? <LinearProgress value={d.pct} closed={closed} /> : null}
         </View>
       </Pressable>
     );
@@ -115,11 +117,15 @@ export function WorkCard({ data: d, layout = 'Row', onPress, last }: { data: Wor
         <Txt v="caption1" c={color.labelAlternative} lines={1}>{[d.format, d.genre].filter(Boolean).join(' · ')}</Txt>
         <Txt v="caption1" w="medium" c={d.status === '모집 중' ? color.cautionary : color.labelAlternative}>{d.status}{d.dday ? ` · ${d.dday}` : ''}</Txt>
       </View>
-      <View style={{ width: 96, alignItems: 'flex-end', gap: spacing.gapXs }}>
-        <Txt v="body1" w="bold" c={pc} tabular>{d.pct.toLocaleString('ko-KR')}%</Txt>
-        <Txt v="caption1" c={color.labelAlternative} lines={1}>{d.raised}</Txt>
-        <View style={{ width: '100%' }}><LinearProgress value={d.pct} closed={closed} size="Small" /></View>
-      </View>
+      {funded ? (
+        <View style={{ width: 96, alignItems: 'flex-end', gap: spacing.gapXs }}>
+          <Txt v="body1" w="bold" c={pc} tabular>{d.pct.toLocaleString('ko-KR')}%</Txt>
+          <Txt v="caption1" c={color.labelAlternative} lines={1}>{d.raised}</Txt>
+          <View style={{ width: '100%' }}><LinearProgress value={d.pct} closed={closed} size="Small" /></View>
+        </View>
+      ) : d.likes != null ? (
+        <Txt v="caption1" c={color.labelAlternative}>{d.likes.toLocaleString('ko-KR')}명 찜</Txt>
+      ) : null}
     </Pressable>
   );
 }
@@ -215,7 +221,7 @@ export function IndexChart({ name, value, change, asof, values, up }: { name: st
 // ── Invest Summary (작품 투자 요약 헤더) ──
 export function InvestSummary({ id, title, by, format = '웹툰', status, statusText, mainLabel = '모집률', mainValue, mainSub, progress, stats, compact, coverUrl, actions, ride }: {
   id: number; title: string; by?: string; format?: string; status: 'Recruiting' | 'Closed' | 'Trading'; statusText: string; mainLabel?: string; mainValue: string; mainSub?: string;
-  progress: number; stats: { label: string; value: string }[]; compact?: boolean; coverUrl?: string | null; ride?: boolean; actions?: { left: { label: string; icon?: string; onPress: () => void }; right: { label: string; icon?: string; onPress: () => void } };
+  progress: number; stats?: { label: string; value: string }[]; compact?: boolean; coverUrl?: string | null; ride?: boolean; actions?: { left: { label: string; icon?: string; onPress: () => void }; right: { label: string; icon?: string; onPress: () => void } };
 }) {
   return (
     <View style={[s.panel, { gap: spacing.gapXl }]}>
@@ -246,8 +252,8 @@ export function InvestSummary({ id, title, by, format = '웹툰', status, status
       ) : mainSub ? (
         <Txt v="label2" w="medium" c={color.labelNeutral} style={{ textAlign: 'right' }}>{mainSub}</Txt>
       ) : null}
-      {ride ? <Ride pct={progress} /> : <LinearProgress value={progress} closed={status === 'Closed'} />}
-      <StatGrid items={stats} />
+      {ride ? <Ride pct={progress} label={`${mainLabel} ${mainValue}`} /> : <LinearProgress value={progress} closed={status === 'Closed'} />}
+      {stats?.length ? <StatGrid items={stats} /> : null}
       {actions ? (
         <View style={{ flexDirection: 'row', gap: spacing.gapL, paddingTop: spacing.insetL, borderTopWidth: 1, borderTopColor: color.lineNormal }}>
           <View style={{ flex: 1 }}><Button label={actions.left.label} icon={actions.left.icon} tone="Assistive" size="Medium" onPress={actions.left.onPress} /></View>

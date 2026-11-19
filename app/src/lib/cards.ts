@@ -8,6 +8,7 @@ export const typeLabel = (t?: string | null) => (t === 'NOVEL' || t === 'WEBNOVE
 export function fundingStatus(status?: string | null): WorkStatus {
   if (status === 'LISTED' || status === 'SUSPENDED') return '거래 중';
   if (status === 'OPEN' || status === 'APPROVED') return '모집 중';
+  if (!status) return '연재 중'; // 펀딩을 연 적 없는 작품
   return '모집 후';
 }
 

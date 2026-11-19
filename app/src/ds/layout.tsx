@@ -53,8 +53,10 @@ export function TopAppBar({ type = 'Sub', title, actions = [], onBack }: {
     <View style={[s.bar, { paddingLeft: main || type === 'Modal' ? spacing.screen : spacing.insetXs }]}>
       {type === 'Sub' ? <IconButton icon="back" label="뒤로" onPress={onBack ?? (() => (router.canGoBack() ? router.back() : router.replace('/')))} /> : null}
       {main ? (
-        <View style={{ flex: 1, height: 44, justifyContent: 'center' }}>
-          <Logo size={30} />
+        <View style={{ flex: 1, height: 44, justifyContent: 'center', alignItems: 'flex-start' }}>
+          <Pressable onPress={() => router.navigate('/')} accessibilityRole="link" accessibilityLabel="홈으로" hitSlop={8}>
+            <Logo size={30} />
+          </Pressable>
         </View>
       ) : (
         <Txt v="body1" w="semibold" c={color.labelStrong} lines={1} style={{ flex: 1 }}>{title}</Txt>

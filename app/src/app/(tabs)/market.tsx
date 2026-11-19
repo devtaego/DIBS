@@ -44,7 +44,7 @@ export default function Market() {
 
   return (
     <DScreen header={<TopAppBar type="Main" />} onRefresh={reload} tabBar>
-      <PageTitle title="조각 마켓" sub="상장된 작품 조각을 사고팔 수 있어요 (모의 거래)" />
+      <PageTitle title="조각 마켓" />
       {data ? (
         <IndexChart
           name="조각 마켓 지수"

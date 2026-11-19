@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { TextInput, View } from 'react-native';
 
+import { Dibby } from '@/components/dibby';
 import { Button, Card, ErrorBox, H2, Muted, Screen, T, s } from '@/components/ui';
 import { api, ApiError, guessBaseUrl, type Me } from '@/lib/api';
 import { useSession } from '@/lib/session';
@@ -52,9 +53,10 @@ export default function Login() {
 
   return (
     <Screen edges={['top', 'bottom']}>
-      <View style={{ marginTop: space(8), marginBottom: space(6) }}>
-        <T size={40} weight="700" color={colors.accent}>DIBS</T>
-        <T size={16} color={colors.muted}>가능성을 먼저 발견하다</T>
+      <View style={{ marginTop: space(6), marginBottom: space(6), alignItems: 'center' }}>
+        <Dibby pose="jump" size={128} />
+        <T size={44} weight="700" color={colors.primary} style={{ fontStyle: 'italic', letterSpacing: -1, marginTop: space(3) }}>Dibs</T>
+        <T size={14} weight="500" color={colors.muted}>좋은 작품, 먼저 찜하다</T>
       </View>
 
       <H2>서버 주소</H2>

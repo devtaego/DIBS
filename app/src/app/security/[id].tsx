@@ -1,34 +1,14 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { Pressable, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
+
+import { AreaChart } from '@/components/charts';
+import { Chip, CtaBar, MiniWork } from '@/components/dibby';
 
 import { Badge, Button, Card, ErrorBox, H2, KV, Loading, Muted, Row, Screen, T, changeColor } from '@/components/ui';
 import { api, type Candle, type OrderBook, type SecurityDetail, type Trade } from '@/lib/api';
 import { FUNDING_STATUS, dateText, pct, won } from '@/lib/format';
-import { colors, space } from '@/lib/theme';
+import { colors, radii, space } from '@/lib/theme';
 import { useApi } from '@/lib/useApi';
-
-function MiniChart({ candles }: { candles: Candle[] }) {
-  if (!candles.length) return <Muted>아직 체결이 없어요</Muted>;
-  const hi = Math.max(...candles.map((c) => c.high));
-  const lo = Math.min(...candles.map((c) => c.low));
-  const span = Math.max(1, hi - lo);
-  return (
-    <View>
-      <Row style={{ alignItems: 'flex-end', height: 120, gap: 4 }}>
-        {candles.map((c) => {
-          const up = c.close >= c.open;
-          const h = 16 + ((c.close - lo) / span) * 100;
-          return <View key={c.date} style={{ flex: 1, height: h, borderRadius: 3, backgroundColor: up ? colors.up : colors.down, opacity: 0.85 }} />;
-        })}
-      </Row>
-      <Row style={{ justifyContent: 'space-between', marginTop: space(1) }}>
-        <Muted size={11}>{candles[0].date.slice(5)}</Muted>
-        <Muted size={11}>일봉 종가 · 최고 {won(hi)} · 최저 {won(lo)}</Muted>
-        <Muted size={11}>{candles[candles.length - 1].date.slice(5)}</Muted>
-      </Row>
-    </View>
-  );
-}
 
 export default function SecurityScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -52,38 +32,39 @@ export default function SecurityScreen() {
   const tradable = d.status === 'LISTED';
   const go = (side: 'BUY' | 'SELL', price?: number) => router.push({ pathname: '/order/[id]', params: { id: String(d.funding_id), side, price: String(price ?? d.last_price ?? d.unit_price) } });
 
+  const closes = chart.map((c) => c.close);
+  const up = (d.change_pct ?? 0) >= 0;
+  const diff = d.last_price !== null && d.reference_price !== null ? d.last_price - d.reference_price : null;
+
   return (
+    <View style={{ flex: 1, backgroundColor: colors.bg }}>
     <Screen onRefresh={reload}>
-      <Row>
-        {d.security_code ? <Badge label={d.security_code} /> : null}
-        {!tradable ? <Badge label={FUNDING_STATUS[d.status]} tone="danger" /> : null}
-      </Row>
-      <T size={20} weight="700" style={{ marginTop: space(2) }}>{d.work_title}</T>
-      <Row style={{ alignItems: 'baseline', marginTop: space(1) }}>
-        <T size={32} weight="700">{won(d.last_price)}</T>
-        <T size={16} weight="700" color={changeColor(d.change_pct)}>{pct(d.change_pct, 2)}</T>
-      </Row>
-      <Muted>기준가 {won(d.reference_price)} · 주문 가능 {won(d.price_band.min)} ~ {won(d.price_band.max)}</Muted>
+      <MiniWork id={d.work_id} title={d.work_title} line2={`${d.security_code ?? '발행 전'} · 플랫폼 매출 수익권`} right={<Chip label="모의" tone="pink" />} />
+      {!tradable ? <View style={{ marginTop: space(3) }}><Badge label={FUNDING_STATUS[d.status]} tone="danger" /></View> : null}
+      <T size={32} weight="700" style={{ marginTop: space(4) }}>{won(d.last_price)}</T>
+      <T size={14} weight="600" color={changeColor(d.change_pct)}>
+        {diff !== null ? `${diff > 0 ? '+' : ''}${diff.toLocaleString('ko-KR')}원 ` : ''}({pct(d.change_pct, 2)}) · 기준가 대비
+      </T>
 
-      <Card style={{ marginTop: space(4) }}>
-        <MiniChart candles={chart} />
-      </Card>
+      <View style={[s.card, { padding: space(3) }]}>
+        {closes.length >= 2 ? <AreaChart values={closes} up={up} /> : <Muted style={{ padding: space(4) }}>아직 체결이 없어요</Muted>}
+        {chart.length ? (
+          <Row style={{ justifyContent: 'space-between', marginTop: 4 }}>
+            <Muted size={11}>{chart[0].date.slice(5).replace('-', '.')}</Muted>
+            <Muted size={11}>일봉 종가</Muted>
+            <Muted size={11}>{chart[chart.length - 1].date.slice(5).replace('-', '.')}</Muted>
+          </Row>
+        ) : null}
+      </View>
 
-      {d.my_units ? (
-        <Card style={{ borderWidth: 1, borderColor: colors.accent }}>
-          <T weight="700">내 보유 {d.my_units}조각</T>
-          <Muted>평균 {won(d.my_avg_price)}</Muted>
-        </Card>
+      <View style={s.card}>
+        <KV k="내 보유" v={`${d.my_units ?? 0}조각${d.my_units ? ` · 평균 ${won(d.my_avg_price)}` : ''}`} />
+        <KV k="주문 가능 가격" v={`${won(d.price_band.min)} ~ ${won(d.price_band.max)}`} />
+        <KV k="거래 방식" v="지정가 · 모의" />
+      </View>
+      {!tradable ? (
+        <Muted style={{ marginTop: space(3) }}>{d.status === 'MATURED' ? '운용 기간이 끝나 상장폐지된 종목이에요. 원금 상환은 없어요.' : '거래가 정지된 종목이에요.'}</Muted>
       ) : null}
-
-      {tradable ? (
-        <Row style={{ gap: space(2), marginBottom: space(2) }}>
-          <Button title="매수" onPress={() => go('BUY')} style={{ flex: 1, backgroundColor: colors.up, borderColor: colors.up }} />
-          <Button title="매도" onPress={() => go('SELL')} style={{ flex: 1, backgroundColor: colors.down, borderColor: colors.down }} />
-        </Row>
-      ) : (
-        <Muted>{d.status === 'MATURED' ? '운용 기간이 끝나 상장폐지된 종목이에요. 원금 상환은 없어요.' : '거래가 정지된 종목이에요.'}</Muted>
-      )}
 
       <H2 right={<Muted size={12}>같은 가격끼리만 체결 · 줄을 누르면 그 가격으로 주문</Muted>}>호가</H2>
       <Card>
@@ -135,5 +116,16 @@ export default function SecurityScreen() {
         )}
       </Card>
     </Screen>
+    {tradable ? (
+      <CtaBar>
+        <Button title="팔기" kind="ghost" onPress={() => go('SELL')} style={{ flex: 1, borderColor: colors.fall }} />
+        <Button title="사기" onPress={() => go('BUY')} style={{ flex: 1, backgroundColor: colors.rise, borderColor: colors.rise }} />
+      </CtaBar>
+    ) : null}
+    </View>
   );
 }
+
+const s = StyleSheet.create({
+  card: { borderRadius: radii.card, backgroundColor: colors.card, padding: space(4), marginTop: space(4) },
+});

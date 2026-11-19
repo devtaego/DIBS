@@ -3,7 +3,8 @@ import { router } from 'expo-router';
 import { useEffect } from 'react';
 import { View } from 'react-native';
 
-import { Badge, Button, Card, Empty, ErrorBox, Loading, Muted, Row, Screen, T } from '@/components/ui';
+import { DEmpty } from '@/components/dibby';
+import { Badge, Button, Card, ErrorBox, Loading, Muted, Row, Screen, T } from '@/components/ui';
 import { api, track, type ShortItem } from '@/lib/api';
 import { FUNDING_STATUS } from '@/lib/format';
 import { colors, space } from '@/lib/theme';
@@ -20,7 +21,7 @@ export default function Shorts() {
   return (
     <Screen onRefresh={reload}>
       <ErrorBox error={error} onRetry={reload} />
-      {data?.length === 0 ? <Empty text="숏츠가 아직 없어요" /> : null}
+      {data?.length === 0 ? <DEmpty pose="sleep" title="숏츠는 곧 열려요" text={'작품 하이라이트 영상을 준비하고 있어요.\n디비가 먼저 일어나면 알려드릴게요.'} cta="탐색으로 가기" onPress={() => router.push('/explore')} /> : null}
       {data?.map((sh) => (
         <Card key={sh.id} style={{ padding: 0, overflow: 'hidden' }}>
           <View style={{ height: 260, backgroundColor: colors.deepest, alignItems: 'center', justifyContent: 'center' }}>

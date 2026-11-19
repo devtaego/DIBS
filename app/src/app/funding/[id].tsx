@@ -2,10 +2,11 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect } from 'react';
 import { View } from 'react-native';
 
-import { Badge, Button, Card, ErrorBox, H1, H2, KV, Loading, MockBadge, Muted, ProgressBar, Row, Screen, T } from '@/components/ui';
+import { Cover, CtaBar, DNote, Ride } from '@/components/dibby';
+import { Badge, Button, Card, ErrorBox, H1, H2, KV, Loading, MockBadge, Muted, Row, Screen, T } from '@/components/ui';
 import { api, ApiError, track, type Breakeven, type FundingDetail, type Subscription } from '@/lib/api';
 import { FUNDING_STATUS, SUB_STATUS, bps, dateText, won } from '@/lib/format';
-import { colors, space } from '@/lib/theme';
+import { colors, radii, space } from '@/lib/theme';
 import { useApi } from '@/lib/useApi';
 
 export default function FundingScreen() {
@@ -37,7 +38,9 @@ export default function FundingScreen() {
   const locked = f.lock_at ? new Date(f.lock_at) <= new Date(Date.now() + 9 * 3600e3) : false;
 
   return (
+    <View style={{ flex: 1, backgroundColor: colors.bg }}>
     <Screen onRefresh={reload}>
+      <Cover id={f.work_id} title={f.work_title} style={{ height: 180, borderRadius: radii.card, marginBottom: space(4) }} />
       <Row>
         <Badge label={FUNDING_STATUS[f.status]} tone="accent" />
         <MockBadge mode={f.mode} />
@@ -47,10 +50,10 @@ export default function FundingScreen() {
 
       <Card>
         <Row style={{ alignItems: 'baseline' }}>
-          <T size={34} weight="700" color={colors.accent}>{f.progress.achievement_pct.toLocaleString('ko-KR')}%</T>
+          <T size={34} weight="700" color={colors.highlight}>{f.progress.achievement_pct.toLocaleString('ko-KR')}%</T>
           <Muted>달성</Muted>
         </Row>
-        <ProgressBar pct={f.progress.achievement_pct} />
+        <Ride pct={f.progress.achievement_pct} />
         <KV k="모인 금액 (청약 기준)" v={won(f.progress.raised_amount)} />
         <KV k="목표" v={`${won(f.target_amount)} · ${f.target_units.toLocaleString('ko-KR')}조각`} />
         <KV k="참여자" v={`${f.progress.participants}명`} />
@@ -70,15 +73,7 @@ export default function FundingScreen() {
         </Card>
       ) : null}
 
-      {isOpen ? (
-        <Button
-          title={sub && sub.status === 'ACTIVE' ? '수량 바꾸기' : '조각 청약하기'}
-          onPress={() => router.push(`/subscribe/${f.id}`)}
-          style={{ marginBottom: space(2) }}
-        />
-      ) : null}
       {isOpen && locked ? <Muted>마감 1시간 전이라 감액·취소는 할 수 없어요 (증액은 가능)</Muted> : null}
-      {['LISTED', 'SUSPENDED', 'MATURED'].includes(f.status) ? <Button title="조각 마켓에서 보기" onPress={() => router.push(`/security/${f.id}`)} /> : null}
 
       <H2>목표를 넘으면 이렇게 나눠요</H2>
       <Card>
@@ -118,7 +113,17 @@ export default function FundingScreen() {
         <KV k="외부 진출 후" v={`외부 연재 수익의 ${bps(t.external_share_bps)} 주주 배당`} />
         <Muted style={{ marginTop: space(2) }}>{f.use_of_funds}</Muted>
       </Card>
-      <Muted style={{ marginTop: space(2) }}>만기에는 마지막 배당 후 상장폐지되고 원금은 상환되지 않아요. 원금 손실이 날 수 있고 예금자 보호 대상이 아니에요.</Muted>
+      <DNote title="잠깐, 꼭 확인해 주세요" text="만기에는 마지막 배당 후 상장폐지되고 원금은 상환되지 않아요. 원금 손실이 날 수 있고 예금자 보호 대상이 아니에요." />
     </Screen>
+    {isOpen ? (
+      <CtaBar>
+        <Button title={sub && sub.status === 'ACTIVE' ? '수량 바꾸기' : '조각 청약하기'} onPress={() => router.push(`/subscribe/${f.id}`)} style={{ flex: 1 }} />
+      </CtaBar>
+    ) : ['LISTED', 'SUSPENDED', 'MATURED'].includes(f.status) ? (
+      <CtaBar>
+        <Button title="조각 시세 보기" onPress={() => router.push(`/security/${f.id}`)} style={{ flex: 1 }} />
+      </CtaBar>
+    ) : null}
+    </View>
   );
 }

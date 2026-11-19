@@ -1,8 +1,9 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { Image, Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
+import { Cover } from '@/components/dibby';
 import { T } from '@/components/ui';
-import { colors, coverTone, radii, space } from '@/lib/theme';
+import { colors, radii, space } from '@/lib/theme';
 
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
 
@@ -30,14 +31,8 @@ export function ExploreCard({
 }) {
   return (
     <Pressable onPress={onPress} style={({ pressed }) => [s.card, pressed && { opacity: 0.85 }]}>
-      <View style={[s.cover, { backgroundColor: coverTone(id) }]}>
-        {coverUrl ? (
-          <Image source={{ uri: coverUrl }} style={StyleSheet.absoluteFill} resizeMode="cover" accessibilityLabel={`${title} 표지`} />
-        ) : (
-          <View style={s.placeholder}>
-            <T size={15} weight="700" color={colors.labelNormal} numberOfLines={4} style={{ textAlign: 'center' }}>{title}</T>
-          </View>
-        )}
+      <View style={s.cover}>
+        <Cover id={id} title={title} genre={meta.split(' · ')[0]} coverUrl={coverUrl} style={StyleSheet.absoluteFill} />
         <View style={s.chips}>
           {rank ? (
             <View style={[s.tag, { backgroundColor: colors.labelStrong }]}>
@@ -66,7 +61,6 @@ export function ExploreCard({
 const s = StyleSheet.create({
   card: { flex: 1, gap: space(2) },
   cover: { width: '100%', aspectRatio: 2 / 3, borderRadius: radii.card, overflow: 'hidden', borderWidth: 1, borderColor: colors.line },
-  placeholder: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: space(4) },
   chips: { position: 'absolute', top: space(2), left: space(2), flexDirection: 'row', gap: space(1) },
   tag: { height: 20, minWidth: 20, paddingHorizontal: space(1), flexDirection: 'row', alignItems: 'center', justifyContent: 'center', borderRadius: radii.tag },
 });

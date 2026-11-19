@@ -32,6 +32,8 @@ export default function RootLayout() {
           <Stack.Screen name="dividends" options={{ title: '정산 리포트' }} />
           <Stack.Screen name="notifications" options={{ title: '알림' }} />
           <Stack.Screen name="admin" options={{ title: '시연용 운영자 패널' }} />
+          <Stack.Screen name="portfolio" options={{ title: '내 자산' }} />
+          <Stack.Screen name="done" options={{ headerShown: false, gestureEnabled: false, animation: 'fade' }} />
         </Stack>
       </SessionProvider>
     </SafeAreaProvider>

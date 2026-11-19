@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { Cover } from '@/components/dibby';
 import { ExploreCard } from '@/components/ExploreCard';
 import { Empty, ErrorBox, Loading, T } from '@/components/ui';
 import { api, type FundingCard, type WorkCard } from '@/lib/api';
@@ -104,10 +105,20 @@ export default function Explore() {
                 <Ionicons name="chevron-forward" size={14} color={colors.onPrimary} />
               </View>
             </View>
-            <View style={s.bannerSide}>
-              <T size={12} weight="500" color={colors.labelAlternative} numberOfLines={2} style={{ textAlign: 'right' }}>{banner.work_title}</T>
-              <T size={22} weight="700" color={colors.highlight}>{banner.progress.achievement_pct.toLocaleString('ko-KR')}%</T>
-              <T size={11} color={colors.labelAssistive}>{banner.days_left !== null ? `마감 D-${banner.days_left}` : '모집 중'}</T>
+            <View style={s.fan} pointerEvents="none">
+              {(works.length ? works.slice(0, 3) : []).map((w, i) => (
+                <Cover
+                  key={w.id}
+                  id={w.id}
+                  title={w.title}
+                  coverUrl={w.cover_url}
+                  small
+                  style={[s.fanCover, { transform: [{ rotate: `${[-8, 2, 10][i]}deg` }, { translateY: [6, 0, 8][i] }] }]}
+                />
+              ))}
+            </View>
+            <View style={s.bannerPct}>
+              <T size={11} weight="600" color="#FFFFFF">{banner.progress.achievement_pct.toLocaleString('ko-KR')}% · {banner.days_left !== null ? `D-${banner.days_left}` : '모집 중'}</T>
             </View>
           </Pressable>
         ) : null}
@@ -158,9 +169,12 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    overflow: 'hidden',
   },
   bannerCta: { alignSelf: 'flex-start', height: 32, paddingHorizontal: space(3), borderRadius: radii.chip, backgroundColor: colors.primary, flexDirection: 'row', alignItems: 'center', gap: 2 },
-  bannerSide: { alignItems: 'flex-end', gap: 2, maxWidth: '34%' },
+  fan: { position: 'absolute', right: -6, top: 14, flexDirection: 'row' },
+  fanCover: { width: 72, height: 108, borderRadius: radii.thumb, marginLeft: -18, borderWidth: 2, borderColor: colors.elevatedStrong },
+  bannerPct: { position: 'absolute', right: space(3), bottom: space(3), height: 20, paddingHorizontal: space(2), borderRadius: radii.chip, backgroundColor: colors.dimmer, justifyContent: 'center' },
   grid: { flexDirection: 'row', flexWrap: 'wrap', marginHorizontal: -space(1.5), rowGap: space(5) },
   cell: { width: '50%', paddingHorizontal: space(1.5) },
 });

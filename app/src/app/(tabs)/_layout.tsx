@@ -29,7 +29,7 @@ export default function TabsLayout() {
         headerTitleAlign: 'left',
         sceneStyle: { backgroundColor: colors.bg },
       }}>
-      <Tabs.Screen name="index" options={{ title: '홈', headerTitle: 'DIBS' }} />
+      <Tabs.Screen name="index" options={{ title: '홈', headerShown: false }} />
       <Tabs.Screen name="explore" options={{ title: '탐색', headerShown: false }} />
       <Tabs.Screen name="shorts" options={{ title: '숏츠' }} />
       <Tabs.Screen name="market" options={{ title: '증권' }} />

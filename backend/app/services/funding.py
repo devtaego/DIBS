@@ -15,7 +15,7 @@ from sqlalchemy.orm import Session
 from app.core import clock
 from app.core.config import settings
 from app.core.errors import Conflict, DomainError, Forbidden, NotFound
-from app.models import Dib, Funding, Holding, Issuance, PayoutSchedule, RewardTier, Subscription, User, Work
+from app.models import ContentEvent, Dib, Funding, Holding, Issuance, PayoutSchedule, RewardTier, Subscription, User, Work
 from app.models.enums import (
     ISSUANCE_ORDER,
     AccountKind,
@@ -23,6 +23,7 @@ from app.models.enums import (
     IssuanceStep,
     PayoutStatus,
     PayoutTrigger,
+    EventType,
     SubscriptionStatus,
     WorkStatus,
 )
@@ -43,7 +44,7 @@ REVIEWABLE_TERMS = {
     "creator_bps", "issuance_cost_bps", "platform_fee_bps",
     "royalty_platform_bps", "royalty_creator_bps", "royalty_holder_bps",
     "royalty_platform_after_bps", "royalty_creator_after_bps", "royalty_holder_after_bps",
-    "allocation_strategy", "allocation_params", "risk_note",
+    "allocation_strategy", "allocation_params", "offering_round", "risk_note",
 }
 
 
@@ -75,6 +76,8 @@ def _validate_terms(f: Funding) -> None:
             raise DomainError("INVALID_TERMS", f"모집 기간은 {settings.min_funding_days}~{settings.max_funding_days}일이에요")
     if not settings.min_target_amount <= f.target_amount <= settings.max_target_amount:
         raise DomainError("INVALID_TERMS", f"모집 목표금액은 {settings.min_target_amount:,}원 이상이어야 해요")
+    if not f.offering_round and f.open_at:
+        f.offering_round = f.open_at.strftime("%Y-%m")  # 기본: 모집 시작 달의 공모 회차
     cap = product.per_user_cap_amount(f.target_amount) // f.unit_price
     if f.max_units_per_user is None or f.max_units_per_user > cap:
         f.max_units_per_user = max(1, cap)  # 1인 한도: 3,000만 원과 발행액 5% 중 작은 금액
@@ -306,7 +309,10 @@ def close_funding(db: Session, f: Funding, force: bool = False) -> CloseResult:
         f.status = FundingStatus.FAILED
         return CloseResult(f.status, total, f.target_units)
 
-    strategy = get_strategy(f.allocation_strategy, f.allocation_params)
+    params = dict(f.allocation_params or {})
+    if f.allocation_strategy == "EQUAL_THEN_PRO_RATA":
+        params["lottery_seed"] = f.id  # 균등분이 참여자보다 적으면 공개 추첨 (시드 = 펀딩 번호)
+    strategy = get_strategy(f.allocation_strategy, params)
     early = early_readers(db, f)
     reqs = [AllocationRequest(s.id, s.units, (s.first_subscribed_at, s.id), s.user_id in early) for s in subs]
     alloc = strategy.allocate(reqs, f.target_units)
@@ -337,9 +343,21 @@ def close_funding(db: Session, f: Funding, force: bool = False) -> CloseResult:
 
 
 def early_readers(db: Session, f: Funding) -> set[int]:
-    """초기 독자 = 모집 시작 전에 이 작품을 찜한 회원 (v4.0 초기 독자 우선 배정)."""
-    cutoff = f.open_at or clock.now()
-    return set(db.scalars(select(Dib.user_id).where(Dib.work_id == f.work_id, Dib.created_at < cutoff)))
+    """초기 독자 (v4.0 초기 독자 우선 배정).
+
+    공짜 찜만으로 우선권을 얻지 못하도록 세 조건을 모두 본다.
+    1) 모집 시작 7일 전까지 찜  2) 모집 시작 전 이 작품 회차 완독 1회 이상  3) 본인인증 계정
+    """
+    open_at = f.open_at or clock.now()
+    dib_cutoff = open_at - timedelta(days=settings.early_reader_dib_days_before)
+    dibbed = set(db.scalars(select(Dib.user_id).join(User, User.id == Dib.user_id).where(
+        Dib.work_id == f.work_id, Dib.created_at <= dib_cutoff, User.kyc_verified.is_(True))))
+    if not dibbed:
+        return set()
+    readers = set(db.scalars(select(ContentEvent.user_id).where(
+        ContentEvent.work_id == f.work_id, ContentEvent.event_type == EventType.VIEW_COMPLETE,
+        ContentEvent.occurred_at < open_at, ContentEvent.user_id.in_(dibbed))))
+    return dibbed & readers
 
 
 def _assign_rewards(db: Session, f: Funding, subs: list[Subscription], work: Work) -> None:

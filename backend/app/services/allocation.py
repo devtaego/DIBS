@@ -6,9 +6,12 @@
 - EQUAL_THEN_PRO_RATA: 목표의 일정 비율(기본 20%)을 먼저 균등 배정한 뒤 나머지를 PRO_RATA.
             v4.0: 균등분 중 early_reader_bps(기본 발행량의 10%)는 펀딩 전에 찜한 '초기 독자'에게
             먼저 균등 배정하고, 남으면 일반 균등분으로 넘긴다.
+            균등분이 참여자 수보다 적어 모두에게 1조각씩 못 줄 때는 선착순이 아니라
+            공개 시드(lottery_seed) 추첨 순서로 나눈다 (공모주 균등배정의 추첨 방식).
 
 모든 전략은 순수 함수이며 DB 를 모른다 → 단위 테스트·시뮬레이션에 그대로 쓸 수 있다.
 """
+import hashlib
 from dataclasses import dataclass
 from typing import Protocol
 
@@ -65,13 +68,47 @@ class ProRataLargestRemainder:
 class EqualThenProRata:
     name = "EQUAL_THEN_PRO_RATA"
 
-    def __init__(self, equal_ratio_bps: int = 2000, early_reader_bps: int = 0):
+    def __init__(self, equal_ratio_bps: int = 2000, early_reader_bps: int = 0, lottery_seed: int | None = None):
         if not 0 <= equal_ratio_bps <= 10000:
             raise ValueError("equal_ratio_bps 는 0~10000")
         if not 0 <= early_reader_bps <= equal_ratio_bps:
             raise ValueError("early_reader_bps 는 0~equal_ratio_bps")
         self.equal_ratio_bps = equal_ratio_bps
         self.early_reader_bps = early_reader_bps
+        self.lottery_seed = lottery_seed
+
+    def _equal_order(self, requests: list[AllocationRequest]) -> list[AllocationRequest]:
+        """균등 단계 순서. 시드가 있으면 sha256(시드:청약번호) 추첨 순서, 없으면 먼저 청약한 순."""
+        if self.lottery_seed is None:
+            return sorted(requests, key=lambda r: r.order)
+        return sorted(requests, key=lambda r: hashlib.sha256(f"{self.lottery_seed}:{r.key}".encode()).hexdigest())
+
+    @staticmethod
+    def _pro_rata_by_original(ordered: list[AllocationRequest], alloc: dict[int, int], remaining: int) -> None:
+        """remaining 을 원래 청약 수량 비율로 나누되 각자 남은 수요를 넘지 않게. 넘친 몫은 다시 나눈다."""
+        while remaining > 0:
+            active = [r for r in ordered if alloc[r.key] < r.units]
+            if not active:
+                break
+            weight = sum(r.units for r in active)
+            given, rems = 0, []
+            for r in active:
+                q, rem = divmod(remaining * r.units, weight)
+                g = min(q, r.units - alloc[r.key])
+                alloc[r.key] += g
+                given += g
+                rems.append((rem, r))
+            left = remaining - given
+            rems.sort(key=lambda x: (-x[0], x[1].order))
+            for _, r in rems:
+                if left == 0:
+                    break
+                if alloc[r.key] < r.units:
+                    alloc[r.key] += 1
+                    left -= 1
+            if left == remaining:  # 더 줄 수 없음
+                break
+            remaining = left
 
     @staticmethod
     def _spread(pool: int, members: list[AllocationRequest], alloc: dict[int, int]) -> int:
@@ -97,23 +134,19 @@ class EqualThenProRata:
             return {r.key: r.units for r in requests}
 
         ordered = sorted(requests, key=lambda r: r.order)
+        drawn = self._equal_order(requests)
         alloc = {r.key: 0 for r in ordered}
         early_pool = target * self.early_reader_bps // 10000
         general_pool = target * self.equal_ratio_bps // 10000 - early_pool
 
         # 0단계: 초기 독자 우선 균등 배정. 남은 양은 일반 균등분으로 넘긴다
-        left = self._spread(early_pool, [r for r in ordered if r.early], alloc)
+        left = self._spread(early_pool, [r for r in drawn if r.early], alloc)
         # 1단계: 일반 균등 배정 (참여자 전원)
-        self._spread(general_pool + left, ordered, alloc)
+        self._spread(general_pool + left, drawn, alloc)
 
-        # 2단계: 남은 목표를 남은 수요 비율대로
-        remaining_target = target - sum(alloc.values())
-        residual = [
-            AllocationRequest(r.key, r.units - alloc[r.key], r.order) for r in ordered if r.units > alloc[r.key]
-        ]
-        if remaining_target > 0 and residual:
-            for k, v in ProRataLargestRemainder().allocate(residual, remaining_target).items():
-                alloc[k] += v
+        # 2단계: 남은 목표를 '원래 청약 수량' 비율대로 (공모주 비례배정과 같은 기준).
+        # 남은 수요 기준으로 나누면 균등·초기 독자 몫을 받은 사람이 비례분에서 다시 깎이므로 쓰지 않는다.
+        self._pro_rata_by_original(ordered, alloc, target - sum(alloc.values()))
         assert sum(alloc.values()) == target
         return alloc
 

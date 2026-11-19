@@ -11,9 +11,10 @@
 | 발행 전 | 발행 전 순매출 작가 70 / DIBS 30 | `pre_issuance_creator_bps 7000` | `services/content.py::pre_issuance_settlement` (`GET /admin/works/{id}/pre-issuance-settlement`) |
 | 발행 전 | 펀딩 개설 조건: 파일럿 4주 열람자 ≥ 4년 회수 필요 열람자의 50% | `gate_ratio_bps 5000`, `recoup_target_months 48`, `enforce_funding_gate` | `services/product.py::funding_gate` (`GET /works/{id}/funding-gate`) |
 | 청약 | 발행 단위: 작품별 증권, 작품당 3,000만 원 이상 | `min_target_amount 30_000_000` | `services/funding.py::_validate_terms` |
+| 청약 | 공모 회차: 같은 달 공모 작품은 신고·법률·회계 검토를 함께 진행 (증권은 작품별) | `fundings.offering_round` (기본: 모집 시작 달) | `GET /fundings?offering_round=2027-03` |
 | 청약 | 목표 금액 상한 = 예상 월 투자자 몫(세후) × 48 | 결제율 15%, 월 4화, 남는 비율 70% (가정값) | `services/product.py::target_cap` |
-| 청약 | 초과청약 배정 균등 20 / 비례 80 | `default_equal_ratio_bps 2000` | `services/allocation.py::EqualThenProRata` |
-| 청약 | 초기 독자 우선: 모집 전 찜한 독자에게 균등분 중 발행량 10% 먼저 | `default_early_reader_bps 1000` | `services/funding.py::early_readers`, `EqualThenProRata` |
+| 청약 | 초과청약 배정 균등 20 / 비례 80. 비례분은 원래 청약 수량 기준, 균등분이 참여자보다 적으면 공개 추첨 | `default_equal_ratio_bps 2000`, `lottery_seed` = 펀딩 번호 | `services/allocation.py::EqualThenProRata` |
+| 청약 | 초기 독자 우선: 균등분 중 발행량 10% 먼저. 자격 = 모집 7일 전까지 찜 + 모집 전 완독 1회 + 본인인증 | `default_early_reader_bps 1000`, `early_reader_dib_days_before 7` | `services/funding.py::early_readers`, `EqualThenProRata` |
 | 청약 | 1인 한도 min(3,000만 원, 발행액 5%) | `max_subscription_amount`, `max_subscription_bps 500` | `services/product.py::per_user_cap_units` |
 | 청약 | 동의: 투자 위험, 만기 없음·종료 규칙 | `agree_termination_rule` | `api/fundings.py::subscribe`, `/policies/termination-rule` |
 | 발행 | 모금액 작가 80 / 발행 실비 12 / DIBS 8 | `creator_bps 8000`, `issuance_cost_bps 1200`, `platform_fee_bps 800` | `services/funding.py::_list_security` |
@@ -32,9 +33,9 @@
 | # | 항목 | 현재 처리 | 검토 포인트 |
 |---|---|---|---|
 | 1 | 증권 유형 | `security_type = UNDECIDED`, 기획서는 투자계약증권 기본 | 신탁 수익증권 법안 통과 시 전환. 세금 처리가 달라짐 |
-| 2 | 초기 독자 우선 배정의 적법성 | 구현됨 (찜 기준) | 증권신고서 명시, 법률 검토 후 확정. 후원자 포함 여부 |
+| 2 | 초기 독자 우선 배정의 적법성 | 구현됨 (찜 + 완독 + 본인인증) | 증권신고서 명시, 법률 검토 후 확정. 리워드 후원자는 후원 기능 연동 뒤 추가 |
 | 3 | 펀딩 개설 조건 강제 여부 | 기본 꺼짐 (`DIBS_ENFORCE_GATE=true`로 켬) | 시연 데이터 규모가 작아서 꺼 둠. 운영에서는 켬 |
-| 4 | 발행 실비 공동 진행 | 코드 없음 (운영 방식) | 같은 달 공모 작품의 증권신고·법률 검토를 한 번에 진행해 비용 분담 |
+| 4 | 공모 회차 개최 기준 | `offering_round` 로 묶어 조회만 함 | 회차 총액 1.5억 원(3작) 이상일 때 개최, 미만이면 다음 달로. 견적이 작품당 실비 12%를 넘으면 최소 모집액 5,000만 원으로 상향 |
 | 5 | 세계관 묶음(ETF형) 상품 | 확장 단계 | 상장 작품이 쌓이고 여러 기초자산을 묶은 상품이 허용된 뒤 |
 | 6 | 투자 한도 계산 방식 | 청약 + 체결 매수 + 미체결 매수 (총매수 기준) | 법령은 '연간 순매수' 기준 → 매도분 차감 여부 |
 | 7 | 마켓 운영 주체 | 내부 모의 거래소 (`InternalMockExchange`) | 실서비스는 장외거래소 API. `MarketGateway` 구현만 교체 |

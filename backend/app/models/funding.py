@@ -64,6 +64,10 @@ class Funding(TimestampMixin, Base):
         JSON, default=lambda: {"equal_ratio_bps": settings.default_equal_ratio_bps,
                                "early_reader_bps": settings.default_early_reader_bps})
 
+    # 공모 회차 (예: "2027-03"): 같은 달 공모 작품은 증권신고·법률·회계 검토를 함께 진행해 발행 실비를 나눈다.
+    # 증권은 작품별로 따로 발행한다 (묶음 상품 아님)
+    offering_round: Mapped[str | None] = mapped_column(String(7), index=True)
+
     # 만기 없음 (v4.0). 종료 규칙: 완결 후 3년 또는 저매출 2분기 연속, 작가 매입 옵션
     exclusive_months: Mapped[int] = mapped_column(Integer, default=settings.exclusive_months)
     exclusive_until: Mapped[datetime | None] = mapped_column(DateTime)  # 상장 시 계산

@@ -4255,6 +4255,24 @@
             }
           },
           {
+            "name": "offering_round",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "공모 회차 (예: 2027-03)",
+              "title": "Offering Round"
+            },
+            "description": "공모 회차 (예: 2027-03)"
+          },
+          {
             "name": "limit",
             "in": "query",
             "required": false,
@@ -14022,6 +14040,18 @@
             ],
             "title": "Listed At"
           },
+          "offering_round": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Offering Round",
+            "description": "공모 회차 (같은 달 공모 작품의 신고·검토 공동 진행)"
+          },
           "work_title": {
             "type": "string",
             "title": "Work Title"
@@ -14148,6 +14178,18 @@
               }
             ],
             "title": "Listed At"
+          },
+          "offering_round": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Offering Round",
+            "description": "공모 회차 (같은 달 공모 작품의 신고·검토 공동 진행)"
           },
           "work_title": {
             "type": "string",
@@ -14373,6 +14415,18 @@
               }
             ],
             "title": "Listed At"
+          },
+          "offering_round": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Offering Round",
+            "description": "공모 회차 (같은 달 공모 작품의 신고·검토 공동 진행)"
           }
         },
         "type": "object",
@@ -17215,6 +17269,18 @@
               }
             ],
             "title": "Listed At"
+          },
+          "offering_round": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Offering Round",
+            "description": "공모 회차 (같은 달 공모 작품의 신고·검토 공동 진행)"
           },
           "work_title": {
             "type": "string",

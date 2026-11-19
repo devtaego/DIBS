@@ -127,7 +127,7 @@ def open_funding(api, work_id: int, now: datetime, target_units: int = 100, max_
     if max_units:
         terms["max_units_per_user"] = max_units
     if strategy == "EQUAL_THEN_PRO_RATA":
-        terms["allocation_params"] = {"equal_ratio_bps": 2000}
+        terms["allocation_params"] = {"equal_ratio_bps": 2000, "early_reader_bps": 1000}
     api.ok("admin", "post", f"/admin/fundings/{f['id']}/review", json={"approve": True, "terms": terms})
     api.ok("admin", "post", f"/admin/fundings/{f['id']}/open")
     return f

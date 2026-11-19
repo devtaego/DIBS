@@ -121,6 +121,7 @@ class FundingOut(ORM):
     open_at: datetime | None
     close_at: datetime | None
     listed_at: datetime | None
+    offering_round: str | None = Field(default=None, description="공모 회차 (같은 달 공모 작품의 신고·검토 공동 진행)")
 
 
 class FundingProgress(BaseModel):

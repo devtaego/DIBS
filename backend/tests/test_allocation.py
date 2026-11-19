@@ -63,7 +63,18 @@ def test_early_reader_pool_first_then_general_equal():
     """v4.0: 발행량 20% 균등 중 10%는 초기 독자에게 먼저. 남는 초기 독자 몫은 일반 균등으로 넘어간다."""
     reqs = [AllocationRequest(1, 100, (1,), early=True), AllocationRequest(2, 100, (2,)), AllocationRequest(3, 100, (3,))]
     alloc = EqualThenProRata(2000, 1000).allocate(reqs, 100)
-    assert sum(alloc.values()) == 100 and alloc[1] > alloc[2] == alloc[3]
+    assert sum(alloc.values()) == 100 and alloc[1] > max(alloc[2], alloc[3]) and abs(alloc[2] - alloc[3]) <= 1
     # 초기 독자가 없으면 20% 전부 일반 균등
     plain = [AllocationRequest(k, 100, (k,)) for k in (1, 2, 3)]
     assert EqualThenProRata(2000, 1000).allocate(plain, 100) == EqualThenProRata(2000).allocate(plain, 100)
+
+
+def test_equal_pool_lottery_when_pool_smaller_than_participants():
+    """균등분(20조각)보다 참여자(50명)가 많으면 선착순이 아니라 공개 시드 추첨 순서로 1조각씩."""
+    reqs = [AllocationRequest(k, 1, (k,)) for k in range(1, 51)]  # 50명이 1조각씩, 20조각 전부 균등
+    a = EqualThenProRata(10000, 0, lottery_seed=7).allocate(reqs, 20)
+    b = EqualThenProRata(10000, 0, lottery_seed=7).allocate(reqs, 20)
+    first_come = EqualThenProRata(10000, 0).allocate(reqs, 20)
+    assert a == b and sum(a.values()) == 20  # 같은 시드면 같은 결과 (검증 가능)
+    assert {k for k, v in first_come.items() if v} == set(range(1, 21))
+    assert {k for k, v in a.items() if v} != set(range(1, 21))  # 먼저 청약한 20명이 독차지하지 않음

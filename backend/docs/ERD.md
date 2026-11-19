@@ -191,6 +191,7 @@ erDiagram
         string recouped_period
         string allocation_strategy
         json allocation_params
+        string offering_round
         integer exclusive_months
         datetime exclusive_until
         integer external_share_bps

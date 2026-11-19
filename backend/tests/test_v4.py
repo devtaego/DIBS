@@ -71,21 +71,29 @@ def test_consents_and_risk_profile_required(api, published_work, now):
 
 
 def test_early_readers_get_priority_allocation(api, published_work, now):
+    """초기 독자 = 모집 7일 전까지 찜 + 모집 전 완독 + 본인인증. 찜만 한 사람은 해당 없음."""
     wid = published_work["id"]
-    for u in ("early", "late1", "late2"):
+    ep = api.ok(None, "get", f"/works/{wid}/episodes")[0]
+    for u in ("early", "dibonly", "late"):
         api.login(u)
         api.ok(u, "post", "/wallet/deposit/charge", json={"amount": 2_000_000})
-    api.ok("early", "put", f"/works/{wid}/dib")  # 모집 시작 전 찜
-    clock.set_now(now + timedelta(minutes=1))
-    f = open_funding(api, wid, now + timedelta(minutes=1), target_units=100, strategy="EQUAL_THEN_PRO_RATA")
-    for u in ("early", "late1", "late2"):
+    for u in ("early", "dibonly"):
+        api.ok(u, "put", f"/works/{wid}/dib")
+    api.ok("early", "post", "/events", json={"events": [
+        {"event_type": "VIEW_COMPLETE", "work_id": wid, "episode_id": ep["id"], "occurred_at": now.isoformat()}]})
+    later = now + timedelta(days=8)
+    clock.set_now(later)
+    api.ok("late", "put", f"/works/{wid}/dib")  # 모집 직전 찜 → 해당 없음
+    f = open_funding(api, wid, later, target_units=100, strategy="EQUAL_THEN_PRO_RATA")
+    assert api.ok(None, "get", "/fundings", params={"offering_round": "2027-03"})[0]["id"] == f["id"]
+    for u in ("early", "dibonly", "late"):
         api.ok(u, "post", f"/fundings/{f['id']}/subscriptions", json={**SUB, "units": 100})
     res = api.ok("admin", "post", f"/admin/fundings/{f['id']}/close", params={"force": True})
-    got = {a["user_id"]: (a["allocated"], a["early_reader"]) for a in res["allocations"]}
-    early = [v for v in got.values() if v[1]]
-    late = [v for v in got.values() if not v[1]]
-    assert len(early) == 1 and early[0][0] > max(v[0] for v in late)
-    assert sum(v[0] for v in got.values()) == 100
+    flags = sorted(a["early_reader"] for a in res["allocations"])
+    assert flags == [False, False, True]
+    early = next(a["allocated"] for a in res["allocations"] if a["early_reader"])
+    assert early > max(a["allocated"] for a in res["allocations"] if not a["early_reader"])
+    assert sum(a["allocated"] for a in res["allocations"]) == 100
 
 
 def test_breakeven_disclosure(api, published_work, now):

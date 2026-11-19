@@ -52,7 +52,9 @@ class Settings(BaseModel):
     buyback_multiple: int = 3  # 작가 매입가 = 최근 4분기 보유자 분배금 합계 × 3
     default_allocation_strategy: str = "EQUAL_THEN_PRO_RATA"
     default_equal_ratio_bps: int = 2000  # 발행량의 20% 균등 배정
-    default_early_reader_bps: int = 1000  # 그중 절반(발행량의 10%)은 펀딩 전 찜한 독자 우선
+    default_early_reader_bps: int = 1000  # 그중 절반(발행량의 10%)은 초기 독자 우선
+    # 초기 독자 자격: 모집 시작 7일 전까지 찜 + 파일럿 완독 1회 이상 + 본인인증 계정 (공짜 찜 남용 방지)
+    early_reader_dib_days_before: int = 7
 
     # 발행 전 콘텐츠 (v4.0)
     pilot_free_episodes: int = 3  # 파일럿 1~3화 무료

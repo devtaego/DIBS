@@ -65,10 +65,13 @@ def detail(db: Session, f: Funding) -> FundingDetailOut:
 
 @router.get("/fundings", response_model=list[FundingCardOut], summary="펀딩 목록 (카드: 작품명·달성률·D-day)")
 def list_fundings(status: FundingStatus | None = Query(default=FundingStatus.OPEN),
+                  offering_round: str | None = Query(default=None, description="공모 회차 (예: 2027-03)"),
                   limit: int = Query(default=20, le=100), offset: int = 0, db: Session = Depends(get_db)):
     stmt = select(Funding).where(Funding.status.in_(PUBLIC_STATUSES))
     if status:
         stmt = stmt.where(Funding.status == status)
+    if offering_round:
+        stmt = stmt.where(Funding.offering_round == offering_round)
     return [FundingCardOut(**card(db, f)) for f in db.scalars(stmt.order_by(Funding.close_at).limit(limit).offset(offset))]
 
 

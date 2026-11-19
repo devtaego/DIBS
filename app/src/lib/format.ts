@@ -26,7 +26,7 @@ export const FUNDING_STATUS: Record<string, string> = {
   ISSUE_FAILED: '발행 무산',
   LISTED: '상장',
   SUSPENDED: '거래 정지',
-  MATURED: '운용 종료',
+  TERMINATED: '권리 종료',
 };
 
 export const SUB_STATUS: Record<string, string> = {

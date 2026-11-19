@@ -62,7 +62,7 @@ export default function EpisodeScreen() {
   return (
     <Screen>
       <T size={20} weight="700">{ep.no}화 · {ep.title}</T>
-      <Muted>{ep.is_paid ? `유료 회차 (${ep.price_coin}코인)` : '무료 회차'}</Muted>
+      <Muted>{ep.is_paid ? `유료 미리보기 (${ep.price_coin}원 · 공개 21일 뒤 무료)` : '무료 회차'}</Muted>
       {[1, 2, 3].map((n) => (
         <View key={n} style={{ height: 360, backgroundColor: n % 2 ? colors.card : colors.cardAlt, borderRadius: 12, marginTop: space(3), alignItems: 'center', justifyContent: 'center' }}>
           <Muted>웹툰 컷 {n} (시연용 자리)</Muted>

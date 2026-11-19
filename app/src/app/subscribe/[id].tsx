@@ -24,7 +24,7 @@ export default function SubscribeScreen() {
   const [units, setUnits] = useState(10);
   const [tier, setTier] = useState<number | null>(null);
   const [agreeRisk, setAgreeRisk] = useState(false);
-  const [agreeNoPrincipal, setAgreeNoPrincipal] = useState(false);
+  const [agreeTerm, setAgreeTerm] = useState(false);
   const [error, setError] = useState<ApiError | null>(null);
 
   useEffect(() => {
@@ -70,10 +70,11 @@ export default function SubscribeScreen() {
 
   const amount = units * f.unit_price;
   const delta = existing ? amount - existing.units * f.unit_price : amount;
-  const max = Math.min(f.max_units_per_user ?? 9999, 9999);
+  const max = f.per_user_cap_units;
   const tierObj = f.reward_tiers.find((r) => r.id === tier);
-  const agreed = agreeRisk && agreeNoPrincipal;
+  const agreed = agreeRisk && agreeTerm;
   const equalPct = (f.terms.allocation_params.equal_ratio_bps ?? 2000) / 100;
+  const earlyPct = (f.terms.allocation_params.early_reader_bps ?? 0) / 100;
 
   const submit = async () => {
     if (!agreed) {
@@ -90,7 +91,7 @@ export default function SubscribeScreen() {
       await task.run('청약을 접수하고 있어요', ['청약 수량을 확인하고 있어요', '한도와 예치금을 확인하고 있어요', '청약 증거금을 맡기고 있어요'], () =>
         existing
           ? api.patch(`/fundings/${id}/subscriptions/me`, { units, reward_tier_id: tier, shipping })
-          : api.post(`/fundings/${id}/subscriptions`, { units, reward_tier_id: tier, shipping, agree_risk_notice: agreeRisk, agree_no_principal_return: agreeNoPrincipal }),
+          : api.post(`/fundings/${id}/subscriptions`, { units, reward_tier_id: tier, shipping, agree_risk_notice: agreeRisk, agree_termination_rule: agreeTerm }),
       );
       showDone({
         pose: 'dibs',
@@ -102,7 +103,7 @@ export default function SubscribeScreen() {
           ['배정 발표', f.close_at ? `${dateText(f.close_at)} 마감 후` : '마감 후'],
           ['청약 금액', won(amount)],
         ],
-        note: `목표를 넘게 모이면 ${equalPct}%는 고르게, 나머지는 청약 비율대로 배정하고 남은 금액은 돌려드려요.`,
+        note: `목표를 넘게 모이면 발행량의 ${equalPct}%는 고르게${earlyPct ? `(그중 ${earlyPct}%는 먼저 찜한 독자 우선)` : ''}, 나머지는 청약 비율대로 배정하고 남은 금액은 돌려드려요.`,
         aLabel: '홈으로',
         aHref: '/',
         bLabel: '내 청약 보기',
@@ -137,12 +138,12 @@ export default function SubscribeScreen() {
 
         <View style={[s.row, { marginTop: space(6) }]}>
           <T size={ts.headline1.fontSize} weight="700">청약 수량</T>
-          <T size={12} weight="500" color={colors.labelAlternative}>1조각부터{f.max_units_per_user ? ` · 최대 ${f.max_units_per_user}조각` : ''}</T>
+          <T size={12} weight="500" color={colors.labelAlternative}>1조각부터 · 1인 최대 {max.toLocaleString('ko-KR')}조각</T>
         </View>
         <View style={[s.card, { alignItems: 'center' }]}>
           <Stepper value={units} onChange={setUnits} max={max} />
           <View style={{ flexDirection: 'row', gap: space(2), marginTop: space(3) }}>
-            {[1, 10, 50, 100].map((n) => (
+            {[1, 10, 50, 100].filter((n) => n <= max).map((n) => (
               <Pressable key={n} onPress={() => setUnits(Math.min(max, n))} style={s.quick}>
                 <T size={13} weight="500" color={colors.labelNeutral}>{n}조각</T>
               </Pressable>
@@ -184,14 +185,14 @@ export default function SubscribeScreen() {
             <Ionicons name="information-circle-outline" size={16} color={colors.labelAssistive} />
           </View>
           <T size={12} color={colors.labelAlternative} style={{ marginTop: 6 }}>
-            작품이 Dibs 안에서 만든 유료 회차·광고·굿즈 순매출 중 {f.terms.royalty_holder_bps / 100}%를 보유 조각 수만큼 나눠 받는 계약상 수익 배분권이에요. 분기마다 정산하고, {f.terms.operating_period_months}개월 뒤 상환 없이 상장폐지돼요.
+            작품 순매출(유료 미리보기·광고·굿즈) 중 원금 회수 전에는 {f.terms.royalty_holder_bps / 100}%, 누적 분배금이 발행액에 닿은 다음 분기부터는 {f.terms.royalty_holder_after_bps / 100}%를 보유 조각 수만큼 나눠 받는 수익 배분권이에요. 분기마다 정산해요. 만기는 없고, 완결 후 3년 또는 매출이 2분기 연속 크게 줄면 권리가 끝나요. 작가는 최근 4분기 분배금의 3배로 전량 매입할 수 있어요.
           </T>
         </View>
 
-        <DNote title="잠깐, 꼭 확인해 주세요" text="원금을 잃을 수 있고 예금자 보호 대상이 아니에요. 발행이 실패하면 전액 돌려드려요." />
+        <DNote title="잠깐, 꼭 확인해 주세요" text={`위험등급: ${f.risk_grade}. 원금을 잃을 수 있고 예금자 보호 대상이 아니에요. 발행이 실패하면 전액 돌려드려요.`} />
         <View style={{ marginTop: space(3) }}>
           <Check checked={agreeRisk} onToggle={() => setAgreeRisk(!agreeRisk)} label="원금 손실 가능성·예금자 보호 대상 아님·펀딩 성공이 수익을 보장하지 않는다는 점을 확인했어요" />
-          <Check checked={agreeNoPrincipal} onToggle={() => setAgreeNoPrincipal(!agreeNoPrincipal)} label={`운용 기간 ${f.terms.operating_period_months / 12}년이 끝나면 상장폐지되고 원금은 상환되지 않는다는 점을 확인했어요`} />
+          <Check checked={agreeTerm} onToggle={() => setAgreeTerm(!agreeTerm)} label="만기와 원금 상환이 없고, 종료 규칙(완결 후 3년·저매출 2분기 연속)과 작가 매입 옵션이 있다는 점을 확인했어요" />
         </View>
         <T size={12} color={colors.labelAssistive} style={{ marginTop: space(2) }}>마감 1시간 전부터는 감액·취소할 수 없어요.</T>
         <ErrorBox error={error} />

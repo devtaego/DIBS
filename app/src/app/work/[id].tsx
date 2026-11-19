@@ -40,7 +40,7 @@ export default function WorkScreen() {
   if (!data) return <Screen><ErrorBox error={error} onRetry={reload} /></Screen>;
   const { work, episodes, funding } = data;
   const fs = work.funding_status;
-  const listed = !!fs && ['LISTED', 'SUSPENDED', 'MATURED'].includes(fs);
+  const listed = !!fs && ['LISTED', 'SUSPENDED', 'TERMINATED'].includes(fs);
 
   const primary = () => {
     if (!work.funding_id || !fs) return <Button title="펀딩 준비 중" kind="ghost" onPress={() => {}} style={{ flex: 1 }} />;
@@ -124,12 +124,12 @@ export default function WorkScreen() {
                   <T size={12} weight="600" color={colors.highlight}>{ep.price_coin}코인</T>
                 </View>
               ) : (
-                <T size={12} color={colors.labelAlternative}>{ep.is_paid ? '구매함' : '무료'}</T>
+                <T size={12} color={colors.labelAlternative}>{ep.is_paid ? '구매함' : ep.paid_preview ? '무료 전환' : '무료'}</T>
               )}
             </Pressable>
           ))}
         </View>
-        <T size={12} color={colors.labelAssistive} style={{ marginTop: space(3) }}>발행 전에는 모든 회차가 무료예요. 상장 후 운영자가 회차별 유료 여부를 정해요.</T>
+        <T size={12} color={colors.labelAssistive} style={{ marginTop: space(3) }}>1~3화는 파일럿이라 무료예요. 4화부터는 미리보기(회당 300원)이고, 공개 21일 뒤 무료로 풀려요.</T>
       </Screen>
       <CtaBar>
         <Button title={work.is_dibbed ? '찜함' : '찜하기'} kind="ghost" onPress={toggleDib} style={{ flex: 1 }} />

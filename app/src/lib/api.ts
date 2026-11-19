@@ -98,15 +98,28 @@ export type Me = {
 export type Progress = { requested_units: number; raised_amount: number; participants: number; achievement_pct: number };
 export type WorkCard = { id: number; title: string; genre: string; type: string; synopsis: string; cover_url?: string | null; creator_id: number; dib_count: number; funding_id: number | null; funding_status: string | null };
 export type WorkDetail = WorkCard & { is_dibbed: boolean; episode_count: number };
-export type Episode = { id: number; no: number; title: string; is_paid: boolean; price_coin: number; unlocked: boolean };
+export type Episode = { id: number; no: number; title: string; is_paid: boolean; paid_preview: boolean; price_coin: number; free_unlock_at: string | null; unlocked: boolean };
 export type FundingCard = { id: number; work_id: number; work_title: string; status: string; mode: string; unit_price: number; target_units: number; target_amount: number; close_at: string | null; days_left: number | null; progress: Progress };
 export type RewardTier = { id: number; title: string; description: string; min_units: number; limited_qty: number | null; requires_shipping: boolean };
 export type FundingDetail = FundingCard & {
-  use_of_funds: string; risk_note: string; max_units_per_user: number | null; open_at: string | null; lock_at: string | null; maturity_date: string | null;
+  use_of_funds: string; risk_note: string; max_units_per_user: number | null; open_at: string | null; lock_at: string | null;
+  per_user_cap_units: number; risk_grade: string;
+  recoup: Recoup;
+  termination: Termination | null;
   reward_tiers: RewardTier[];
-  terms: { allocation_strategy: string; allocation_params: { equal_ratio_bps?: number }; creator_bps: number; issuance_cost_bps: number; platform_fee_bps: number; royalty_platform_bps: number; royalty_creator_bps: number; royalty_holder_bps: number; operating_period_months: number; exclusive_months: number; exclusive_until: string | null; external_share_bps: number };
+  terms: {
+    allocation_strategy: string; allocation_params: { equal_ratio_bps?: number; early_reader_bps?: number };
+    creator_bps: number; issuance_cost_bps: number; platform_fee_bps: number;
+    royalty_platform_bps: number; royalty_creator_bps: number; royalty_holder_bps: number;
+    royalty_platform_after_bps: number; royalty_creator_after_bps: number; royalty_holder_after_bps: number;
+    exclusive_months: number; exclusive_until: string | null; external_share_bps: number;
+  };
 };
-export type Breakeven = { lines: { goal: string; holder_dividend_per_year: number; paid_unlocks_per_month: number; buyers_per_episode: number }[]; price_coin: number; monthly_episodes: number };
+/** 회수 우선 배분: 누적 세전 분배금이 발행액에 닿은 다음 분기부터 투자자 몫 45% → 35% */
+export type Recoup = { phase: 'BEFORE_RECOUP' | 'AFTER_RECOUP'; recouped_period: string | null; cumulative_holder_gross: number; issuance_amount: number; progress_pct: number; holder_bps_now: number; holder_bps_before: number; holder_bps_after: number };
+/** 만기 없음. 완결 후 3년 또는 저매출 2분기 연속이면 종료, 작가 매입가 = 최근 4분기 분배금 × 3 */
+export type Termination = { completed_at: string | null; terminate_due_at: string | null; low_revenue_threshold: number; low_revenue_streak: number; eligible: boolean; reason: string | null; buyback_price: number | null };
+export type Breakeven = { lines: { goal: string; holder_dividend_per_year: number; paid_unlocks_per_month: number; buyers_per_episode: number; monthly_readers: number }[]; price_coin: number; monthly_episodes: number };
 export type Subscription = { id: number; funding_id: number; units: number; status: string; allocated_units: number | null; requested_tier_id: number | null; assigned_tier_id: number | null };
 export type MySubscription = Subscription & { work_title: string; unit_price: number; funding_status: string; close_at: string | null; requested_tier_title: string | null; assigned_tier_title: string | null; tracking_no: string | null };
 export type Wallet = { mode: string; coin: number; deposit_available: number; deposit_locked: number };
@@ -114,14 +127,15 @@ export type Limits = { annual_remaining: number; security_remaining?: number; an
 export type SecurityItem = { funding_id: number; work_id: number; work_title: string; status: string; unit_price: number; reference_price: number | null; last_price: number | null; change_pct: number | null };
 export type SecurityDetail = SecurityItem & {
   security_code: string | null; total_units: number; price_band: { min: number | null; max: number | null };
-  volume_7d: number; trades_7d: number; dividend_4q_per_unit: number; price_to_dividend: number | null; maturity_date: string | null;
+  volume_7d: number; trades_7d: number; dividend_4q_per_unit: number; price_to_dividend: number | null;
+  recoup_phase: 'BEFORE_RECOUP' | 'AFTER_RECOUP'; recoup_progress_pct: number; royalty_holder_after_bps: number; buyback_price: number | null; terminate_due_at: string | null;
   my_units: number | null; my_avg_price: number | null; royalty_holder_bps: number;
 };
 export type BookLevel = { price: number; units: number; orders: number };
 export type OrderBook = { bids: BookLevel[]; asks: BookLevel[]; reference_price: number | null; last_price: number | null; price_band: { min: number | null; max: number | null } };
 export type Trade = { id: number; price: number; units: number; created_at: string };
 export type Candle = { date: string; open: number; high: number; low: number; close: number; volume: number };
-export type OrderPreview = { gross: number; fee: number; fee_bps: number; total: number; available_deposit: number; available_units: number; annual_remaining: number; security_remaining: number; can_place: boolean; reasons: string[]; price_band: { min: number | null; max: number | null } };
+export type OrderPreview = { gross: number; fee: number; fee_ppm: number; total: number; available_deposit: number; available_units: number; annual_remaining: number; security_remaining: number; can_place: boolean; reasons: string[]; price_band: { min: number | null; max: number | null } };
 export type Order = { id: number; funding_id: number; side: 'BUY' | 'SELL'; price: number; units: number; remaining_units: number; status: string; created_at: string };
 export type Holding = { funding_id: number; work_title: string; mode: string; units: number; locked_units: number; avg_price: number; last_price: number | null; eval_amount: number; pnl: number; pnl_pct: number | null };
 export type DividendPayment = { run_id: number; funding_id: number; work_title: string; period: string; pay_date: string; status: string; units: number; gross: number; tax: number; net: number };

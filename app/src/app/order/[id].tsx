@@ -125,10 +125,10 @@ export default function OrderScreen() {
       {preview ? (
         <Card>
           <KV k="주문 금액" v={won(preview.gross)} />
-          <KV k={`수수료 (${preview.fee_bps / 100}%)`} v={won(preview.fee)} />
+          <KV k={`수수료 (${preview.fee_ppm / 10000}%)`} v={won(preview.fee)} />
           <KV k={side === 'BUY' ? '결제 예정액' : '받을 금액'} v={won(preview.total)} vColor={buyColor} />
           <KV k={side === 'BUY' ? '투자 가능 예치금' : '매도 가능 수량'} v={side === 'BUY' ? won(preview.available_deposit) : `${preview.available_units}조각`} />
-          {side === 'BUY' ? <Muted size={12}>5조각 이상 사면 매수 수수료가 0.8%로 내려가요. 수수료의 20%는 이 종목 배당 재원으로 쌓여요.</Muted> : null}
+          <Muted size={12}>거래 수수료 0.015%는 거래소·증권사 몫이에요. 원 미만은 버려요.</Muted>
           {!preview.can_place ? <T color={colors.danger} style={{ marginTop: space(2) }}>{preview.reasons.map((r) => REASON[r] ?? r).join(' · ')}</T> : null}
           {preview.reasons.includes('RISK_PROFILE_REQUIRED') ? <Button title="투자성향 확인하기" kind="ghost" onPress={() => router.push('/risk-profile')} style={{ marginTop: space(2) }} /> : null}
         </Card>

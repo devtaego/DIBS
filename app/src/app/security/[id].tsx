@@ -63,7 +63,7 @@ export default function SecurityScreen() {
         <KV k="거래 방식" v="지정가 · 모의" />
       </View>
       {!tradable ? (
-        <Muted style={{ marginTop: space(3) }}>{d.status === 'MATURED' ? '운용 기간이 끝나 상장폐지된 종목이에요. 원금 상환은 없어요.' : '거래가 정지된 종목이에요.'}</Muted>
+        <Muted style={{ marginTop: space(3) }}>{d.status === 'TERMINATED' ? '수익 배분 권리가 끝난 종목이에요. 원금 상환은 없어요.' : '거래가 정지된 종목이에요.'}</Muted>
       ) : null}
 
       <H2 right={<Muted size={12}>같은 가격끼리만 체결 · 줄을 누르면 그 가격으로 주문</Muted>}>호가</H2>
@@ -97,7 +97,10 @@ export default function SecurityScreen() {
         <KV k="최근 7일 거래량" v={`${d.volume_7d}조각 · ${d.trades_7d}건`} vColor={d.volume_7d < 10 ? colors.danger : colors.text} />
         <KV k="최근 4분기 주당 배당" v={won(d.dividend_4q_per_unit)} />
         <KV k="배당 대비 가격" v={d.price_to_dividend ? `${d.price_to_dividend}배` : '배당 전'} />
-        <KV k="만기 (상장폐지)" v={dateText(d.maturity_date)} />
+        <KV k="지금 분배 비율" v={`순매출의 ${d.royalty_holder_bps / 100}% (${d.recoup_phase === 'AFTER_RECOUP' ? '원금 회수 후' : `회수 전 · 회수 후 ${d.royalty_holder_after_bps / 100}%`})`} />
+        <KV k="원금 회수 진행" v={`${d.recoup_progress_pct}%`} />
+        <KV k="작가 매입가" v={d.buyback_price ? won(d.buyback_price) : '배당 후 계산'} />
+        <KV k="만기" v={d.terminate_due_at ? `없음 · 종료 예정 ${dateText(d.terminate_due_at)}` : '없음 (완결 후 3년 또는 저매출 2분기 연속이면 종료)'} />
         {d.volume_7d < 10 ? <Muted style={{ marginTop: space(1) }}>거래량이 적어 원하는 때 팔지 못할 수 있어요.</Muted> : null}
       </Card>
 

@@ -67,11 +67,11 @@ export default function AdminPanel() {
     });
 
   const paidEpisode = (f: FundingDetail) =>
-    run(`paid${f.id}`, '유료 회차 지정', async () => {
+    run(`paid${f.id}`, '유료 미리보기 지정', async () => {
       const eps = await api.get<Episode[]>(`/works/${f.work_id}/episodes`);
       const last = eps[eps.length - 1];
-      await api.patch(`/admin/episodes/${last.id}/pricing`, { is_paid: true, price_coin: 500 });
-      return `${last.no}화를 500코인 유료로 지정했어요`;
+      await api.patch(`/admin/episodes/${last.id}/pricing`, { is_paid: true, price_coin: 300 });
+      return `${last.no}화를 300원 유료 미리보기로 지정했어요 (공개 21일 뒤 무료)`;
     });
 
   const dividend = (f: FundingDetail) =>
@@ -79,9 +79,9 @@ export default function AdminPanel() {
       const period = quarter();
       await api.post(`/admin/fundings/${f.id}/revenues/aggregate`, { period });
       await api.post('/admin/revenues', { funding_id: f.id, period, source: 'AD', gross: 300_000, note: '시연용 광고 매출' });
-      const r = await api.post<{ id: number; holder_pool: number; per_unit_gross: number }>(`/admin/fundings/${f.id}/dividends`, { period }, { force: true });
+      const r = await api.post<{ id: number; holder_pool: number; per_unit_gross: number; phase: string }>(`/admin/fundings/${f.id}/dividends`, { period }, { force: true });
       await api.post(`/admin/dividends/${r.id}/pay`, {}, { force: true });
-      return `${period} 주주 몫 ${won(r.holder_pool)} (주당 ${r.per_unit_gross}원)을 지급했어요`;
+      return `${period} 투자자 몫 ${won(r.holder_pool)} (주당 ${r.per_unit_gross}원, ${r.phase === 'AFTER_RECOUP' ? '회수 후 35%' : '회수 전 45%'})을 지급했어요`;
     });
 
   const milestone = (f: FundingDetail) =>
@@ -93,17 +93,17 @@ export default function AdminPanel() {
       return `'${next.milestone_note}' 지급분 ${won(next.amount)}을 작가에게 보냈어요`;
     });
 
-  const danger = (f: FundingDetail, kind: 'discontinue' | 'mature') =>
-    Alert.alert(kind === 'mature' ? '만기 처리할까요?' : '연재 중단을 확정할까요?', '되돌릴 수 없어요 (시연용)', [
+  const danger = (f: FundingDetail, kind: 'discontinue' | 'terminate') =>
+    Alert.alert(kind === 'terminate' ? '권리를 종료할까요?' : '연재 중단을 확정할까요?', '되돌릴 수 없어요 (시연용)', [
       { text: '취소', style: 'cancel' },
       {
         text: '실행',
         style: 'destructive',
         onPress: () =>
-          run(`${kind}${f.id}`, kind === 'mature' ? '만기' : '연재 중단', async () => {
-            if (kind === 'mature') {
-              await api.post(`/admin/fundings/${f.id}/mature`, {}, { force: true });
-              return '상장폐지했어요. 원금 상환은 없어요';
+          run(`${kind}${f.id}`, kind === 'terminate' ? '권리 종료' : '연재 중단', async () => {
+            if (kind === 'terminate') {
+              await api.post(`/admin/fundings/${f.id}/terminate`, {}, { force: true });
+              return '수익 배분 권리를 종료했어요. 원금 상환은 없어요';
             }
             const r = await api.post<{ distributed: number; holders: number }>(`/admin/fundings/${f.id}/discontinue`, { reason: '시연: 연재 중단 확정' });
             return `남은 작가 지급분 ${won(r.distributed)}을 주주 ${r.holders}명에게 나눴어요`;
@@ -136,7 +136,7 @@ export default function AdminPanel() {
                 <Button title="다음 마일스톤 작가 지급" kind="ghost" onPress={() => milestone(f)} loading={busy === `ms${f.id}`} />
                 <Row style={{ gap: space(2) }}>
                   <Button title="연재 중단" kind="danger" style={{ flex: 1 }} onPress={() => danger(f, 'discontinue')} />
-                  <Button title="만기 처리" kind="danger" style={{ flex: 1 }} onPress={() => danger(f, 'mature')} />
+                  <Button title="권리 종료" kind="danger" style={{ flex: 1 }} onPress={() => danger(f, 'terminate')} />
                 </Row>
               </>
             ) : null}

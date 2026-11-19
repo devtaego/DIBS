@@ -14,7 +14,7 @@ export default function Dividends() {
       <Card style={{ backgroundColor: colors.cardAlt }}>
         <Muted>지금까지 받은 배당 (세후)</Muted>
         <T size={28} weight="700" color={colors.accent}>{won(total)}</T>
-        <Muted>순매출 중 주주 40% + 외부 연재·수수료 적립분을 분기 말 보유 조각 수대로 나눠요.</Muted>
+        <Muted>순매출 중 원금 회수 전 45%, 회수 후 35%를 분기 말 보유 조각 수대로 나눠요. 원천징수 15.4% 후 금액이에요.</Muted>
       </Card>
       {data?.length === 0 ? <Empty text="아직 받은 배당이 없어요" /> : null}
       {data?.map((d) => (

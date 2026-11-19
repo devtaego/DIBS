@@ -185,7 +185,7 @@ export default function SubscribeScreen() {
             <Ionicons name="information-circle-outline" size={16} color={colors.labelAssistive} />
           </View>
           <T size={12} color={colors.labelAlternative} style={{ marginTop: 6 }}>
-            작품 순매출(유료 미리보기·광고·굿즈) 중 원금 회수 전에는 {f.terms.royalty_holder_bps / 100}%, 누적 분배금이 발행액에 닿은 다음 분기부터는 {f.terms.royalty_holder_after_bps / 100}%를 보유 조각 수만큼 나눠 받는 수익 배분권이에요. 분기마다 정산해요. 만기는 없고, 완결 후 3년 또는 매출이 2분기 연속 크게 줄면 권리가 끝나요. 작가는 최근 4분기 분배금의 3배로 전량 매입할 수 있어요.
+            작품 순매출(유료 미리보기·광고·굿즈) 중 원금 회수 전에는 {f.terms.royalty_holder_bps / 100}%, 원천징수 후 누적 분배금이 발행액에 닿은 다음 분기부터는 {f.terms.royalty_holder_after_bps / 100}%를 보유 조각 수만큼 나눠 받는 수익 배분권이에요. 분기마다 정산해요. 만기는 없고, 완결 후 3년 또는 매출이 2분기 연속 크게 줄면 권리가 끝나요. 작가는 최근 4분기 분배금의 3배로 전량 매입할 수 있어요.
           </T>
         </View>
 

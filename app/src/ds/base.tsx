@@ -32,7 +32,7 @@ const ICONS: Record<string, Ion> = {
   bank: 'business-outline', cBank: 'business-outline', truck: 'car-outline', cTruck: 'car-outline', doc: 'document-text-outline', cDoc: 'document-text-outline',
   gear: 'settings-outline', cGear: 'settings-outline', trend: 'trending-up-outline', cTrend: 'trending-up-outline', copy: 'copy-outline',
   down: 'download-outline', refresh: 'refresh', image: 'image-outline', pen: 'create-outline', cPen: 'create-outline',
-  vol: 'volume-high-outline', more: 'ellipsis-horizontal', candle: 'stats-chart-outline', candleF: 'stats-chart',
+  vol: 'volume-high-outline', volOff: 'volume-mute-outline', more: 'ellipsis-horizontal', candle: 'stats-chart-outline', candleF: 'stats-chart',
   minus: 'remove', cGift: 'gift-outline', cHelp: 'help-circle-outline', cFund: 'wallet-outline', cUserL: 'person-outline',
 };
 export type IconName = keyof typeof ICONS;

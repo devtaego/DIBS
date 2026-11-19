@@ -45,7 +45,7 @@ def main():
         get(p)
     get("/me/orders", {"open_only": True})
     get("/me/orders")
-    get("/shorts/feed", {"limit": 20})
+    get("/shorts/feed", {"limit": 50})
     for q in [{"limit": 100}, {"sort": "dibs", "limit": 60}, {"sort": "latest", "limit": 60}, {"sort": "dibs", "limit": 40}, {"sort": "latest", "limit": 40}]:
         get("/works", q)
     get("/fundings", {"status": "OPEN"})

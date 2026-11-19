@@ -120,7 +120,13 @@ COVERS: dict[str, str] = {t: f"covers/{slug}.jpg" for slug, t, *_ in CATALOG}
 # 1화 원고 이미지 (app/public/episodes)
 EPISODE_IMAGES: dict[str, str] = {"악녀인데 남주들이 나를 숭배한다": "episodes/akn-1.jpg", "청월도": "episodes/cwd-1.jpg",
                                   "시골에선 슬로우라이프": "episodes/sgl-1.jpg"}
-SHORT_VIDEOS: dict[str, tuple[str, int]] = {"내가 찬 남자가 내일의 남편이다": ("shorts/nch.mp4", 60)}
+# 쇼츠 영상 (app/public/shorts). nch 는 드라이브 원본, 나머지는 app/scripts/make_demo_shorts.py 로 만든 모션코믹 시연용
+SHORT_VIDEOS: dict[str, tuple[str, int]] = {
+    "내가 찬 남자가 내일의 남편이다": ("shorts/nch.mp4", 60),
+    "악녀인데 남주들이 나를 숭배한다": ("shorts/akn.mp4", 30),
+    "청월도": ("shorts/cwd.mp4", 30),
+    "시골에선 슬로우라이프": ("shorts/sgl.mp4", 36),
+}
 
 
 def main() -> None:
@@ -174,7 +180,8 @@ def main() -> None:
             return f["id"]
 
         # 작품 A: 모집 중 842%
-        a = make_work("악녀인데 남주들이 나를 숭배한다", "로맨스 판타지", 14, cover=COVERS.get("악녀인데 남주들이 나를 숭배한다"))
+        a = make_work("악녀인데 남주들이 나를 숭배한다", "로맨스 판타지", 14, cover=COVERS.get("악녀인데 남주들이 나를 숭배한다"),
+                      synopsis="소설 속 악녀로 눈을 떴는데, 원작 남주들이 하나같이 나를 숭배한다.")
         seed_pilot_events(a, 32_000, 0.85, 0.55)
         for r in readers[:3]:
             call(r, "put", f"/works/{a}/dib")

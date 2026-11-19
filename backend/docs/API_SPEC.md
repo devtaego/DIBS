@@ -147,6 +147,22 @@
 | `PUT` | `/studio/fundings/{funding_id}/shipments/{subscription_id}` | 송장 입력 | 창작자 | ShipmentIn | ShipmentOut |
 | `GET` | `/studio/settlements` | 정산 (펀딩 지급분 + 분기 저작권료) | 창작자 |  | SettlementOut[] |
 
+## broker — 증권사 연계 (B안: 읽기는 DIBS, 청약·계좌·보유는 증권사). DIBS 제안 연동 규격 + dev 모의 키움 서버
+
+| 메서드 | 경로 | 설명 | 권한 | 요청 | 응답 |
+|---|---|---|---|---|---|
+| `GET` | `/config/public` | 공개 설정 (청약 경로·제휴 증권사·모드) | 회원 |  |  |
+| `POST` | `/fundings/{funding_id}/broker-handoff` | '키움에서 청약하기': 증권사 청약 화면 딥링크와 서명 토큰 발급 | 회원 |  | HandoffOut |
+| `GET` | `/fundings/{funding_id}/broker-state` | 증권사 청약 현황(집계)·배정·보유자 명부·분배 완료 상태 | 회원 |  |  |
+| `POST` | `/broker/handoff/verify` | [증권사 서버] 넘김 토큰 확인 → 공모 정보·회원 가명 id | 회원 | TokenIn |  |
+| `GET` | `/broker/fundings/{funding_id}/priority-list` | [증권사 서버] 우선 배정 명단 (연결 식별자) | 회원 |  |  |
+| `GET` | `/broker/dividend-runs/{run_id}/instruction` | [증권사 서버] 분배 지시서 (연결 식별자별 세전 금액) | 회원 |  |  |
+| `POST` | `/broker/webhooks/{event_type}` | [증권사 서버] 웹훅: account-linked · account-unlinked · subscription-summary · allocation-confirmed · holder-registry · payout-completed | 회원 | object |  |
+| `POST` | `/dev/mock-kiwoom/subscribe` | [모의 키움] 청약 화면에서 청약 (처음이면 계정 연결·쿠폰) | 회원 | MockSubscribeIn |  |
+| `POST` | `/dev/mock-kiwoom/fundings/{funding_id}/close` | [모의 키움] 마감·배정 확정 → 배정 결과 웹훅 | 회원 |  |  |
+| `POST` | `/dev/mock-kiwoom/fundings/{funding_id}/registry` | [모의 키움] 보유자 명부 웹훅 | 회원 |  |  |
+| `POST` | `/dev/mock-kiwoom/dividend-runs/{run_id}/pay` | [모의 키움] 분배 지시서대로 지급 → 완료 웹훅 | 회원 |  |  |
+
 ## admin — 운영: 심사·마감·발행·상장·매출·배당·입출금 (STEP 4·6)
 
 | 메서드 | 경로 | 설명 | 권한 | 요청 | 응답 |
@@ -199,6 +215,8 @@
 | `ALREADY_SUBSCRIBED` | 이미 청약했어요. 수량 변경을 이용해 주세요 |
 | `ANNUAL_LIMIT_EXCEEDED` | 연간 투자 한도({annual:,}원)를 넘어요 |
 | `ANON_ID_REQUIRED` | 비로그인 이벤트에는 anon_id 가 필요해요 |
+| `BAD_HANDOFF` | 넘김 토큰 형식이 아니에요 |
+| `BAD_SIGNATURE` | 증권사 서명이 맞지 않아요 |
 | `BEFORE_PAY_DATE` | 지급일({run.pay_date}) 전이에요 |
 | `BUYBACK_NOT_ENABLED` | 이 펀딩은 작가 매입 옵션을 선택하지 않았어요 |
 | `COIN_TO_DEPOSIT_FORBIDDEN` | 코인은 예치금으로 바꿀 수 없어요 |
@@ -213,14 +231,19 @@
 | `EPISODE_NOT_FOUND` | 회차를 찾을 수 없어요 |
 | `EPISODE_NO_EXISTS` | 같은 회차 번호가 있어요 |
 | `EPISODE_REQUIRED` | 댓글을 달 회차를 지정해 주세요 |
+| `EVENT_ID_REQUIRED` | X-Event-Id 헤더가 필요해요 |
 | `EVIDENCE_REQUIRED` | 외부 플랫폼 정산서(증빙)를 첨부해 주세요 |
 | `EXCLUSIVE_PERIOD` | 선공개 독점 기간에는 외부 연재 수익을 넣을 수 없어요 |
+| `FIRST_TIME_CAP` | 투자 경험이 없는 고객은 {cap:,}원까지 청약할 수 있어요 |
 | `FORBIDDEN_ROLE` | 권한이 없어요 |
 | `FUNDING_ALREADY_ACTIVE` | 이 작품은 이미 진행 중인 펀딩이 있어요 |
 | `FUNDING_GATE_NOT_MET` | 파일럿 4주 유료 구매자가 {g['gate_threshold']:,}명 이상이어야 펀딩을 열 수 있어요  |
 | `FUNDING_NOT_CLOSED_YET` | 아직 마감 시각이 아니에요 |
 | `FUNDING_NOT_FOUND` | 펀딩을 찾을 수 없어요 |
 | `FUNDING_NOT_IN_PERIOD` | 모집 기간이 아니에요 |
+| `FUNDING_NOT_OPEN` | 모집 중인 펀딩만 증권사 청약으로 넘길 수 있어요 |
+| `HANDOFF_EXPIRED` | 넘김 토큰이 만료됐어요. DIBS 앱에서 다시 눌러 주세요 |
+| `HANDOFF_REQUIRED` | 계정 연결에는 넘김 토큰이 필요해요 |
 | `HOLDERS_ONLY` | 이 작품 조각을 가진 주주만 볼 수 있어요 |
 | `IMAGE_REQUIRED` | 팬아트 이미지를 올려 주세요 |
 | `INSUFFICIENT_BALANCE` | 매입가 {price:,}원이 예치금보다 많아요 |
@@ -250,6 +273,7 @@
 | `NOTICE_NOT_FOUND` | 공지를 찾을 수 없어요 |
 | `NOTIFICATION_NOT_FOUND` | 알림을 찾을 수 없어요 |
 | `NOT_AUTHOR` | 내가 쓴 글만 지울 수 있어요 |
+| `NOT_FOUND` | 없는 경로예요 |
 | `NOT_LISTED` | 상장 후에 확인할 수 있어요 |
 | `NOT_TRADABLE` | 거래할 수 없는 종목이에요 (미상장 또는 거래 정지) |
 | `NOT_WORK_OWNER` | 내 작품만 관리할 수 있어요 |
@@ -269,7 +293,7 @@
 | `PRICE_OUT_OF_BAND` | 주문 가능 가격은 {lo:,}~{hi:,}원이에요 |
 | `RIGHTS_NOT_DECLARED` | 작품 공개 권한을 확인해 주세요 |
 | `RISK_NOTICE_REQUIRED` | 투자 위험 고지에 동의해 주세요 |
-| `RISK_PROFILE_REQUIRED` | 투자성향 확인 후 청약할 수 있어요 |
+| `RISK_PROFILE_REQUIRED` | 키움 투자성향 확인 후 청약할 수 있어요 |
 | `SECURITY_LIMIT_EXCEEDED` | 종목당 투자 한도({per_security:,}원)를 넘어요 |
 | `SECURITY_NOT_FOUND` | 상장 종목이 아니에요 |
 | `SELF_INVEST_FORBIDDEN` | 창작자는 자기 작품에 청약할 수 없어요 |
@@ -289,6 +313,7 @@
 | `TIER_SOLD_OUT` | 한정 수량이 모두 찼어요 |
 | `TOO_MANY_TIERS` | 리워드 티어는 최대 {MAX_REWARD_TIERS}개예요 |
 | `UNAUTHORIZED` | 로그인이 필요해요 |
+| `UNKNOWN_EVENT` | 알 수 없는 이벤트예요: {event_type} |
 | `VALIDATION_ERROR` | 입력값을 확인해 주세요 (422, `fields` 에 항목별 사유) |
 | `WITHDRAWAL_DECIDED` | 이미 처리된 요청이에요 |
 | `WITHDRAWAL_NOT_FOUND` | 출금 요청을 찾을 수 없어요 |

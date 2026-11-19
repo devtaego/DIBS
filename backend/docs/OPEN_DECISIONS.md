@@ -32,6 +32,23 @@
 | 상장 후 | 작가 매입 옵션 (선택 사항) = 최근 4분기 보유자 분배금 합계 × 3 | `Funding.buyback_enabled`, `buyback_multiple 3` | `services/product.py::buyback` |
 | 상장 후 | 일반투자자 연 1억 원(장외 순매수 한도), 종목당 3,000만 원 | `annual_limit_general`, `per_security_limit_general` | `services/policy.py` |
 
+## B안 증권사 연계 → 코드 (읽기는 DIBS, 청약·계좌·보유는 증권사)
+
+실제 증권사 제휴 API는 계약 후에만 받을 수 있다(공개된 키움 REST API는 개인 자동매매용). 그래서 아래는 **DIBS가 제안하는 연동 규격**이고, dev 모의 키움 서버가 같은 규격으로 움직여 처음부터 끝까지 시연된다. 계약 후에는 모의 서버 대신 실제 증권사가 같은 규격으로 웹훅을 보낸다.
+
+| 규칙 | 코드 (설정값) | 구현 위치 |
+|---|---|---|
+| 청약 경로: INTERNAL(앱 안 모의 청약, 증권사 화면 대체) / BROKER(증권사 청약 화면) | `subscription_channel` (`DIBS_SUBSCRIPTION_CHANNEL`) | `GET /config/public` |
+| 청약 넘기기: 서명된 넘김 토큰(10분) + 증권사 딥링크 | `broker_shared_secret`, `broker_deeplink_base`, `handoff_ttl_minutes` | `POST /fundings/{id}/broker-handoff`, `POST /broker/handoff/verify` |
+| 계좌·실명·CI 미저장, 가명 연결 식별자만 | `BrokerLink.link_ref` | `models/broker.py` |
+| 우선 배정 명단(초기 독자 ∪ 이전 시즌 보유자)을 연결 식별자로 전달 | — | `GET /broker/fundings/{id}/priority-list` |
+| 웹훅 6종, HMAC 서명 + X-Event-Id 중복 방지 | `BrokerEvent` | `POST /broker/webhooks/{event}` |
+| 청약 현황은 집계만 수신 (미공개 정보 위험 차단) | `BrokerOfferingState` | `subscription-summary` |
+| 분배 지시서(연결 식별자별 세전) → 증권사 지급·원천징수 → 완료 웹훅으로 금액 대조 | — | `GET /broker/dividend-runs/{id}/instruction`, `payout-completed` |
+| 계좌 개설 쿠폰: 증권사가 산 코인을 신규 계좌 고객에게 (청약 여부와 무관) | `partner_coupon_coin 20000`, `SYS_PARTNER_COUPON` | `services/broker::grant_coupon` |
+| 투자 경험 없는 고객 소액 한도 10만 원 | `first_time_cap_amount`, `User.no_investment_experience` | `services/funding.py::_check_first_time_cap` |
+| 모의 키움 서버 (dev 전용) | `enable_mock_broker` | `services/broker/mock_kiwoom.py`, `/dev/mock-kiwoom/*` |
+
 ## 아직 정할 것
 
 | # | 항목 | 현재 처리 | 검토 포인트 |

@@ -58,6 +58,7 @@ class AccountKind(StrEnum):
     SYS_ROYALTY_POOL = "SYS_ROYALTY_POOL"  # 배당 재원
     # 상장 작품 유료 회차 매출: 결제 시점에 신탁 계좌로 바로 분할 (DIBS 매출 계정을 거치지 않음)
     SYS_TRUST_RECEIVABLE = "SYS_TRUST_RECEIVABLE"
+    SYS_PARTNER_COUPON = "SYS_PARTNER_COUPON"  # 증권사가 사서 신규 계좌 고객에게 준 코인 (계좌 개설 쿠폰)
     SYS_TAX_WITHHOLDING = "SYS_TAX_WITHHOLDING"
     SYS_BROKER_FEE = "SYS_BROKER_FEE"  # 거래 수수료 0.015% (거래소·증권사 몫, 모의)
 

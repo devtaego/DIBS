@@ -138,6 +138,10 @@ export type Disclosure = {
   per_user_cap_amount: number; buyback_enabled: boolean; settlement_basis: string; verification: string[];
   reconciliation: Reconciliation[];
 };
+/** B안 증권사 연계 */
+export type PublicConfig = { subscription_channel: 'INTERNAL' | 'BROKER'; broker_name: string; trading_mode: string; partner_coupon_coin: number; first_time_cap_amount: number };
+export type Handoff = { channel: string; broker: string; deeplink: string; token: string; expires_at: string; linked: boolean };
+export type MockKiwoomResult = { subscription_id: number; units: number; link: { link_ref: string; coupon_coin: number } | null };
 export type Breakeven = { lines: { goal: string; holder_dividend_per_year: number; paid_unlocks_per_month: number; buyers_per_episode: number; monthly_readers: number }[]; price_coin: number; monthly_episodes: number };
 export type Subscription = { id: number; funding_id: number; units: number; status: string; allocated_units: number | null; requested_tier_id: number | null; assigned_tier_id: number | null };
 export type MySubscription = Subscription & { work_title: string; unit_price: number; funding_status: string; close_at: string | null; requested_tier_title: string | null; assigned_tier_title: string | null; tracking_no: string | null };

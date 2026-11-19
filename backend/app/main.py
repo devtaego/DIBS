@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import admin, auth, community, events, fundings, info, market, me, studio, wallet, works
+from app.api import admin, auth, broker, community, events, fundings, info, market, me, studio, wallet, works
 from app.core.config import settings
 from app.core.db import init_db
 from app.core.errors import register_error_handlers
@@ -20,6 +20,7 @@ TAGS = [
     {"name": "market", "description": "상장 종목 지정가 상대매매 (STEP 5, 모의)"},
     {"name": "me", "description": "내 증권·청약·배당·알림"},
     {"name": "studio", "description": "크리에이터 스튜디오(웹): 내 작품·펀딩·리워드 배송·정산"},
+    {"name": "broker", "description": "증권사 연계 (B안: 읽기는 DIBS, 청약·계좌·보유는 증권사). DIBS 제안 연동 규격 + dev 모의 키움 서버"},
     {"name": "admin", "description": "운영: 심사·마감·발행·상장·매출·배당·입출금 (STEP 4·6)"},
 ]
 
@@ -49,7 +50,7 @@ def create_app() -> FastAPI:
     app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
     register_error_handlers(app)
     for r in (auth.router, works.router, community.router, info.router, events.router, wallet.router, fundings.router, market.router,
-              me.router, studio.router, admin.router):
+              me.router, studio.router, admin.router, broker.router):
         app.include_router(r)
 
     @app.get("/health", tags=["auth"], summary="헬스체크")

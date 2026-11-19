@@ -92,6 +92,18 @@ class Settings(BaseModel):
     royalty_creator_after_bps: int = 4000
     royalty_holder_after_bps: int = 3500
 
+    # ── 증권사 연계 (B안: 읽기는 DIBS, 청약·계좌·보유는 증권사) ──
+    # INTERNAL = 앱 안 모의 청약 화면(증권사 화면 대체, 시연용) / BROKER = 증권사 청약 화면으로 넘김
+    subscription_channel: str = os.getenv("DIBS_SUBSCRIPTION_CHANNEL", "INTERNAL")
+    broker_name: str = os.getenv("DIBS_BROKER_NAME", "키움증권")
+    broker_code: str = "KIWOOM"
+    broker_shared_secret: str = os.getenv("DIBS_BROKER_SECRET", "dev-broker-secret-change-me")
+    broker_deeplink_base: str = os.getenv("DIBS_BROKER_DEEPLINK", "kiwoom-mock://offering")
+    handoff_ttl_minutes: int = 10
+    partner_coupon_coin: int = 20_000  # 계좌 개설 쿠폰: 증권사가 신규 계좌 고객에게 주는 DIBS 코인
+    first_time_cap_amount: int = 100_000  # 투자 경험이 없다고 답한 고객의 1인 청약 한도
+    enable_mock_broker: bool = _env_bool("DIBS_ENABLE_MOCK_BROKER", True)  # /dev/mock-kiwoom (운영에서 끔)
+
     # ── 마켓 ──
     # 모의 거래소 규칙. 실제 가격제한폭·거래시간은 장외거래소 규정을 따른다
     price_limit_bps: int = 3000  # 기준가 ±30%

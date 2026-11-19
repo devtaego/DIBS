@@ -96,6 +96,37 @@ erDiagram
         integer owner_id FK
         enum mode
     }
+    broker_events {
+        integer id PK
+        string broker
+        string event_id
+        string event_type
+        integer funding_id FK
+        json payload
+        datetime received_at
+    }
+    broker_links {
+        integer id PK
+        integer user_id FK
+        string broker
+        string link_ref
+        boolean is_new_account
+        integer coupon_coin
+        datetime linked_at
+        datetime unlinked_at
+    }
+    broker_offering_states {
+        integer id PK
+        string broker
+        integer funding_id FK
+        integer subscribed_units
+        integer participants
+        integer allocated_units
+        datetime registry_as_of
+        json holder_registry
+        json paid_runs
+        datetime updated_at
+    }
     content_events {
         integer id PK
         integer user_id FK
@@ -397,6 +428,7 @@ erDiagram
         string avatar_url
         string risk_level
         datetime risk_checked_at
+        boolean no_investment_experience
         string broker_name
         string broker_account_masked
         datetime created_at
@@ -431,6 +463,8 @@ erDiagram
     episodes ||--o{ content_events : "episode_id"
     episodes ||--o{ episode_unlocks : "episode_id"
     episodes ||--o{ posts : "episode_id"
+    fundings ||--o{ broker_events : "funding_id"
+    fundings ||--o{ broker_offering_states : "funding_id"
     fundings ||--o{ content_events : "funding_id"
     fundings ||--o{ dividend_runs : "funding_id"
     fundings ||--o{ episode_unlocks : "funding_id"
@@ -457,6 +491,7 @@ erDiagram
     shorts ||--o{ content_events : "short_id"
     shorts ||--o{ posts : "short_id"
     users ||--o{ accounts : "owner_id"
+    users ||--o{ broker_links : "user_id"
     users ||--o{ content_events : "user_id"
     users ||--o{ dibs : "user_id"
     users ||--o{ dividend_payments : "user_id"

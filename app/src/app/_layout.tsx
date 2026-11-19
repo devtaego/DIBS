@@ -25,6 +25,7 @@ export default function RootLayout() {
           <Stack.Screen name="episode/[id]" options={{ title: '회차 보기' }} />
           <Stack.Screen name="funding/[id]" options={{ title: '펀딩' }} />
           <Stack.Screen name="subscribe/[id]" options={{ title: '조각 청약', presentation: 'modal' }} />
+          <Stack.Screen name="kiwoom/[id]" options={{ title: '키움증권 (모의)', presentation: 'modal' }} />
           <Stack.Screen name="risk-profile" options={{ title: '투자성향 확인', presentation: 'modal' }} />
           <Stack.Screen name="security/[id]" options={{ title: '종목' }} />
           <Stack.Screen name="order/[id]" options={{ title: '주문', presentation: 'modal' }} />

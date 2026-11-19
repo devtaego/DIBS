@@ -5,7 +5,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import { CtaBar, DNote, Dibby, MiniWork, ModeFlag, Ride } from '@/components/dibby';
 import { Button, Check, ErrorBox, KV, Loading, Screen, Stepper, T } from '@/components/ui';
-import { api, ApiError, type FundingDetail, type Limits, type Subscription, type Wallet } from '@/lib/api';
+import { api, ApiError, type FundingDetail, type Handoff, type Limits, type PublicConfig, type Subscription, type Wallet } from '@/lib/api';
 import { showDone } from '@/lib/done';
 import { dateText, won } from '@/lib/format';
 import { useSession } from '@/lib/session';
@@ -26,15 +26,18 @@ export default function SubscribeScreen() {
   const [agreeRisk, setAgreeRisk] = useState(false);
   const [agreeTerm, setAgreeTerm] = useState(false);
   const [error, setError] = useState<ApiError | null>(null);
+  const [cfg, setCfg] = useState<PublicConfig | null>(null);
 
   useEffect(() => {
     (async () => {
       try {
-        const [fd, w, l] = await Promise.all([
+        const [fd, w, l, c] = await Promise.all([
           api.get<FundingDetail>(`/fundings/${id}`),
           api.get<Wallet>('/wallet'),
           api.get<Limits>(`/fundings/${id}/limits`),
+          api.get<PublicConfig>('/config/public'),
         ]);
+        setCfg(c);
         setF(fd);
         setWallet(w);
         setLimits(l);
@@ -75,6 +78,42 @@ export default function SubscribeScreen() {
   const agreed = agreeRisk && agreeTerm;
   const equalPct = (f.terms.allocation_params.equal_ratio_bps ?? 2000) / 100;
   const earlyPct = (f.terms.allocation_params.early_reader_bps ?? 0) / 100;
+
+  // B안: 청약은 증권사 화면에서. DIBS는 서명된 넘김 토큰만 만들고 키움 청약 화면(시연: 모의 키움 화면)을 연다
+  const toBroker = async () => {
+    setError(null);
+    try {
+      const h = await api.post<Handoff>(`/fundings/${id}/broker-handoff`);
+      // 실제 앱: Linking.openURL(h.deeplink)
+      router.push({ pathname: '/kiwoom/[id]', params: { id: String(id), token: h.token } });
+    } catch (e) {
+      setError(e as ApiError);
+    }
+  };
+  const brokerName = cfg?.broker_name ?? '키움증권';
+  const isBroker = cfg?.subscription_channel === 'BROKER';
+
+  if (isBroker) {
+    return (
+      <View style={{ flex: 1, backgroundColor: colors.bg }}>
+        <Screen>
+          <MiniWork id={f.work_id} title={f.work_title} line2="시즌 수익배분권 · 작품별 토큰증권" />
+          <View style={s.card}>
+            <T size={15} weight="700">청약은 {brokerName} 앱에서 해요</T>
+            <T size={13} color={colors.labelAlternative} style={{ marginTop: space(2) }}>
+              계좌 개설·투자성향 확인·청약 대금은 {brokerName}가 처리해요. DIBS는 계좌번호를 받지 않아요.
+              {cfg?.partner_coupon_coin ? ` 처음 계좌를 열면 ${cfg.partner_coupon_coin.toLocaleString('ko-KR')}코인을 드려요.` : ''}
+            </T>
+          </View>
+          <DNote title="잠깐, 꼭 확인해 주세요" text={`위험등급: ${f.risk_grade}. 원금을 잃을 수 있고 예금자 보호 대상이 아니에요. 이 화면의 공모 안내는 ${brokerName} 준법 심사를 거친 내용이에요.`} />
+          <ErrorBox error={error} />
+        </Screen>
+        <CtaBar>
+          <Button title={`${brokerName}에서 청약하기`} onPress={toBroker} style={{ flex: 1 }} />
+        </CtaBar>
+      </View>
+    );
+  }
 
   const submit = async () => {
     if (!agreed) {
@@ -117,7 +156,8 @@ export default function SubscribeScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <Screen>
-        <ModeFlag text="모의 청약 · 실제 거래 없음" />
+        <ModeFlag text="모의 청약 · 증권사 화면 대체 · 실제 거래 없음" />
+        <Button title={`${brokerName} 연결 흐름으로 청약 (B안 시연)`} kind="ghost" onPress={toBroker} style={{ marginTop: space(3), height: 44 }} />
         <View style={{ marginTop: space(4) }}>
           <MiniWork id={f.work_id} title={f.work_title} line2="플랫폼 매출 수익권 · 개별 작품 토큰증권" />
         </View>

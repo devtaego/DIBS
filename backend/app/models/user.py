@@ -23,6 +23,7 @@ class User(TimestampMixin, Base):
     # 투자성향 확인 (v3.0): 청약·매수 전 필수
     risk_level: Mapped[str | None] = mapped_column(String(20))  # STABLE | NEUTRAL | AGGRESSIVE
     risk_checked_at: Mapped[datetime | None] = mapped_column(DateTime)
+    no_investment_experience: Mapped[bool] = mapped_column(Boolean, default=False)  # 투자성향 1번 문항 '없어요'
     # 제휴 증권사 계좌 연결 (모의). 전체 계좌번호는 저장하지 않음
     broker_name: Mapped[str | None] = mapped_column(String(50))
     broker_account_masked: Mapped[str | None] = mapped_column(String(30))

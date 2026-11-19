@@ -163,6 +163,13 @@ def _check_can_subscribe(db: Session, user: User, f: Funding) -> None:
         raise Forbidden("SELF_INVEST_FORBIDDEN", "창작자는 자기 작품에 청약할 수 없어요")
 
 
+def _check_first_time_cap(user: User, f: Funding, units: int) -> None:
+    """투자 경험이 없다고 답한 고객은 1인 한도보다 작은 소액 한도(기본 10만 원)를 적용한다 (민원 위험 완화)."""
+    cap = settings.first_time_cap_amount
+    if user.no_investment_experience and units * f.unit_price > cap:
+        raise DomainError("FIRST_TIME_CAP", f"투자 경험이 없는 고객은 {cap:,}원까지 청약할 수 있어요")
+
+
 def _is_locked(f: Funding) -> bool:
     return clock.now() >= f.close_at - timedelta(minutes=settings.subscription_lock_minutes)
 
@@ -209,6 +216,7 @@ def subscribe(db: Session, user: User, f: Funding, units: int, tier_id: int | No
         raise Conflict("ALREADY_SUBSCRIBED", "이미 청약했어요. 수량 변경을 이용해 주세요")
     # 취소 후 재청약은 '증액'과 같아 잠금 시간에도 허용하고, 동점 순위(first_subscribed_at)는 새로 매긴다
     _validate_units_and_tier(db, f, units, tier_id, shipping)
+    _check_first_time_cap(user, f, units)
     check_investment_limit(db, user, f.mode, f.id, units * f.unit_price)
 
     now = clock.now()
@@ -235,6 +243,7 @@ def change_subscription(db: Session, user: User, f: Funding, units: int,
     tier_id = tier_id if tier_id is not None else sub.requested_tier_id
     shipping = shipping if shipping is not None else sub.shipping
     _validate_units_and_tier(db, f, units, tier_id, shipping, exclude_sub_id=sub.id)
+    _check_first_time_cap(user, f, units)
     check_investment_limit(db, user, f.mode, f.id, delta * f.unit_price)
     sub.units, sub.requested_tier_id, sub.shipping = units, tier_id, shipping
     _lock_deposit(db, user.id, f, delta * f.unit_price, sub.id)

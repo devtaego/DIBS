@@ -47,6 +47,7 @@ def risk_profile(body: RiskProfileIn, db: Session = Depends(get_db), user: User 
     score = sum(body.answers)  # 5~20
     user.risk_level = "STABLE" if score <= 9 else ("NEUTRAL" if score <= 14 else "AGGRESSIVE")
     user.risk_checked_at = clock.now()
+    user.no_investment_experience = body.answers[0] == 1  # 1번 '투자 경험' = 없어요 → 소액 한도
     return user
 
 

@@ -34,6 +34,7 @@ export default function Explore() {
   useEffect(() => { if (params.search === '1') setShowSearch(true); }, [params.search]);
   const [genre, setGenre] = useState('전체');
   const [mode, setMode] = useState<Mode>('전체');
+  const [showAll, setShowAll] = useState(false);
   const [age, setAge] = useState('20대');
   const [fmt, setFmt] = useState('전체');
   const [phase, setPhase] = useState('전체');
@@ -83,7 +84,6 @@ export default function Explore() {
     return router.push(w.funding_status === 'LISTED' ? `/security/${w.funding_id}` : `/funding/${w.funding_id}`);
   };
 
-  const openFundings = [...(data?.fundings ?? [])].sort((x, y) => (x.days_left ?? 99) - (y.days_left ?? 99));
   const closeSearch = () => { setQ(''); setShowSearch(false); router.setParams({ search: '' }); };
   const header = showSearch || searching ? (
     // 검색 중: 뒤로가기 + 검색창 (뒤로가기를 누르면 검색을 닫고 추천 화면으로)
@@ -124,24 +124,27 @@ export default function Explore() {
     <DScreen header={header} onRefresh={reload} tabBar gap={spacing.gapXl}>
       {showSearch && !searching ? <Txt v="body2" c={color.labelAlternative}>작품 이름이나 장르로 찾아보세요.</Txt> : null}
       {showSearch || searching || tab === 'rank' ? null : (
-        <View style={{ gap: spacing.gapM }}>
+        <View style={{ gap: spacing.gapL, marginBottom: spacing.gapL }}>
           <Segmented options={(['전체', '카테고리', '필터'] as const).map((k) => ({ key: k, label: k }))} value={mode} onChange={setMode} grow />
           {mode === '카테고리' ? (
-            <View style={{ gap: spacing.gapS }}>
+            <View style={{ gap: spacing.gapM }}>
               <Txt v="label2" w="semibold" c={color.labelAlternative}>연령대별 보기</Txt>
               <ChipRow items={Object.keys(AGES)} value={genre === '전체' ? age : ''} onChange={(a) => { setAge(a); setGenre('전체'); }} />
-              <Txt v="label2" w="semibold" c={color.labelAlternative}>장르</Txt>
+              <Txt v="label2" w="semibold" c={color.labelAlternative} style={{ marginTop: spacing.gapS }}>장르</Txt>
               <ChipRow items={genres.slice(1)} value={genre} onChange={(g) => setGenre(g === genre ? '전체' : g)} />
             </View>
           ) : null}
           {mode === '필터' ? (
-            <View style={{ gap: spacing.gapS }}>
+            <View style={{ gap: spacing.gapM }}>
+              <Txt v="label2" w="semibold" c={color.labelAlternative}>형식</Txt>
               <ChipRow items={['모든 형식', '웹툰', '웹소설']} value={fmt === '전체' ? '모든 형식' : fmt} onChange={(v) => setFmt(v === '모든 형식' ? '전체' : v)} />
+              <Txt v="label2" w="semibold" c={color.labelAlternative} style={{ marginTop: spacing.gapS }}>공모 단계</Txt>
               <ChipRow items={['모든 단계', '공모 전', '공모 중', '공모 종료']} value={phase === '전체' ? '모든 단계' : phase} onChange={(v) => setPhase(v === '모든 단계' ? '전체' : v)} />
+              <Txt v="label2" w="semibold" c={color.labelAlternative} style={{ marginTop: spacing.gapS }}>정렬</Txt>
               <ChipRow items={[...SORTS]} value={sort} onChange={(v) => setSort(v as (typeof SORTS)[number])} />
             </View>
           ) : null}
-          {mode === '카테고리' ? <Txt v="headline2" w="bold" c={color.labelStrong}>{genre === '전체' ? AGES[age].label : `${genre} 작품`}</Txt> : null}
+          {mode === '카테고리' ? <Txt v="headline2" w="bold" c={color.labelStrong} style={{ marginTop: spacing.gapM }}>{genre === '전체' ? AGES[age].label : `${genre} 작품`}</Txt> : null}
         </View>
       )}
       <ErrorBox error={error} onRetry={reload} />
@@ -154,39 +157,37 @@ export default function Explore() {
         </Section>
       ) : null}
 
-      {!searching && !showSearch && tab === 'recommend' && mode === '전체' && openFundings.length ? (
-        // 배너: 지금 청약이 열린 작품들
-        <Pressable onPress={() => router.push(`/funding/${openFundings[0].id}`)} style={s.banner}>
-          <View style={{ flex: 1, gap: spacing.gapM }}>
-            <Txt v="headline1" w="bold" c={color.labelStrong}>{'지금, 청약이\n열렸어요'}</Txt>
-            <View style={s.bannerBtn}>
-              <Txt v="caption1" w="bold" c={color.onPrimarySoft}>청약 보러 가기</Txt>
-              <Icon name="chev" size={14} c={color.onPrimarySoft} />
-            </View>
-          </View>
-          <View style={{ width: 132, height: 104 }}>
-            {openFundings.slice(0, 3).map((f, i) => {
-              const w = data?.works.find((x) => x.id === f.work_id);
-              return (
-                <View key={f.id} style={[s.stack, { left: i * 34, top: i % 2 ? 0 : 8, transform: [{ rotate: `${(i - 1) * 6}deg` }], zIndex: 3 - i }]}>
-                  <Cover id={f.work_id} title={f.work_title} url={w?.cover_url} size="Small" />
-                </View>
-              );
-            })}
-            <View style={s.count}><Txt v="caption2" w="bold" c={color.white}>{`${openFundings.length}건`}</Txt></View>
-          </View>
-        </Pressable>
-      ) : null}
 
       {searching || showSearch ? null : tab === 'rank' ? (
-        <Section title="찜 많은 순" count={`${ranked.length}작품`}>
-          {ranked.map((w, i) => (
-            <View key={w.id} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.gapL }}>
-              <Txt v="headline1" w="bold" c={i < 3 ? color.highlight : color.labelAlternative} style={{ width: 24, textAlign: 'center' }} tabular>{i + 1}</Txt>
-              <View style={{ flex: 1 }}><WorkCard data={cardOf(w)} last={i === ranked.length - 1} onPress={() => open(w)} /></View>
-            </View>
-          ))}
-        </Section>
+        // 랭킹: 1~3위만 크게, 나머지는 펼쳐서
+        <View style={{ gap: spacing.gapXl }}>
+          <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' }}>
+            <Txt v="headline1" w="bold" c={color.labelStrong}>찜 많은 작품</Txt>
+            <Txt v="caption1" c={color.labelAlternative}>오늘 기준</Txt>
+          </View>
+          {(showAll ? ranked : ranked.slice(0, 3)).map((w, i) => {
+            const ph = phaseOf(w.funding_status);
+            return (
+              <Pressable key={w.id} onPress={() => open(w)} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.gapL, paddingVertical: spacing.gapS }}>
+                <Txt v={i < 3 ? 'title2' : 'headline2'} w="bold" c={i < 3 ? color.primaryNormal : color.labelAlternative} style={{ width: 28, textAlign: 'center' }} tabular>{i + 1}</Txt>
+                <View style={{ width: i < 3 ? 76 : 56 }}><Cover id={w.id} title={w.title} url={w.cover_url} size="Small" /></View>
+                <View style={{ flex: 1, gap: 6 }}>
+                  <Txt v={i < 3 ? 'body1' : 'body2'} w="bold" c={color.labelStrong} lines={2}>{w.title}</Txt>
+                  <Txt v="caption1" c={color.labelAlternative} lines={1}>{`${typeLabel(w.type)} · ${w.genre}`}</Txt>
+                  <View style={{ flexDirection: 'row', gap: spacing.gapS, alignItems: 'center' }}>
+                    <Txt v="caption1" w="semibold" c={ph === 'OPEN' ? color.primaryNormal : color.labelNeutral}>{PHASE_LABEL[ph]}</Txt>
+                    <Txt v="caption1" c={color.labelAssistive}>{`관심 ${w.dib_count.toLocaleString('ko-KR')}`}</Txt>
+                  </View>
+                </View>
+              </Pressable>
+            );
+          })}
+          {ranked.length > 3 ? (
+            <Pressable onPress={() => setShowAll(!showAll)} style={{ alignSelf: 'center', paddingHorizontal: spacing.insetL, paddingVertical: spacing.insetS, borderRadius: radius.chip, borderWidth: 1, borderColor: color.lineNormal }}>
+              <Txt v="label2" w="semibold" c={color.labelNeutral}>{showAll ? '접기' : `4위부터 더 보기 (${ranked.length - 3})`}</Txt>
+            </Pressable>
+          ) : null}
+        </View>
       ) : (
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', columnGap: spacing.gapL, rowGap: spacing.gapXl }}>
           {ranked.map((w) => {

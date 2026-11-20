@@ -23,6 +23,8 @@ function ShortsGlyph({ c }: { c: string }) {
 }
 
 export function FloatingTabBar({ state, navigateToTab, insets }: BottomTabBarProps) {
+  // 쇼츠는 몰입형 화면이라 하단 탭을 숨긴다 (닫기 X 로 나감)
+  if (state.routes[state.index]?.name === 'shorts') return null;
   return (
     <View pointerEvents="box-none" style={[s.wrap, { paddingBottom: Math.max(insets.bottom, spacing.insetXl) }]}>
       <View style={s.nav} accessibilityRole="tabbar" accessibilityLabel="하단 메뉴">
@@ -49,8 +51,8 @@ export function FloatingTabBar({ state, navigateToTab, insets }: BottomTabBarPro
               accessibilityLabel={tab.label}
               accessibilityState={{ selected: active }}
               onPress={() => navigateToTab(route.key)}
-              style={s.item}>
-              <Icon name={active ? tab.activeIcon : tab.icon} size={24} c={active ? color.labelStrong : color.interactionInactive} />
+              style={[s.item, active && s.itemOn]}>
+              <Icon name={active ? tab.activeIcon : tab.icon} size={22} c={active ? color.primaryNormal : color.interactionInactive} />
             </Pressable>
           );
         })}
@@ -74,5 +76,6 @@ const s = StyleSheet.create({
     ...shadow.large,
   },
   item: { flex: 1, height: 46, borderRadius: radius.chip, alignItems: 'center', justifyContent: 'center' },
+  itemOn: { backgroundColor: color.shortsActiveFill },
   shortsOn: { backgroundColor: color.shortsActiveFill, borderWidth: 1, borderColor: '#F6BFD0' },
 });

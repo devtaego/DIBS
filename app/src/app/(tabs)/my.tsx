@@ -1,10 +1,9 @@
 import { router } from 'expo-router';
-import { View } from 'react-native';
+import { Image, Pressable, View } from 'react-native';
 
 import { ErrorBox } from '@/components/ui';
-import { Greet } from '@/components/dibby';
 import { Button, DScreen, GroupLabel, Icon, ListCell, Panel, TopAppBar, Txt, color, radius, spacing } from '@/ds';
-import { api, type Holding, type MySubscription, type Wallet } from '@/lib/api';
+import { api, type Holding, type MySubscription, type Wallet, type WorkCard } from '@/lib/api';
 import { DEMO } from '@/lib/demo';
 import { useSession } from '@/lib/session';
 import { useApi } from '@/lib/useApi';
@@ -16,10 +15,11 @@ export default function My() {
   const { me, logout, baseUrl } = useSession();
   const { data, error, reload } = useApi(async () => {
     if (!me) return null;
-    const [wallet, holdings, subs] = await Promise.all([
+    const [wallet, holdings, subs, dibs] = await Promise.all([
       api.get<Wallet>('/wallet'), api.get<Holding[]>('/me/holdings'), api.get<MySubscription[]>('/me/subscriptions'),
+      api.get<WorkCard[]>('/me/dibs').catch(() => [] as WorkCard[]),
     ]);
-    return { wallet, holdings, subs };
+    return { wallet, holdings, subs, dibs };
   }, [me?.id]);
 
   if (!me) {
@@ -36,31 +36,41 @@ export default function My() {
   const active = (data?.subs ?? []).filter((x) => x.status === 'ACTIVE');
   const deposit = data?.wallet.deposit_available ?? 0;
   const units = (data?.holdings ?? []).reduce((a, h) => a + h.units, 0);
+  const activeAmt = active.reduce((a, x) => a + x.units * x.unit_price, 0);
+  const days = me.created_at ? Math.max(1, Math.ceil((Date.now() - new Date(me.created_at).getTime()) / 86_400_000)) : 1;
 
   return (
     <DScreen header={<TopAppBar type="Main" />} onRefresh={reload} tabBar gap={spacing.gapXl} padTop={spacing.insetS}>
       <ErrorBox error={error} onRetry={reload} />
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.gapL }}>
-        <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: '#FDEBF1', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#F6D3DF' }}>
-          <Txt v="headline1" w="bold" c={color.highlight}>{me.nickname.slice(0, 1)}</Txt>
+      {/* 프로필: 디비 얼굴 아바타 + 등급 배지 + 가입 일수 */}
+      <Pressable style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.gapL }} onPress={() => router.push('/risk-profile')}>
+        <View style={{ width: 60, height: 60, borderRadius: 30, backgroundColor: '#FDEBF1', overflow: 'hidden', alignItems: 'center', justifyContent: 'center' }}>
+          <Image source={require('../../../assets/dibby/face-happy.png')} style={{ width: 60, height: 60 }} resizeMode="cover" accessibilityLabel="프로필 디비" />
         </View>
         <View style={{ flex: 1, gap: spacing.gapXs }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.gapS }}>
             <Txt v="headline1" w="bold" c={color.labelStrong}>{me.nickname}</Txt>
-            <View style={{ height: 20, paddingHorizontal: spacing.insetS, borderRadius: radius.chip, borderWidth: 1, borderColor: color.lineNormal, justifyContent: 'center' }}>
-              <Txt v="caption2" w="bold" c={color.labelNeutral}>{me.risk_level ? RISK[me.risk_level] ?? me.risk_level : '투자성향 미확인'}</Txt>
+            <View style={{ height: 22, paddingHorizontal: spacing.insetS, borderRadius: radius.chip, borderWidth: 1, borderColor: color.lineNormal, justifyContent: 'center' }}>
+              <Txt v="caption2" w="bold" c={color.labelNeutral}>{units ? '새싹 투자자' : '예비 투자자'}</Txt>
             </View>
           </View>
-          <Txt v="caption1" c={color.labelAlternative}>{me.email}</Txt>
+          <Txt v="caption1" c={color.labelAlternative}>{`가입 ${days}일째 · ${me.risk_level ? RISK[me.risk_level] ?? me.risk_level : '투자성향 미확인'}`}</Txt>
         </View>
-      </View>
+        <Icon name="chev" size={20} c={color.labelAssistive} />
+      </Pressable>
 
-      <Greet
-        pose={units ? 'puff' : 'hello'}
-        title={`볼주머니가 ${units ? '든든해요' : '아직 비어 있어요'}`}
-        text={`보유 조각 ${units.toLocaleString('ko-KR')}개 · 청약 ${active.length}건`}
-        style={{ marginTop: 0 }}
-      />
+      <View style={{ flexDirection: 'row', paddingVertical: spacing.insetS }}>
+        {[
+          [`${data?.holdings.length ?? 0}종목`, '보유 조각'],
+          [activeAmt ? `${(activeAmt / 10000).toLocaleString('ko-KR', { maximumFractionDigits: 1 })}만` : '0', '진행 중 펀딩'],
+          [`${data?.dibs.length ?? 0}`, '관심 작품'],
+        ].map(([v, l], i) => (
+          <View key={l} style={[{ flex: 1, alignItems: 'center', gap: spacing.gap2xs }, i > 0 && { borderLeftWidth: 1, borderLeftColor: color.lineAlternative }]}>
+            <Txt v="body1" w="bold" c={color.labelStrong} tabular>{v}</Txt>
+            <Txt v="caption1" w="medium" c={color.labelAlternative}>{l}</Txt>
+          </View>
+        ))}
+      </View>
 
       <Panel style={{ borderColor: color.lineNormal }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.gapS }}>
@@ -87,6 +97,7 @@ export default function My() {
         <GroupLabel>혜택 · 도움</GroupLabel>
         <ListCell title="투자성향 다시 확인" icon="shield" onPress={() => router.push('/risk-profile')} />
         <ListCell title="알림" icon="bell" onPress={() => router.push('/notifications')} />
+        <ListCell title="앱 소개 다시 보기" icon="cHelp" onPress={() => router.push('/intro')} />
         {me.role === 'ADMIN' ? <ListCell title="시연용 운영자 패널" icon="gear" onPress={() => router.push('/admin')} divider={false} /> : null}
       </View>
       <Txt v="caption2" c={color.labelAssistive}>{DEMO ? '정적 데모 · 시연 데이터로 동작 (실제 저장 없음)' : `서버: ${baseUrl}`}</Txt>

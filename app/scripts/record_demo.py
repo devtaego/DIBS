@@ -41,7 +41,7 @@ def main():
         return data
 
     for p in ["/me", "/wallet", "/wallet/history", "/me/holdings", "/me/subscriptions", "/me/dividends", "/me/notifications",
-              "/config/public", "/health", "/me/limits"]:
+              "/config/public", "/health", "/me/limits", "/me/dibs"]:
         get(p)
     get("/me/orders", {"open_only": True})
     get("/me/orders")

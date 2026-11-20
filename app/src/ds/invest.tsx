@@ -166,14 +166,15 @@ export function PortfolioBar({ items }: { items: { label: string; value: number 
 }
 
 // ── Portfolio Summary ──
-export function PortfolioSummary({ total, change, trend, items, stats, onMore }: {
-  total: string; change?: string; trend?: 'Rise' | 'Fall' | 'Flat'; items: { label: string; value: number }[]; stats?: { label: string; value: string }[]; onMore?: () => void;
+export function PortfolioSummary({ total, change, trend, items, stats, onMore, label = '내 투자 자산', badge }: {
+  label?: string; badge?: string; total: string; change?: string; trend?: 'Rise' | 'Fall' | 'Flat'; items: { label: string; value: number }[]; stats?: { label: string; value: string }[]; onMore?: () => void;
 }) {
   return (
     <View style={s.panel}>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-        <AmountDisplay label="내 투자 자산" value={total} change={change} trend={trend} />
+        <AmountDisplay label={label} value={total} change={change} trend={trend} />
         {onMore ? <Button label="자산 보기" variant="Text" tone="Assistive" size="Small" fill={false} onPress={onMore} /> : null}
+        {badge ? <Badge type="Neutral" label={badge} /> : null}
       </View>
       <PortfolioBar items={items} />
       {stats ? <StatGrid items={stats} /> : null}

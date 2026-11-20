@@ -15,11 +15,12 @@ type Props = {
   loop?: boolean; // 다음 영상이 없을 때만 반복
   onEnded?: () => void;
   onToggleMute?: () => void;
+  full?: boolean; // 몰입형(가장자리까지, 모서리 둥글림 없음)
 };
 
 type VideoEl = { play: () => Promise<void>; pause: () => void; currentTime: number; muted: boolean };
 
-export function ShortVideo({ url, durationSec, active = true, muted = true, loop = false, onEnded, onToggleMute }: Props) {
+export function ShortVideo({ url, durationSec, active = true, muted = true, loop = false, onEnded, onToggleMute, full }: Props) {
   const ref = useRef<VideoEl | null>(null);
 
   useEffect(() => {
@@ -43,7 +44,7 @@ export function ShortVideo({ url, durationSec, active = true, muted = true, loop
 
   if (isPlayable(url)) {
     return (
-      <View style={s.box}>
+      <View style={[s.box, full && s.full]}>
         {createElement('video', {
           ref,
           src: url,
@@ -55,7 +56,7 @@ export function ShortVideo({ url, durationSec, active = true, muted = true, loop
           onClick: onToggleMute,
           style: { width: '100%', height: '100%', objectFit: 'cover', backgroundColor: '#000' },
         })}
-        <View style={s.sound} pointerEvents="none">
+        <View style={[s.sound, full && s.soundFull]} pointerEvents="none">
           <Icon name={muted ? 'volOff' : 'vol'} size={16} c="#F3E8EE" />
           <Txt v="caption2" c="#F3E8EE">{muted ? '눌러서 소리 켜기' : '소리 켜짐'}</Txt>
         </View>
@@ -72,6 +73,8 @@ export function ShortVideo({ url, durationSec, active = true, muted = true, loop
 
 const s = StyleSheet.create({
   box: { flex: 1, borderRadius: radius.sheet, overflow: 'hidden', backgroundColor: '#1B1C29' },
+  full: { borderRadius: 0 },
+  soundFull: { display: 'none' }, // 몰입형에서는 오른쪽 버튼 줄의 소리 버튼으로
   placeholder: { alignItems: 'center', justifyContent: 'center', gap: spacing.gapM },
   sound: {
     position: 'absolute', top: 12, left: 12, flexDirection: 'row', alignItems: 'center', gap: 4,

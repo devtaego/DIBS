@@ -62,19 +62,15 @@ export function IconButton({ icon, label, onPress, variant = 'Normal', c = color
 }
 
 // ── Logo: D · ! · B · S 박스형 (느낌표 칸 = Primary 핑크) ──
-export function Logo({ size = 36 }: { size?: number }) {
-  const cell = (size - 2) / 2;
-  const box = (ch: string, pink?: boolean) => (
-    <View style={{ width: cell, height: cell, borderRadius: 3, backgroundColor: pink ? color.primaryNormal : color.labelStrong, alignItems: 'center', justifyContent: 'center' }}>
-      <Text style={{ color: color.white, fontFamily: 'Pretendard-Bold', fontSize: cell * 0.62, lineHeight: cell * 0.9 }}>{ch}</Text>
-    </View>
-  );
+// 로고 심볼 (디자인 시스템 최신): 굵은 D 오른쪽 위에 핑크 느낌표 배지
+export function Logo({ size = 30 }: { size?: number }) {
+  const badge = Math.round(size * 0.36);
   return (
-    <View accessibilityLabel="DIBS" style={{ width: size, height: size, flexDirection: 'row', flexWrap: 'wrap', gap: 2 }}>
-      {box('D')}
-      {box('!', true)}
-      {box('B')}
-      {box('S')}
+    <View accessibilityLabel="DIBS" style={{ height: size, width: size * 0.92, justifyContent: 'center' }}>
+      <Text style={{ color: color.labelStrong, fontFamily: 'Pretendard-Bold', fontSize: size * 0.98, lineHeight: size * 1.05, letterSpacing: -1 }}>D</Text>
+      <View style={{ position: 'absolute', top: size * 0.02, right: -size * 0.16, width: badge, height: badge, borderRadius: badge * 0.32, backgroundColor: color.primaryNormal, alignItems: 'center', justifyContent: 'center', transform: [{ rotate: '12deg' }] }}>
+        <Text style={{ color: color.white, fontFamily: 'Pretendard-Bold', fontSize: badge * 0.72, lineHeight: badge * 0.9 }}>!</Text>
+      </View>
     </View>
   );
 }

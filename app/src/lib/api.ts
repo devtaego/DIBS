@@ -17,7 +17,7 @@ export function guessBaseUrl(): string {
 }
 
 // 저장소를 못 쓰는 환경(샌드박스 프레임 등)에서도 앱이 멈추지 않게 한다
-const store = {
+export const store = {
   get: async (k: string) => { try { return await AsyncStorage.getItem(k); } catch { return null; } },
   set: async (k: string, v: string) => { try { await AsyncStorage.setItem(k, v); } catch { /* 무시 */ } },
   del: async (k: string) => { try { await AsyncStorage.removeItem(k); } catch { /* 무시 */ } },
@@ -111,7 +111,7 @@ export function track(event_type: string, ids: { work_id?: number; episode_id?: 
 export type Me = {
   id: number; email: string; nickname: string; role: 'READER' | 'CREATOR' | 'ADMIN';
   kyc_verified: boolean; risk_level: string | null; risk_checked_at: string | null; bio: string;
-  broker_name: string | null; broker_account_masked: string | null;
+  broker_name: string | null; broker_account_masked: string | null; created_at?: string;
 };
 export type Progress = { requested_units: number; raised_amount: number; participants: number; achievement_pct: number };
 export type WorkCard = { id: number; title: string; genre: string; type: string; synopsis: string; cover_url?: string | null; creator_id: number; dib_count: number; funding_id: number | null; funding_status: string | null };

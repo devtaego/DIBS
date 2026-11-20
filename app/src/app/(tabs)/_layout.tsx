@@ -1,20 +1,27 @@
 import { Redirect, Tabs } from 'expo-router';
+import { useEffect, useState } from 'react';
 import { View } from 'react-native';
 
 import { FloatingTabBar } from '@/components/FloatingTabBar';
 import { Loading } from '@/components/ui';
+import { introSeen } from '@/lib/intro';
 import { useSession } from '@/lib/session';
 import { colors } from '@/lib/theme';
 
 export default function TabsLayout() {
   const { ready, me } = useSession();
-  if (!ready) {
+  const [seen, setSeen] = useState<boolean | null>(null);
+  useEffect(() => {
+    introSeen().then(setSeen);
+  }, []);
+  if (!ready || seen === null) {
     return (
       <View style={{ flex: 1, backgroundColor: colors.bg, justifyContent: 'center' }}>
         <Loading />
       </View>
     );
   }
+  if (!seen) return <Redirect href="/intro" />; // 첫 실행이면 인트로 4장
   if (!me) return <Redirect href="/login" />;
 
   // 순서 = 하단 탭 순서 (디자인: 홈 · 탐색 · 숏츠 · 증권 · MY)

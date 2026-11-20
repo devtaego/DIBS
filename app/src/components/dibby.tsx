@@ -208,7 +208,7 @@ export function DibbyLoading({ visible, title, step, pct }: { visible: boolean; 
         <T size={14} weight="500" color={colors.labelAlternative} style={{ marginTop: space(2) }}>{step}</T>
         <T size={13} weight="700" color={colors.primary} style={{ marginTop: space(3) }}>{Math.round(pct)}%</T>
         <View style={{ position: 'absolute', bottom: 56, flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-          <T size={12} weight="500" color={colors.labelAssistive}>모의 시연 · 실제 거래가 일어나지 않아요</T>
+          <T size={12} weight="500" color={colors.labelAssistive}>원금 손실 가능 · 예금자 보호 대상 아님</T>
         </View>
       </View>
     </Modal>

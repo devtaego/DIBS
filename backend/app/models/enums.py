@@ -59,6 +59,8 @@ class AccountKind(StrEnum):
     # 상장 작품 유료 회차 매출: 결제 시점에 신탁 계좌로 바로 분할 (DIBS 매출 계정을 거치지 않음)
     SYS_TRUST_RECEIVABLE = "SYS_TRUST_RECEIVABLE"
     SYS_PARTNER_COUPON = "SYS_PARTNER_COUPON"  # 증권사가 사서 신규 계좌 고객에게 준 코인 (계좌 개설 쿠폰)
+    SYS_PARTNER_POINT = "SYS_PARTNER_POINT"  # 증권사 포인트를 코인으로 바꿔 준 몫 (증권사가 정산)
+    SYS_PROMOTION = "SYS_PROMOTION"  # 출석 코인 등 DIBS 마케팅비
     SYS_CREATOR_ESCROW = "SYS_CREATOR_ESCROW"  # 회수 전 유보한 작가 매출 몫 (신탁)
     SYS_SPECIAL_PAYABLE = "SYS_SPECIAL_PAYABLE"  # 증권사 지급 대기 중인 특별 분배금
     SYS_TAX_WITHHOLDING = "SYS_TAX_WITHHOLDING"

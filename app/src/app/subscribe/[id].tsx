@@ -123,7 +123,7 @@ export default function SubscribeScreen() {
     if (tierObj && units < tierObj.min_units) return setError(new ApiError(0, 'TIER_MIN_UNITS', `${tierObj.title}은 ${tierObj.min_units}조각부터 받을 수 있어요`));
     setError(null);
     try {
-      const shipping = tierObj?.requires_shipping ? { name: me.nickname, address1: '시연용 배송지' } : undefined;
+      const shipping = tierObj?.requires_shipping ? { name: me.nickname, address1: '서울시 마포구 월드컵북로 1' } : undefined;
       await task.run('청약을 접수하고 있어요', ['청약 수량을 확인하고 있어요', '한도와 예치금을 확인하고 있어요', '청약 증거금을 맡기고 있어요'], () =>
         existing
           ? api.patch(`/fundings/${id}/subscriptions/me`, { units, reward_tier_id: tier, shipping })
@@ -134,7 +134,7 @@ export default function SubscribeScreen() {
         pose: 'dibs',
         tag: 'MOCK SUBSCRIPTION',
         title: existing ? '청약 금액을 바꿨어요' : '펀딩에 참여했어요',
-        sub: `${f.work_title}\n${manwon(amount)} · ${units}조각 모의 청약`,
+        sub: `${f.work_title}\n${manwon(amount)} · ${units}조각 청약`,
         rows: [
           ['청약 금액', manwon(amount)],
           ['목표 달성 시', `${units.toLocaleString('ko-KR')}조각으로 전환`],
@@ -177,8 +177,7 @@ export default function SubscribeScreen() {
           </View>
         ) : null}
         <DNote title={`위험 등급 ${f.risk_grade}`} text="목표에 못 미쳐 발행이 실패하면 전액 돌려드려요." style={{ marginTop: 0 }} />
-        <Txt v="caption1" c={color.labelAlternative}>이 화면은 모의 청약이며 실제 청약은 증권사 화면에서 진행돼요.</Txt>
-        <Button label="DIBS 안에서 모의 청약하기 (키움 연결 없이)" variant="Text" tone="Assistive" size="Small" onPress={submit} />
+        <Button label="DIBS 예치금으로 청약하기" variant="Text" tone="Assistive" size="Small" onPress={submit} />
         <ErrorBox error={error} />
         {task.overlay}
       </DScreen>

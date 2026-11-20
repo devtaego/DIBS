@@ -11,6 +11,36 @@ const local: Record<string, unknown> = {};
 
 export const DEMO = process.env.EXPO_PUBLIC_DEMO === '1';
 
+// ── 열람 리워드·유료 회차 (정적 데모용 상태) ──
+type EpMeta = { id: number; work_id: number; no: number; title: string; is_paid: boolean; price_coin: number };
+const unlocked = new Set<number>();
+let attended = false;
+let points = 3000;
+const PAST = [true, true, false, true, true, true]; // 지난 6일 출석 기록 (오늘 출석하면 4일 연속)
+function episodeMeta(id: number): (EpMeta & { work_id: number }) | null {
+  for (const [k, v] of Object.entries(F)) {
+    const m = k.match(/^\/works\/(\d+)\/episodes$/);
+    if (!m || !Array.isArray(v)) continue;
+    const e = (v as EpMeta[]).find((x) => x.id === id);
+    if (e) return { ...e, work_id: Number(m[1]) };
+  }
+  return null;
+}
+function wallet() {
+  return (local['/wallet'] ?? F['/wallet']) as { coin: number } & Record<string, unknown>;
+}
+function addCoin(n: number) {
+  const w = clone(wallet());
+  w.coin += n;
+  local['/wallet'] = w;
+}
+function attendanceState() {
+  const week = [...PAST, attended];
+  let streak = 0;
+  for (let i = week.length - 1; i >= 0; i--) { if (week[i]) streak++; else if (i === week.length - 1) continue; else break; }
+  return { today: '2027-03-02', checked: attended, streak, week, coin: 100, bonus_days: 7, bonus: 300 };
+}
+
 function key(path: string, query: Query) {
   const q = Object.entries(query ?? {})
     .filter(([, v]) => v !== undefined && v !== null && v !== '')
@@ -29,6 +59,16 @@ export async function demoRequest(method: string, path: string, body?: unknown, 
   if (method === 'GET') {
     const k = key(path, query);
     if (k in local) return clone(local[k]);
+    const epm = path.match(/^\/episodes\/(\d+)$/);
+    if (epm && !(k in F)) {
+      // 유료 회차: 열기 전에는 결제 필요, 연 뒤에는 회차 정보로 보여 준다
+      const meta = episodeMeta(Number(epm[1]));
+      if (!meta) throw Object.assign(new Error('회차를 찾을 수 없어요'), { status: 404, code: 'NOT_FOUND' });
+      if (!unlocked.has(meta.id)) throw Object.assign(new Error(`이어서 보려면 ${meta.price_coin}코인이 필요해요`), { status: 402, code: 'PAYMENT_REQUIRED' });
+      return { ...meta, content_url: `https://cdn.example/${meta.work_id}/${meta.no}` };
+    }
+    if (path === '/me/attendance') return attendanceState();
+    if (path === '/me/partner-points') return { broker: '키움증권', balance: points, converted: 3000 - points, unit: 100, rate: 1 };
     if (k in F) return clone(F[k]);
     // 검색어(q)가 있으면 검색어 없는 목록에서 제목으로 거른다
     if (query?.q && path === '/works') {
@@ -45,6 +85,31 @@ export async function demoRequest(method: string, path: string, body?: unknown, 
   }
   // ── 쓰기 요청 ──
   if (path === '/auth/dev-login') return { access_token: 'demo-token' };
+  const un = path.match(/^\/episodes\/(\d+)\/unlock$/);
+  if (un) {
+    const meta = episodeMeta(Number(un[1]));
+    const price = meta?.price_coin ?? 300;
+    if (wallet().coin < price) throw Object.assign(new Error(`코인이 ${price - wallet().coin}개 모자라요`), { status: 409, code: 'INSUFFICIENT_BALANCE' });
+    addCoin(-price);
+    unlocked.add(Number(un[1]));
+    return { ok: true };
+  }
+  if (path === '/me/attendance') {
+    const st = attendanceState();
+    if (st.checked) throw Object.assign(new Error('오늘은 이미 출석했어요. 내일 또 만나요!'), { status: 409, code: 'ALREADY_ATTENDED' });
+    attended = true;
+    const granted = 100 + ((st.streak + 1) % 7 === 0 ? 300 : 0);
+    addCoin(granted);
+    return { ...attendanceState(), granted };
+  }
+  if (path === '/me/partner-points/convert') {
+    const n = Number((body as { points?: number })?.points ?? 0);
+    if (n <= 0 || n % 100) throw Object.assign(new Error('100P 단위로 바꿀 수 있어요'), { status: 400, code: 'BAD_POINTS' });
+    if (n > points) throw Object.assign(new Error('키움 포인트가 모자라요'), { status: 400, code: 'NOT_ENOUGH_POINTS' });
+    points -= n;
+    addCoin(n);
+    return { broker: '키움증권', balance: points, converted: 3000 - points, unit: 100, rate: 1 };
+  }
   if (path === '/me' && method === 'PATCH') {
     const me = { ...((local['/me'] ?? F['/me']) as Record<string, unknown>), ...(body as Record<string, unknown>) };
     local['/me'] = me;
@@ -74,6 +139,14 @@ export async function demoRequest(method: string, path: string, body?: unknown, 
       w.is_dibbed = on;
       local[k] = w;
     }
+    // 내 관심 작품 목록에도 반영 (MY · 관심 작품 · 쇼츠 하트가 같은 값을 보도록)
+    const wid = Number(dib[1]);
+    const mine = clone(((local['/me/dibs'] ?? F['/me/dibs']) ?? []) as { id: number }[]).filter((x) => x.id !== wid);
+    if (method === 'PUT') {
+      const card = ((F['/works?limit=100'] ?? []) as { id: number }[]).find((x) => x.id === wid) ?? (w as unknown as { id: number });
+      if (card) mine.unshift({ ...card, id: wid });
+    }
+    local['/me/dibs'] = mine;
     return { ok: true };
   }
   if (path === '/fundings/' + path.split('/')[2] + '/broker-handoff') {

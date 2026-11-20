@@ -416,3 +416,19 @@ def test_deadline_reminders_once(api, published_work, now):
     assert "DEADLINE_SOON" in types
     assert "DIBBED_DEADLINE_SOON" in {n["type"] for n in api.ok("rem_dib", "get", "/me/notifications")}
     assert reminders.REMIND_DAYS == 2
+
+
+def test_attendance_and_partner_points(api):
+    """출석 코인은 하루 한 번, 키움 포인트는 100P 단위로 코인만 된다 (예치금 아님)."""
+    api.login("att1")
+    before = api.ok("att1", "get", "/wallet")
+    r = api.ok("att1", "post", "/me/attendance")
+    assert r["granted"] == 100 and r["checked"] and r["streak"] == 1
+    api.err("att1", "post", "/me/attendance", code="ALREADY_ATTENDED")
+    p = api.ok("att1", "get", "/me/partner-points")
+    api.err("att1", "post", "/me/partner-points/convert", json={"points": 150}, code="BAD_POINTS")
+    p2 = api.ok("att1", "post", "/me/partner-points/convert", json={"points": 300})
+    assert p2["balance"] == p["balance"] - 300
+    after = api.ok("att1", "get", "/wallet")
+    assert after["coin"] == before["coin"] + 400
+    assert after["deposit_available"] == before["deposit_available"]

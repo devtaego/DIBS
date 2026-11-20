@@ -115,7 +115,7 @@ export function ListCell({ title, sub, icon, trailing = 'Chevron', value, badge,
         {sub ? <Txt v="caption1" c={color.labelAlternative} lines={1}>{sub}</Txt> : null}
       </View>
       {trailing === 'Value' && value ? <Txt v="label1" w="semibold" c={valueColor ?? color.labelNeutral}>{value}</Txt> : null}
-      {trailing === 'Badge' && badge ? <Badge label={badge} type="Highlight" /> : null}
+      {trailing === 'Badge' && badge ? <View style={{ alignSelf: 'center' }}><Badge label={badge} type="Highlight" /></View> : null}
       {trailing !== 'None' && onPress ? <Icon name="chev" size={18} c={color.labelAssistive} /> : null}
     </Pressable>
   );
@@ -145,7 +145,7 @@ export function StatGrid({ items, top = true }: { items: { label: string; value:
 }
 
 // ── Disclosure Bar (규제 고지 줄) ──
-export function DisclosureBar({ text = '원금 손실 가능 · 예금자 보호 대상 아님 · 모의 거래', onPress }: { text?: string; onPress?: () => void }) {
+export function DisclosureBar({ text = '원금 손실 가능 · 예금자 보호 대상 아님', onPress }: { text?: string; onPress?: () => void }) {
   return (
     <Pressable onPress={onPress} style={s.disc}>
       <Icon name="info" size={16} c={color.labelAlternative} />

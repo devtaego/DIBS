@@ -122,7 +122,6 @@ export default function WorkScreen() {
               <View style={{ flex: 1 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                   <T size={14} weight="700">{listed ? '조각 거래' : '조각 청약'}</T>
-                  <Chip label="모의" tone="pink" />
                 </View>
                 <T size={12} color={colors.labelAlternative} style={{ marginTop: 2 }}>
                   1조각 {won(funding.unit_price)} · 플랫폼 매출 수익권 · 진행 {funding.progress.achievement_pct.toLocaleString('ko-KR')}%
@@ -137,7 +136,7 @@ export default function WorkScreen() {
         <View style={s.listCard}>
           {episodes.map((ep, i) => (
             <Pressable key={ep.id} onPress={() => router.push(`/episode/${ep.id}`)} style={[s.li, i === episodes.length - 1 && { borderBottomWidth: 0 }]}>
-              <T size={14} style={{ flex: 1 }} numberOfLines={1}>{ep.no}화 · {ep.title}</T>
+              <T size={14} style={{ flex: 1 }} numberOfLines={1}>{ep.title === `${ep.no}화` ? ep.title : `${ep.no}화 · ${ep.title}`}</T>
               {ep.is_paid && !ep.unlocked ? (
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
                   <Ionicons name="lock-closed-outline" size={14} color={colors.highlight} />

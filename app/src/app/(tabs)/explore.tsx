@@ -73,7 +73,12 @@ export default function Explore() {
     if (f) return fundingToCard(f, w);
     return { id: w.id, title: w.title, genre: w.genre, format: typeLabel(w.type), likes: w.dib_count, pct: 0, raised: '', status: fundingStatus(w.funding_status), dday: '', coverUrl: w.cover_url };
   };
-  const open = (w: Work) => (w.funding_id ? router.push(w.funding_status === 'LISTED' ? `/security/${w.funding_id}` : `/funding/${w.funding_id}`) : router.push(`/work/${w.id}`));
+  // 공모 전(심사·승인 대기) 작품은 펀딩 페이지가 아직 공개되지 않으므로 작품 페이지로
+  const open = (w: Work) => {
+    const ph = phaseOf(w.funding_status);
+    if (!w.funding_id || ph === 'PRE') return router.push(`/work/${w.id}`);
+    return router.push(w.funding_status === 'LISTED' ? `/security/${w.funding_id}` : `/funding/${w.funding_id}`);
+  };
 
   const openFundings = [...(data?.fundings ?? [])].sort((x, y) => (x.days_left ?? 99) - (y.days_left ?? 99));
   const header = (

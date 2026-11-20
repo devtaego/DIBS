@@ -39,7 +39,7 @@ export default function SecurityScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
     <Screen onRefresh={reload}>
-      <MiniWork id={d.work_id} title={d.work_title} line2={`${d.security_code ?? '발행 전'} · 플랫폼 매출 수익권`} right={<Chip label="모의" tone="pink" />} />
+      <MiniWork id={d.work_id} title={d.work_title} line2={`${d.security_code ?? '발행 전'} · 플랫폼 매출 수익권`} />
       {!tradable ? <View style={{ marginTop: space(3) }}><Badge label={FUNDING_STATUS[d.status]} tone="danger" /></View> : null}
       <T size={32} weight="700" style={{ marginTop: space(4) }}>{won(d.last_price)}</T>
       <T size={14} weight="600" color={changeColor(d.change_pct)}>
@@ -60,7 +60,7 @@ export default function SecurityScreen() {
       <View style={s.card}>
         <KV k="내 보유" v={`${d.my_units ?? 0}조각${d.my_units ? ` · 평균 ${won(d.my_avg_price)}` : ''}`} />
         <KV k="주문 가능 가격" v={`${won(d.price_band.min)} ~ ${won(d.price_band.max)}`} />
-        <KV k="거래 방식" v="지정가 · 모의" />
+        <KV k="거래 방식" v="지정가" />
       </View>
       {!tradable ? (
         <Muted style={{ marginTop: space(3) }}>{d.status === 'TERMINATED' ? '수익 배분 권리가 끝난 종목이에요. 원금 상환은 없어요.' : '거래가 정지된 종목이에요.'}</Muted>

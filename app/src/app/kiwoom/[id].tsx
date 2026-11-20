@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Animated, Easing, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { CtaBar, ModeFlag } from '@/components/dibby';
+import { CtaBar } from '@/components/dibby';
 import { Button, Check, ErrorBox, KV, Loading, Screen, Stepper, T } from '@/components/ui';
 import { api, ApiError, type FundingDetail, type MockKiwoomResult } from '@/lib/api';
 import { nowMs } from '@/lib/now';
@@ -49,9 +49,9 @@ export default function MockKiwoomScreen() {
       if (!link.linked) setLink({ linked: true, account: '5012-****-31', at: new Date(nowMs()).toISOString().slice(0, 10) }); // MY > 연결 계좌에 반영
       showDone({
         pose: 'dibs',
-        tag: 'KIWOOM (MOCK)',
+        tag: 'KIWOOM',
         title: '키움에서 청약을 접수했어요',
-        sub: `${f.work_title}\n${units}조각 모의 청약`,
+        sub: `${f.work_title}\n${units}조각 청약`,
         rows: [
           ['청약 수량', `${units.toLocaleString('ko-KR')}조각`],
           ['청약 금액', won(units * f.unit_price)],
@@ -76,11 +76,10 @@ export default function MockKiwoomScreen() {
       <Stack.Screen options={{ headerShown: true }} />
       <Screen>
         <View style={s.brand}>
-          <T size={11} weight="700" color="#9FB0FF">키움증권 (모의) · 토큰증권 공모 청약</T>
+          <T size={11} weight="700" color="#9FB0FF">키움증권 · 토큰증권 공모 청약</T>
           <T size={17} weight="700" color="#ffffff" style={{ marginTop: 4 }}>결제 전에 수량을 확인해 주세요</T>
-          <T size={11} color="#ffffffb3" style={{ marginTop: 4 }}>DIBS에서 넘어온 모의 화면이에요. 실제로는 키움 앱이 열려요.</T>
+          <T size={11} color="#ffffffb3" style={{ marginTop: 4 }}>DIBS에서 고른 수량 그대로 키움증권에서 청약해요.</T>
         </View>
-        <ModeFlag text="모의 키움 서버 · DIBS 제안 연동 규격" />
         <View style={s.card}>
           <T size={15} weight="700">{f.work_title}</T>
           <KV k="1조각" v={won(f.unit_price)} />
@@ -128,7 +127,7 @@ function KiwoomSplash({ onDone }: { onDone: () => void }) {
   }, [p]);
   return (
     <View style={[k.wrap, { paddingTop: insets.top + 24, paddingBottom: insets.bottom + 28 }]}>
-      <Text style={k.top}>DIBS × 키움증권 · 모의 제휴</Text>
+      <Text style={k.top}>DIBS × 키움증권</Text>
       <View style={{ alignItems: 'center', gap: 10, marginTop: 120 }}>
         <Text style={k.tag}>잘 키우고 싶은 투자 본능</Text>
         <Text style={k.head}><Text style={{ color: '#8EA2FF' }}>조각투자</Text>도 키움</Text>
@@ -146,7 +145,7 @@ function KiwoomSplash({ onDone }: { onDone: () => void }) {
       <Text style={k.sub}>DIBS에서 결제 화면으로 이동하고 있어요</Text>
       <View style={k.barRow}>
         <View style={{ flex: 1, gap: 6 }}>
-          <Text style={k.ver}>Ver.1.6.2 (모의)</Text>
+          <Text style={k.ver}>Ver.1.6.2</Text>
           <View style={k.track}>
             <Animated.View style={[k.fill, { width: p.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }) }]} />
           </View>

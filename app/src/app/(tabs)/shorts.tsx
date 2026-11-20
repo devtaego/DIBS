@@ -32,12 +32,13 @@ export default function Shorts() {
   const [muted, setMuted] = useState(true);
   const listRef = useRef<FlatList<number>>(null);
   const { data } = useApi(async () => {
-    const [shorts, fundings, securities] = await Promise.all([
+    const [shorts, fundings, securities, dibs] = await Promise.all([
       api.get<ShortItem[]>('/shorts/feed', { limit: 50 }),
       api.get<FundingCard[]>('/fundings', { status: 'OPEN' }),
       api.get<SecurityItem[]>('/market/securities', { sort: 'change' }).catch(() => [] as SecurityItem[]),
+      api.get<{ id: number }[]>('/me/dibs').catch(() => [] as { id: number }[]),
     ]);
-    return { shorts, fundings, securities };
+    return { shorts, fundings, securities, dibbed: new Set(dibs.map((d) => d.id)) };
   });
   const fundingById = useMemo(() => new Map((data?.fundings ?? []).map((f) => [f.id, f])), [data]);
   const secById = useMemo(() => new Map((data?.securities ?? []).map((x) => [x.funding_id, x])), [data]);
@@ -94,7 +95,7 @@ export default function Shorts() {
           renderItem={({ item: slot }) => {
             const sh = items[slot % n];
             const f = sh.funding_id ? fundingById.get(sh.funding_id) : undefined;
-            const on = !!liked[sh.id];
+            const on = liked[sh.id] ?? !!data?.dibbed.has(sh.work_id);
             return (
               <View style={{ height: h }}>
                 <ShortVideo

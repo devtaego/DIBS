@@ -41,7 +41,7 @@ def charge_coin(db: Session, user: User, amount: int) -> Journal:
     _amount(amount)
     coin = ledger.get_account(db, AccountKind.COIN, COIN_MODE, user.id)
     return ledger.post(db, "COIN_CHARGE", [Leg(ledger.sys(db, AccountKind.SYS_PG, COIN_MODE), -amount), Leg(coin, amount)],
-                       COIN_MODE, "user", user.id, memo="PG 결제 (모의)")
+                       COIN_MODE, "user", user.id, memo="코인 충전")
 
 
 def charge_deposit(db: Session, user: User, amount: int) -> Journal:
@@ -50,7 +50,7 @@ def charge_deposit(db: Session, user: User, amount: int) -> Journal:
     ensure_mode_allowed(mode)
     acc = ledger.user_accounts(db, user.id, mode)
     return ledger.post(db, "DEPOSIT_IN", [Leg(ledger.sys(db, AccountKind.SYS_BANK, mode), -amount), Leg(acc.deposit, amount)],
-                       mode, "user", user.id, memo="모의 예치금" if mode == Mode.MOCK else "증권사 예탁금 입금")
+                       mode, "user", user.id, memo="예치금 입금" if mode == Mode.MOCK else "증권사 예탁금 입금")
 
 
 def deposit_to_coin(db: Session, user: User, amount: int) -> Journal:

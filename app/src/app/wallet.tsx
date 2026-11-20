@@ -39,7 +39,7 @@ export default function WalletScreen() {
         <T weight="700">콘텐츠용 코인</T>
         <T size={26} weight="700">{w.coin.toLocaleString('ko-KR')}코인</T>
         <Muted>유료 회차에만 써요. 예치금으로 바꿀 수 없어요.</Muted>
-        <Button title="코인 1,000 충전 (모의 결제)" kind="ghost" onPress={() => act('/wallet/coin/charge', 1000, '코인 충전')} style={{ marginTop: space(3) }} />
+        <Button title="코인 1,000 충전" kind="ghost" onPress={() => act('/wallet/coin/charge', 1000, '코인 충전')} style={{ marginTop: space(3) }} />
       </Card>
       <Card style={{ backgroundColor: colors.cardAlt }}>
         <Row style={{ justifyContent: 'space-between' }}>

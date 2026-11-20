@@ -12,22 +12,23 @@ const FAQ: [string, string][] = [
   ['목표에 못 미치면요?', '펀딩이 성립하지 않고, 청약 금액은 전액 돌려드려요.'],
   ['청약을 취소하거나 수량을 바꿀 수 있나요?', '마감 1시간 전까지는 언제든 바꾸거나 취소할 수 있어요.'],
   ['원금이 보장되나요?', '아니요. 작품 수익에 따라 원금 손실이 날 수 있고, 예금자 보호 대상이 아니에요. 투자성향 확인 결과도 함께 참고해 주세요.'],
-  ['상장된 조각은 어디서 사고팔아요?', '증권 탭의 조각 마켓에서 다른 투자자와 거래할 수 있어요. 결제와 보관은 제휴 증권사(시연에서는 키움증권 모의)가 맡아요.'],
+  ['상장된 조각은 어디서 사고팔아요?', '증권 탭의 조각 마켓에서 다른 투자자와 거래할 수 있어요. 결제와 보관은 제휴 증권사인 키움증권이 맡아요.'],
 ];
 
 export default function Help() {
   const [toast, setToast] = useState(false);
+  const [openQ, setOpenQ] = useState<number | null>(null); // 한 질문을 열면 다른 질문은 닫힌다
   return (
     <MePage title="고객센터">
       <View>
         <GroupLabel>자주 묻는 질문</GroupLabel>
         {FAQ.map(([q, a], i) => (
-          <Fold key={q} title={q} last={i === FAQ.length - 1}><Txt v="body2" c={color.labelNeutral}>{a}</Txt></Fold>
+          <Fold key={q} title={q} last={i === FAQ.length - 1} open={openQ === i} onToggle={() => setOpenQ(openQ === i ? null : i)}><Txt v="body2" c={color.labelNeutral}>{a}</Txt></Fold>
         ))}
       </View>
       <Callout title="1:1 문의">평일 10:00 ~ 18:00 (점심 12:30 ~ 13:30) · 답변은 알림으로 보내 드려요.</Callout>
       <Button label="1:1 문의하기" variant="Outlined" tone="Assistive" onPress={() => { setToast(true); setTimeout(() => setToast(false), 1800); }} />
-      <Toast text="문의가 접수됐어요 (시연)" visible={toast} />
+      <Toast text="문의가 접수됐어요" visible={toast} />
     </MePage>
   );
 }

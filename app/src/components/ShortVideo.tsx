@@ -75,7 +75,7 @@ export function ShortVideo({ url, durationSec, active = true, muted = true, loop
   return (
     <View style={[s.box, s.placeholder]}>
       <Icon name="play" size={56} c="rgba(243,232,238,0.85)" />
-      <Txt v="caption1" c="rgba(243,232,238,0.6)">{durationSec}초 · 영상 자리 (시연용)</Txt>
+      <Txt v="caption1" c="rgba(243,232,238,0.6)">{durationSec}초 · 영상 준비 중</Txt>
     </View>
   );
 }

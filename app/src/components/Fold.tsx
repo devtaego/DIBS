@@ -3,11 +3,16 @@ import { Pressable, View } from 'react-native';
 
 import { Icon, Txt, color, spacing } from '@/ds';
 
-export function Fold({ title, sub, children, icon, last }: { title: string; sub?: string; children: ReactNode; icon?: string; last?: boolean }) {
-  const [open, setOpen] = useState(false);
+/** open·onToggle 을 주면 바깥에서 여닫는다 (한 번에 하나만 열기) */
+export function Fold({ title, sub, children, icon, last, open: openProp, onToggle }: {
+  title: string; sub?: string; children: ReactNode; icon?: string; last?: boolean; open?: boolean; onToggle?: () => void;
+}) {
+  const [self, setSelf] = useState(false);
+  const open = openProp ?? self;
+  const toggle = onToggle ?? (() => setSelf((o) => !o));
   return (
     <View style={!last ? { borderBottomWidth: 1, borderBottomColor: color.lineAlternative } : undefined}>
-      <Pressable onPress={() => setOpen((o) => !o)} accessibilityRole="button" accessibilityState={{ expanded: open }}
+      <Pressable onPress={toggle} accessibilityRole="button" accessibilityState={{ expanded: open }}
         style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.gapM, paddingVertical: spacing.insetL }}>
         {icon ? <Icon name={icon} size={20} c={color.labelNeutral} /> : null}
         <View style={{ flex: 1, gap: 2 }}>

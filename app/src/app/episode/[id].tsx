@@ -34,6 +34,27 @@ export default function EpisodeScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
+  const [coin, setCoin] = useState<number | null>(null);
+  const [pts, setPts] = useState<{ balance: number } | null>(null);
+  useEffect(() => {
+    if (!locked) return;
+    api.get<{ coin: number }>('/wallet').then((w) => setCoin(w.coin)).catch(() => {});
+    api.get<{ balance: number }>('/me/partner-points').then(setPts).catch(() => {});
+  }, [locked]);
+  const unlockWithPoints = async () => {
+    const price = Number(locked?.message.match(/(\d[\d,]*)코인/)?.[1]?.replace(/,/g, '') ?? 300);
+    setBusy(true);
+    try {
+      await api.post('/me/partner-points/convert', { points: Math.ceil(price / 100) * 100 });
+      await api.post(`/episodes/${id}/unlock`);
+      await load();
+    } catch (e) {
+      Alert.alert('열 수 없어요', (e as ApiError).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const unlock = async () => {
     setBusy(true);
     try {
@@ -48,13 +69,19 @@ export default function EpisodeScreen() {
   };
 
   if (locked) {
+    const price = Number(locked.message.match(/(\d[\d,]*)코인/)?.[1]?.replace(/,/g, '') ?? 300);
+    const need = Math.ceil(price / 100) * 100; // 키움 포인트는 100P 단위
     return (
       <Screen>
         <Card style={{ alignItems: 'center', paddingVertical: space(10) }}>
           <T size={40}>🔒</T>
           <T weight="700" style={{ marginTop: space(3) }}>{locked.message}</T>
-          <Muted style={{ marginTop: space(2), textAlign: 'center' }}>코인은 콘텐츠 전용이에요. 투자 예치금으로 바꿀 수 없어요.</Muted>
+          <Muted style={{ marginTop: space(2), textAlign: 'center' }}>{`내 코인 ${coin?.toLocaleString('ko-KR') ?? '-'} · 키움 포인트 ${pts?.balance.toLocaleString('ko-KR') ?? '-'}P`}</Muted>
           <Button title="코인으로 열기" onPress={unlock} loading={busy} style={{ marginTop: space(6), alignSelf: 'stretch' }} />
+          {pts && pts.balance >= need ? (
+            <Button title={`키움 포인트 ${need.toLocaleString('ko-KR')}P로 열기`} kind="ghost" onPress={unlockWithPoints} loading={busy} style={{ marginTop: space(2), alignSelf: 'stretch' }} />
+          ) : null}
+          <Muted style={{ marginTop: space(3), textAlign: 'center' }}>코인은 콘텐츠 전용이에요. 투자 예치금으로 바꿀 수 없어요.{'\n'}키움 포인트는 1P = 1코인으로 바뀌어요.</Muted>
         </Card>
       </Screen>
     );
@@ -86,7 +113,7 @@ export default function EpisodeScreen() {
         <>
           {[1, 2, 3].map((n) => (
             <View key={n} style={{ height: 360, backgroundColor: n % 2 ? colors.card : colors.cardAlt, borderRadius: 12, marginTop: space(3), alignItems: 'center', justifyContent: 'center' }}>
-              <Muted>{n === 1 ? '이 회차 원고는 시연 데이터에 없어요' : `웹툰 컷 ${n}`}</Muted>
+              <Muted>{n === 1 ? '원고를 불러오고 있어요' : `웹툰 컷 ${n}`}</Muted>
             </View>
           ))}
         </>

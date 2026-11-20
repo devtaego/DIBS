@@ -1,4 +1,5 @@
 // 약관 · 개인정보 처리방침 (시연용 요약)
+import { useState } from 'react';
 import { View } from 'react-native';
 
 import { Fold, MePage } from '@/components/MePage';
@@ -13,14 +14,14 @@ const DOCS: [string, string, string][] = [
 ];
 
 export default function Terms() {
+  const [openT, setOpenT] = useState<number | null>(null);
   return (
     <MePage title="약관 · 개인정보 처리방침">
       <View>
         {DOCS.map(([t, sub, body], i) => (
-          <Fold key={t} icon="cDoc" title={t} sub={sub} last={i === DOCS.length - 1}><Txt v="body2" c={color.labelNeutral}>{body}</Txt></Fold>
+          <Fold key={t} icon="cDoc" title={t} sub={sub} last={i === DOCS.length - 1} open={openT === i} onToggle={() => setOpenT(openT === i ? null : i)}><Txt v="body2" c={color.labelNeutral}>{body}</Txt></Fold>
         ))}
       </View>
-      <Txt v="caption1" c={color.labelAssistive}>시연용 요약이에요. 실제 서비스에서는 전문을 제공해요.</Txt>
     </MePage>
   );
 }

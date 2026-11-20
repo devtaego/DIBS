@@ -53,7 +53,7 @@ export default function Market() {
         <>
           <PortfolioSummary
             label="총 자산"
-            badge={data.wallet.mode === 'MOCK' ? '모의 거래' : undefined}
+            badge={undefined}
             total={Math.round(total).toLocaleString('ko-KR')}
             change={pnl ? `${pnl > 0 ? '+' : '−'}${manwon(Math.abs(pnl))} 평가손익` : undefined}
             trend={trendOf(pnl)}
@@ -66,7 +66,7 @@ export default function Market() {
           <Panel>
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
               <Txt v="label1" w="semibold" c={color.labelStrong}>예치금</Txt>
-              <Txt v="caption1" c={color.labelAlternative}>{me?.broker_account_masked ? `연결 계좌 ${me.broker_account_masked}` : data.wallet.mode === 'MOCK' ? '모의 계좌' : '연결 계좌'}</Txt>
+              <Txt v="caption1" c={color.labelAlternative}>{me?.broker_account_masked ? `연결 계좌 ${me.broker_account_masked}` : data.wallet.mode === 'MOCK' ? '키움증권 연결 계좌' : '연결 계좌'}</Txt>
             </View>
             <Txt v="title2" w="bold" c={color.labelStrong} tabular>{`${data.wallet.deposit_available.toLocaleString('ko-KR')}원`}</Txt>
             <View style={{ flexDirection: 'row', gap: spacing.gapM }}>
@@ -132,7 +132,7 @@ export default function Market() {
           {data && !list.length ? <DEmpty pose="peek" title="조건에 맞는 종목이 없어요" text="펀딩이 끝나고 발행되면 여기서 거래할 수 있어요." /> : null}
         </View>
       </View>
-      <DisclosureBar text="모의 거래 · 실제 체결은 장외거래소 개장 후 · 가격제한폭 ±30%" />
+      <DisclosureBar text="원금 손실 가능 · 예금자 보호 대상 아님 · 가격제한폭 ±30%" />
     </DScreen>
   );
 }

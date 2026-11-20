@@ -112,7 +112,7 @@ export function Badge({ label, tone = 'default' }: { label: string; tone?: 'defa
   );
 }
 
-export const MockBadge = ({ mode }: { mode?: string }) => (mode === 'MOCK' ? <Badge label="모의" tone="mock" /> : null);
+export const MockBadge = (_: { mode?: string }) => null;
 
 export function ProgressBar({ pct }: { pct: number }) {
   return (

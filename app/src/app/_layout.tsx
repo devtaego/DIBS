@@ -35,7 +35,7 @@ export default function RootLayout() {
           <Stack.Screen name="episode/[id]" options={{ title: '회차 보기' }} />
           <Stack.Screen name="funding/[id]" options={{ title: '펀딩' }} />
           <Stack.Screen name="subscribe/[id]" options={{ title: '조각 청약', presentation: 'modal' }} />
-          <Stack.Screen name="kiwoom/[id]" options={{ title: '키움증권 (모의)', presentation: 'modal' }} />
+          <Stack.Screen name="kiwoom/[id]" options={{ title: '키움증권', presentation: 'modal' }} />
           <Stack.Screen name="risk-profile" options={{ title: '투자성향 확인', presentation: 'modal' }} />
           <Stack.Screen name="profile" options={{ title: '프로필 편집', presentation: 'modal' }} />
           <Stack.Screen name="security/[id]" options={{ title: '종목' }} />
@@ -43,7 +43,7 @@ export default function RootLayout() {
           <Stack.Screen name="wallet" options={{ title: '지갑' }} />
           <Stack.Screen name="dividends" options={{ title: '정산 리포트' }} />
           <Stack.Screen name="notifications" options={{ title: '알림' }} />
-          <Stack.Screen name="admin" options={{ title: '시연용 운영자 패널' }} />
+          <Stack.Screen name="admin" options={{ title: '운영자 패널' }} />
           <Stack.Screen name="portfolio" options={{ title: '내 자산' }} />
           <Stack.Screen name="done" options={{ headerShown: false, gestureEnabled: false, animation: 'fade' }} />
         </Stack>

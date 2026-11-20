@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, Query
+from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -23,6 +24,7 @@ from app.schemas.common import OK, BrokerAccountIn, LimitsOut, NotificationOut, 
 from app.schemas.content import WorkOut
 from app.schemas.funding import MySubscriptionOut, SubscriptionOut
 from app.schemas.market import DividendPaymentOut, HoldingOut, OrderOut
+from app.services import rewards
 from app.services.policy import current_mode, remaining_limits
 
 router = APIRouter(prefix="/me", tags=["me"])
@@ -140,3 +142,32 @@ def read_notification(notification_id: int, db: Session = Depends(get_db), user:
         raise NotFound("NOTIFICATION_NOT_FOUND", "알림을 찾을 수 없어요")
     n.is_read = True
     return OK()
+
+
+# ── 열람 리워드 (코인 전용: 예치금·청약·매매에는 쓸 수 없음) ──
+class PointsIn(BaseModel):
+    points: int = Field(gt=0, description="바꿀 포인트 (100P 단위, 1P = 1코인)")
+
+
+@router.get("/attendance", summary="출석 현황 (최근 7일, 연속 출석)")
+def get_attendance(db: Session = Depends(get_db), user: User = Depends(current_user)):
+    return rewards.attendance(db, user)
+
+
+@router.post("/attendance", summary="오늘 출석 → 열람 코인 100 (7일 연속이면 +300)")
+def post_attendance(db: Session = Depends(get_db), user: User = Depends(current_user)):
+    out = rewards.attend(db, user)
+    db.commit()
+    return out
+
+
+@router.get("/partner-points", summary="제휴 증권사(키움 모의) 포인트 잔액")
+def get_partner_points(db: Session = Depends(get_db), user: User = Depends(current_user)):
+    return rewards.partner_points(db, user)
+
+
+@router.post("/partner-points/convert", summary="키움 포인트 → 열람 코인 (한 방향만)")
+def convert_partner_points(body: PointsIn, db: Session = Depends(get_db), user: User = Depends(current_user)):
+    out = rewards.convert_points(db, user, body.points)
+    db.commit()
+    return out

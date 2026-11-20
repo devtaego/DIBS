@@ -68,7 +68,7 @@ export default function OrderScreen() {
         pose: filled ? (buy ? 'jump' : 'bow') : 'report',
         tag: buy ? 'MOCK BUY' : 'MOCK SELL',
         title: filled ? (buy ? '조각 챙겼어요!' : '매도 주문 완료') : '주문을 올렸어요',
-        sub: `${units}조각 · ${won(Number(price))}에 모의 ${buy ? '매수' : '매도'} 주문했어요.\n${msg}`,
+        sub: `${units}조각 · ${won(Number(price))}에 ${buy ? '매수' : '매도'} 주문했어요.\n${msg}`,
         rows: [
           ['주문 상태', ORDER_STATUS[o.status]],
           ['주문 수량', `${units}조각`],

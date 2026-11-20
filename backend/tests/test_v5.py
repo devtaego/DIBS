@@ -392,3 +392,27 @@ def test_indicator_card(api, published_work, now, monkeypatch):
     assert m == sorted(m) and m[-1] > m[0]
     assert card["per_user_cap_amount"] == 50_000  # 발행액 100만 원 × 5%
     assert 0 < card["per_user_max_loss_downside"] <= 50_000
+
+
+def test_deadline_reminders_once(api, published_work, now):
+    """마감 2일 안이면 청약자·찜한 회원에게 마감 임박 알림을 한 번씩 보낸다."""
+    api.login("rem_sub")
+    api.login("rem_dib")
+    api.ok("rem_sub", "post", "/wallet/deposit/charge", json={"amount": 1_000_000})
+    api.ok("rem_dib", "put", f"/works/{published_work['id']}/dib")
+    f = open_funding(api, published_work["id"], now, target_units=100)
+    api.ok("rem_sub", "post", f"/fundings/{f['id']}/subscriptions", json={**SUB, "units": 1})
+    from app.core import clock
+    from datetime import timedelta
+    from app.services import reminders
+    close = clock.datetime.fromisoformat(f["close_at"]) if isinstance(f["close_at"], str) else f["close_at"]
+    clock.set_now(close - timedelta(days=1, hours=2))
+    try:
+        assert api.ok("admin", "post", "/admin/jobs/deadline-reminders")["sent"] >= 2
+        assert api.ok("admin", "post", "/admin/jobs/deadline-reminders")["sent"] == 0  # 두 번째는 보내지 않음
+    finally:
+        clock.set_now(now)
+    types = {n["type"] for n in api.ok("rem_sub", "get", "/me/notifications")}
+    assert "DEADLINE_SOON" in types
+    assert "DIBBED_DEADLINE_SOON" in {n["type"] for n in api.ok("rem_dib", "get", "/me/notifications")}
+    assert reminders.REMIND_DAYS == 2

@@ -1,8 +1,9 @@
-import { createElement, useEffect, useRef } from 'react';
+import { createElement, useEffect, useRef, useState } from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
 
 import { Icon, Txt, radius, spacing } from '@/ds';
 import { videoSource } from '@/lib/media';
+import { Scrubber } from './Scrubber';
 
 // 웹 쇼츠 영상 (<video>). 시연용 가짜 CDN 주소면 자리 표시. iOS·Android 는 ShortVideo.native.tsx.
 export const isPlayable = (url: string) => Platform.OS === 'web' && videoSource(url) != null;
@@ -16,12 +17,15 @@ type Props = {
   onEnded?: () => void;
   onToggleMute?: () => void;
   full?: boolean; // 몰입형(가장자리까지, 모서리 둥글림 없음)
+  scrubBottom?: number; // 주면 그 높이에 재생 막대(끌어서 이동)
 };
 
 type VideoEl = { play: () => Promise<void>; pause: () => void; currentTime: number; muted: boolean };
 
-export function ShortVideo({ url, durationSec, active = true, muted = true, loop = false, onEnded, onToggleMute, full }: Props) {
+export function ShortVideo({ url, durationSec, active = true, muted = true, loop = false, onEnded, onToggleMute, full, scrubBottom }: Props) {
   const ref = useRef<VideoEl | null>(null);
+  const [cur, setCur] = useState(0);
+  const [dur, setDur] = useState(durationSec);
 
   useEffect(() => {
     const v = ref.current;
@@ -53,9 +57,14 @@ export function ShortVideo({ url, durationSec, active = true, muted = true, loop
           playsInline: true,
           preload: active ? 'auto' : 'metadata',
           onEnded,
+          onTimeUpdate: (e: { currentTarget: { currentTime: number } }) => setCur(e.currentTarget.currentTime),
+          onLoadedMetadata: (e: { currentTarget: { duration: number } }) => setDur(e.currentTarget.duration || durationSec),
           onClick: onToggleMute,
           style: { width: '100%', height: '100%', objectFit: 'cover', backgroundColor: '#000' },
         })}
+        {scrubBottom != null && active ? (
+          <Scrubber current={cur} duration={dur} bottom={scrubBottom} onSeek={(sec) => { if (ref.current) { ref.current.currentTime = sec; setCur(sec); } }} />
+        ) : null}
         <View style={[s.sound, full && s.soundFull]} pointerEvents="none">
           <Icon name={muted ? 'volOff' : 'vol'} size={16} c="#F3E8EE" />
           <Txt v="caption2" c="#F3E8EE">{muted ? '눌러서 소리 켜기' : '소리 켜짐'}</Txt>

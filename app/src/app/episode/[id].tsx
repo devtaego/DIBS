@@ -1,6 +1,7 @@
 import { useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Alert, Image, View } from 'react-native';
+import { ShortVideo } from '@/components/ShortVideo';
 import { imageSource } from '@/lib/media';
 
 import { Button, Card, Loading, Muted, Screen, T } from '@/components/ui';
@@ -62,9 +63,22 @@ export default function EpisodeScreen() {
 
   return (
     <Screen>
-      <T size={20} weight="700">{ep.no}화 · {ep.title}</T>
+      <T size={20} weight="700">{ep.title === `${ep.no}화` ? ep.title : `${ep.no}화 · ${ep.title}`}</T>
       <Muted>{ep.is_paid ? `유료 미리보기 (${ep.price_coin}원 · 공개 21일 뒤 무료)` : '무료 회차'}</Muted>
-      {/\.(jpe?g|png|webp)$/i.test(ep.content_url) ? (
+      {/@\d+\.jpg$/.test(ep.content_url) ? (
+        // 세로 스크롤 웹툰: 'episodes/pmb-1@22.jpg' → pmb-1-01.jpg … pmb-1-22.jpg (각 720x1800) 를 이어 붙여 보여 준다
+        <View style={{ marginTop: space(3), marginHorizontal: -space(5), backgroundColor: '#0E0F1F' }}>
+          {Array.from({ length: Number(ep.content_url.match(/@(\d+)\.jpg$/)![1]) }, (_, i) => {
+            const src = ep.content_url.replace(/@\d+\.jpg$/, `-${String(i + 1).padStart(2, '0')}.jpg`);
+            return <Image key={src} source={imageSource(src)} accessibilityLabel={i === 0 ? `${ep.no}화 원고` : undefined} resizeMode="cover" style={{ width: '100%', aspectRatio: 720 / 1800 }} />;
+          })}
+        </View>
+      ) : /\.mp4$/i.test(ep.content_url) ? (
+        // 모션웹툰 회차 (앱과 같이 배포된 영상)
+        <View style={{ width: '100%', aspectRatio: 9 / 16, marginTop: space(3) }}>
+          <ShortVideo url={ep.content_url} durationSec={160} muted={false} scrubBottom={8} />
+        </View>
+      ) : /\.(jpe?g|png|webp)$/i.test(ep.content_url) ? (
         // 앱과 같이 배포된 원고 이미지 (세로 1:3)
         <Image source={imageSource(ep.content_url)} accessibilityLabel={`${ep.no}화 원고`} resizeMode="contain"
           style={{ width: '100%', aspectRatio: 724 / 2172, marginTop: space(3), borderRadius: 12, backgroundColor: colors.card }} />
@@ -72,10 +86,9 @@ export default function EpisodeScreen() {
         <>
           {[1, 2, 3].map((n) => (
             <View key={n} style={{ height: 360, backgroundColor: n % 2 ? colors.card : colors.cardAlt, borderRadius: 12, marginTop: space(3), alignItems: 'center', justifyContent: 'center' }}>
-              <Muted>웹툰 컷 {n} (시연용 자리)</Muted>
+              <Muted>{n === 1 ? '이 회차 원고는 시연 데이터에 없어요' : `웹툰 컷 ${n}`}</Muted>
             </View>
           ))}
-          <Muted style={{ marginTop: space(2) }}>원본 위치: {ep.content_url}</Muted>
         </>
       )}
       <Button

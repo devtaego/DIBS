@@ -1,4 +1,4 @@
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { Image, Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -39,10 +39,13 @@ const BG = '#16151F';
 
 export default function Intro() {
   const insets = useSafeAreaInsets();
+  const { replay } = useLocalSearchParams<{ replay?: string }>();
+  const again = replay === '1'; // MY > 앱 소개 다시 보기: 마지막은 '닫기'
   const [i, setI] = useState(0);
   const slide = SLIDES[i];
   const last = i === SLIDES.length - 1;
   const done = async () => {
+    if (again) return router.canGoBack() ? router.back() : router.replace('/');
     await markIntroSeen();
     router.replace('/');
   };
@@ -62,9 +65,12 @@ export default function Intro() {
         <View pointerEvents="none" style={s.fade} />
       </View>
 
-      <Pressable onPress={done} hitSlop={10} style={[s.skip, { top: insets.top + 12 }]} accessibilityRole="button">
-        <Txt v="label2" w="semibold" c="rgba(255,255,255,0.85)">건너뛰기</Txt>
-      </Pressable>
+      {again ? null : (
+        // 다시 보기에서는 아래 '닫기' 버튼 하나만 둔다
+        <Pressable onPress={done} hitSlop={10} style={[s.skip, { top: insets.top + 12 }]} accessibilityRole="button">
+          <Txt v="label2" w="semibold" c="rgba(255,255,255,0.85)">건너뛰기</Txt>
+        </Pressable>
+      )}
 
       <View style={[s.bottom, { paddingBottom: insets.bottom + spacing.insetL }]}>
         <View style={s.dots}>
@@ -73,8 +79,8 @@ export default function Intro() {
         <Txt v="title2" w="bold" c="#FFFFFF">{slide.title}</Txt>
         <Txt v="label2" c="rgba(255,255,255,0.62)">{slide.sub}</Txt>
         <View style={{ gap: spacing.gapM, marginTop: spacing.insetL }}>
-          <Button label={last ? '시작하기' : '다음'} onPress={() => (last ? done() : setI(i + 1))} />
-          {last ? (
+          <Button label={last ? (again ? '닫기' : '시작하기') : '다음'} onPress={() => (last ? done() : setI(i + 1))} />
+          {last && !again ? (
             <Pressable onPress={done} style={s.ghost} accessibilityRole="button">
               <Txt v="body1" w="semibold" c="#FFFFFF">이미 계정이 있어요</Txt>
             </Pressable>

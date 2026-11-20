@@ -31,7 +31,7 @@
     "start": "expo start",
     "demo": "cross-env EXPO_PUBLIC_DEMO=1 expo start -c",
     "demo:tunnel": "cross-env EXPO_PUBLIC_DEMO=1 expo start -c --tunnel",
-    "live": "expo start -c",
+    "live": "cross-env EXPO_PUBLIC_NOW=2027-03-02T09:00:00+09:00 expo start -c",
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",

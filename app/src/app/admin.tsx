@@ -7,11 +7,12 @@ import { api, ApiError, type Episode, type FundingDetail } from '@/lib/api';
 import { FUNDING_STATUS, won } from '@/lib/format';
 import { colors, space } from '@/lib/theme';
 import { useApi } from '@/lib/useApi';
+import { nowMs } from '@/lib/now';
 
 type Payout = { seq: number; status: string; amount: number | null; milestone_note: string | null };
 type CloseOut = { status: string; requested_units: number; target_units: number; allocations: { requested: number; allocated: number }[] };
 
-const nowKst = () => new Date(Date.now() + 9 * 3600e3);
+const nowKst = () => new Date(nowMs() + 9 * 3600e3);
 const quarter = () => {
   const d = nowKst();
   return `${d.getUTCFullYear()}Q${Math.floor(d.getUTCMonth() / 3) + 1}`;

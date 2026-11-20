@@ -77,7 +77,13 @@ frame = """<style id="phone-frame">
     border-radius: 46px; overflow: hidden; background: #fff;
     box-shadow: 0 0 0 11px #15161c, 0 0 0 12px #3a3b44, 0 28px 70px rgba(20, 22, 30, 0.35);
     transform: translateZ(0); /* 안쪽 fixed 요소를 틀 기준으로 */
+    box-sizing: border-box; padding-top: 44px; /* 휴대폰 상태바 자리: 상단바가 틀 천장에 붙지 않게 */
   }
+  #root > div { height: 100%; }
+  #root::before { content: "9:41"; position: absolute; top: 0; left: 0; right: 0; height: 44px; padding: 0 0 0 34px; box-sizing: border-box;
+    display: flex; align-items: center; font: 600 15px/1 Pretendard, -apple-system, sans-serif; color: #15161c; background: #fff; z-index: 2147483647; }
+  #root::after { content: ""; position: absolute; top: 17px; right: 30px; width: 25px; height: 11px; border: 1.5px solid #15161c; border-radius: 3.5px;
+    box-sizing: border-box; background: linear-gradient(90deg, #15161c 72%, transparent 72%) 2px 2px / calc(100% - 4px) calc(100% - 4px) no-repeat; z-index: 2147483647; }
   body::after { content: "DIBS 앱 데모 · 휴대폰에서 열면 전체 화면"; font: 500 12px/1 Pretendard, -apple-system, sans-serif; color: #8a8f9c; }
 }
 </style>

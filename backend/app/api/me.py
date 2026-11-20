@@ -45,7 +45,9 @@ def risk_profile(body: RiskProfileIn, db: Session = Depends(get_db), user: User 
     if any(a not in (1, 2, 3, 4) for a in body.answers):
         raise DomainError("INVALID_ANSWERS", "각 문항은 1~4점이에요")
     score = sum(body.answers)  # 5~20
-    user.risk_level = "STABLE" if score <= 9 else ("NEUTRAL" if score <= 14 else "AGGRESSIVE")
+    # 5단계 (금융투자협회 표준 투자자 성향 분류에 맞춤): 5~7 안정형 · 8~10 안정추구형 · 11~13 위험중립형 · 14~16 적극투자형 · 17~20 공격투자형
+    user.risk_level = ("STABLE" if score <= 7 else "STABLE_SEEKING" if score <= 10 else "NEUTRAL" if score <= 13
+                       else "ACTIVE" if score <= 16 else "AGGRESSIVE")
     user.risk_checked_at = clock.now()
     user.no_investment_experience = body.answers[0] == 1  # 1번 '투자 경험' = 없어요 → 소액 한도
     return user

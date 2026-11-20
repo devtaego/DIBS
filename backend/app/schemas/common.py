@@ -45,7 +45,7 @@ class UserOut(ORM):
     kyc_verified: bool
     bio: str
     avatar_url: str | None
-    risk_level: str | None = Field(description="투자성향: STABLE | NEUTRAL | AGGRESSIVE. 없으면 청약·매수 불가")
+    risk_level: str | None = Field(description="투자성향 5단계: STABLE 안정형 | STABLE_SEEKING 안정추구형 | NEUTRAL 위험중립형 | ACTIVE 적극투자형 | AGGRESSIVE 공격투자형. 없으면 청약·매수 불가")
     risk_checked_at: datetime | None
     broker_name: str | None = Field(description="연결된 제휴 증권사")
     broker_account_masked: str | None

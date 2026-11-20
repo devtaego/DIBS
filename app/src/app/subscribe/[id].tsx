@@ -12,6 +12,7 @@ import { showDone } from '@/lib/done';
 import { dateText } from '@/lib/format';
 import { useSession } from '@/lib/session';
 import { DNote, Dibby } from '@/components/dibby';
+import { fitsProduct, riskLabel } from '@/lib/risk';
 import { useDibbyTask } from '@/lib/useDibbyTask';
 
 // V2 09 펀딩 금액 → V2 05 약관·위험 동의 → V2 10 완료
@@ -29,6 +30,8 @@ export default function SubscribeScreen() {
   const [tier, setTier] = useState<number | null>(null);
   const [agreeRisk, setAgreeRisk] = useState(false);
   const [agreeTerm, setAgreeTerm] = useState(false);
+  const [agreeUnfit, setAgreeUnfit] = useState(false);
+  const fit = fitsProduct(me?.risk_level);
   const [error, setError] = useState<ApiError | null>(null);
 
   useEffect(() => {
@@ -73,11 +76,11 @@ export default function SubscribeScreen() {
   }
 
   const brokerName = cfg?.broker_name ?? '키움증권';
-  const toBroker = async () => {
+  const toBroker = async (n?: number) => {
     setError(null);
     try {
       const h = await api.post<Handoff>(`/fundings/${id}/broker-handoff`);
-      router.push({ pathname: '/kiwoom/[id]', params: { id: String(id), token: h.token } });
+      router.push({ pathname: '/kiwoom/[id]', params: { id: String(id), token: h.token, ...(n ? { units: String(n) } : {}) } });
     } catch (e) {
       setError(e as ApiError);
     }
@@ -86,7 +89,7 @@ export default function SubscribeScreen() {
   // B안: 청약은 증권사 앱에서
   if (cfg?.subscription_channel === 'BROKER') {
     return (
-      <DScreen header={header} footer={<Button label={`${brokerName}에서 청약하기`} onPress={toBroker} />}>
+      <DScreen header={header} footer={<Button label={`${brokerName}에서 청약하기`} onPress={() => toBroker()} />}>
         <Stack.Screen options={{ headerShown: false }} />
         <PageTitle title={`청약은 ${brokerName} 앱에서 해요`} sub={f.work_title} />
         <Callout title="DIBS는 계좌번호를 받지 않아요">
@@ -116,6 +119,7 @@ export default function SubscribeScreen() {
 
   const submit = async () => {
     if (!(agreeRisk && agreeTerm)) return setError(new ApiError(0, 'CONSENT_REQUIRED', '위험 안내 두 가지를 먼저 확인해 주세요'));
+    if (!fit && !agreeUnfit) return setError(new ApiError(0, 'UNFIT_CONFIRM_REQUIRED', '투자성향보다 위험한 상품이라 부적합 확인이 필요해요'));
     if (tierObj && units < tierObj.min_units) return setError(new ApiError(0, 'TIER_MIN_UNITS', `${tierObj.title}은 ${tierObj.min_units}조각부터 받을 수 있어요`));
     setError(null);
     try {
@@ -146,7 +150,7 @@ export default function SubscribeScreen() {
 
   if (step === 'terms') {
     return (
-      <DScreen header={header} footer={<Button label={`${manwon(amount)} ${existing ? '수량 변경' : '펀딩하기'}`} disabled={!(agreeRisk && agreeTerm)} onPress={submit} />}>
+      <DScreen header={header} footer={<Button label={`${manwon(amount)} 키움증권에서 결제하기`} disabled={!(agreeRisk && agreeTerm && (fit || agreeUnfit))} onPress={() => toBroker(units)} />}>
         <Stack.Screen options={{ headerShown: false }} />
         <PageTitle title="투자 전에 확인해 주세요" sub={`${f.work_title} · ${units}조각 · ${manwon(amount)}`} />
         <Panel>
@@ -154,6 +158,9 @@ export default function SubscribeScreen() {
           <View style={{ height: 1, backgroundColor: color.lineAlternative }} />
           <AgreementRow required checked={agreeRisk} onToggle={() => setAgreeRisk(!agreeRisk)} label="원금 손실 가능성·예금자 보호 대상 아님·펀딩 성공이 수익을 보장하지 않는다는 점" />
           <AgreementRow required checked={agreeTerm} onToggle={() => setAgreeTerm(!agreeTerm)} label="원금 상환이 없고 시즌 완결 후 12개월(최소 상장 후 24개월)이 지나면 권리가 작가에게 돌아간다는 점" />
+          {fit ? null : (
+            <AgreementRow required checked={agreeUnfit} onToggle={() => setAgreeUnfit(!agreeUnfit)} label={`부적합 확인: 내 투자성향(${riskLabel(me?.risk_level)})보다 위험한 상품(1등급 · 매우 높은 위험)임을 알고 투자해요`} />
+          )}
         </Panel>
         {f.reward_tiers.length ? (
           <View style={{ gap: spacing.gapM }}>
@@ -171,7 +178,7 @@ export default function SubscribeScreen() {
         ) : null}
         <DNote title={`위험 등급 ${f.risk_grade}`} text="목표에 못 미쳐 발행이 실패하면 전액 돌려드려요." style={{ marginTop: 0 }} />
         <Txt v="caption1" c={color.labelAlternative}>이 화면은 모의 청약이며 실제 청약은 증권사 화면에서 진행돼요.</Txt>
-        <Button label={`${brokerName} 연결 흐름으로 청약 (B안 시연)`} variant="Text" tone="Assistive" size="Small" onPress={toBroker} />
+        <Button label="DIBS 안에서 모의 청약하기 (키움 연결 없이)" variant="Text" tone="Assistive" size="Small" onPress={submit} />
         <ErrorBox error={error} />
         {task.overlay}
       </DScreen>

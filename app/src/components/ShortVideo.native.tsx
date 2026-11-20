@@ -1,9 +1,10 @@
 import { useVideoPlayer, VideoView } from 'expo-video';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { Icon, Txt, radius, spacing } from '@/ds';
 import { videoSource } from '@/lib/media';
+import { Scrubber } from './Scrubber';
 
 // iOS·Android(Expo Go 포함) 쇼츠 영상. 앱에 번들된 데모 영상이나 실제 영상 주소면 expo-video 로 재생하고,
 // 시연용 가짜 CDN 주소면 자리 표시를 보여 준다. 웹은 ShortVideo.tsx.
@@ -18,6 +19,7 @@ type Props = {
   onEnded?: () => void;
   onToggleMute?: () => void;
   full?: boolean; // 몰입형(가장자리까지, 모서리 둥글림 없음)
+  scrubBottom?: number; // 주면 그 높이에 재생 막대(끌어서 이동)
 };
 
 export function ShortVideo(props: Props) {
@@ -33,7 +35,8 @@ export function ShortVideo(props: Props) {
   return <Player src={src} {...props} />;
 }
 
-function Player({ src, active = true, muted = true, loop = false, onEnded, onToggleMute, full }: Props & { src: number | string }) {
+function Player({ src, active = true, muted = true, loop = false, onEnded, onToggleMute, full, scrubBottom, durationSec }: Props & { src: number | string }) {
+  const [cur, setCur] = useState(0);
   const player = useVideoPlayer(src, (p) => {
     p.muted = muted;
     p.loop = loop;
@@ -63,9 +66,18 @@ function Player({ src, active = true, muted = true, loop = false, onEnded, onTog
     return () => sub.remove();
   }, [player]);
 
+  useEffect(() => {
+    player.timeUpdateEventInterval = 0.25;
+    const sub = player.addListener('timeUpdate', ({ currentTime }) => setCur(currentTime));
+    return () => sub.remove();
+  }, [player]);
+
   return (
     <Pressable style={[s.box, full && s.full]} onPress={onToggleMute} accessibilityRole="button" accessibilityLabel={muted ? '소리 켜기' : '소리 끄기'}>
       <VideoView player={player} style={StyleSheet.absoluteFill} contentFit="cover" nativeControls={false} pointerEvents="none" />
+      {scrubBottom != null && active ? (
+        <Scrubber current={cur} duration={player.duration || durationSec} bottom={scrubBottom} onSeek={(sec) => { player.currentTime = sec; setCur(sec); }} />
+      ) : null}
       <View style={[s.sound, full && s.soundFull]} pointerEvents="none">
         <Icon name={muted ? 'volOff' : 'vol'} size={16} c="#F3E8EE" />
         <Txt v="caption2" c="#F3E8EE">{muted ? '눌러서 소리 켜기' : '소리 켜짐'}</Txt>

@@ -4,14 +4,25 @@ import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 
 import { ErrorBox, Loading } from '@/components/ui';
 import {
-  ChipRow, Cover, DisclosureBar, DScreen, Empty, Icon, IconButton, Section, Txt, WorkCard,
+  ChipRow, Cover, DisclosureBar, Segmented, DScreen, Empty, Icon, IconButton, Section, Txt, WorkCard,
   color, radius, spacing, textStyle,
 } from '@/ds';
 import { api, type FundingCard, type WorkCard as Work } from '@/lib/api';
 import { fundingStatus, fundingToCard, typeLabel } from '@/lib/cards';
+import { PHASE_LABEL, phaseOf, type Phase } from '@/lib/phase';
 import { useApi } from '@/lib/useApi';
 
 type Tab = 'recommend' | 'rank';
+type Mode = '전체' | '카테고리' | '필터';
+
+// 연령대별 보기: 연령대마다 많이 보는 장르 키워드 (시연용 추정치, 실제 서비스는 이용 기록으로 계산)
+const AGES: Record<string, { label: string; keys: string[] }> = {
+  '10대': { label: '10대가 많이 보는', keys: ['학원', '코미디', '액션', '판타지', '게임'] },
+  '20대': { label: '20대가 많이 찜한', keys: ['로맨스', '로판', '스릴러', '판타지'] },
+  '30대': { label: '30대가 정주행한', keys: ['드라마', '미스터리', '오피스', '현대', '일상'] },
+  '40대+': { label: '40대 이상이 고른', keys: ['무협', '역사', '사극', '힐링', '드라마'] },
+};
+const SORTS = ['찜 많은 순', '모집률 높은 순', '마감 임박 순'] as const;
 
 // V2 05 탐색 (추천 · 랭킹) — 디자인 시스템 프로토타입 기준
 export default function Explore() {
@@ -19,6 +30,11 @@ export default function Explore() {
   const [q, setQ] = useState('');
   const [showSearch, setShowSearch] = useState(false);
   const [genre, setGenre] = useState('전체');
+  const [mode, setMode] = useState<Mode>('전체');
+  const [age, setAge] = useState('20대');
+  const [fmt, setFmt] = useState('전체');
+  const [phase, setPhase] = useState('전체');
+  const [sort, setSort] = useState<(typeof SORTS)[number]>('찜 많은 순');
   const { data, error, loading, reload } = useApi(
     async () => {
       const [works, fundings] = await Promise.all([
@@ -33,12 +49,24 @@ export default function Explore() {
   const fundingByWork = useMemo(() => new Map((data?.fundings ?? []).map((f) => [f.work_id, f])), [data]);
   const genres = useMemo(() => ['전체', ...Array.from(new Set((data?.works ?? []).map((w) => w.genre).filter(Boolean))).slice(0, 6)], [data]);
   const searching = q.trim().length > 0;
-  const works = (data?.works ?? []).filter((w) => searching || genre === '전체' || w.genre === genre);
+  const pctOf = (w: Work) => fundingByWork.get(w.id)?.progress.achievement_pct ?? -1;
+  const works = (data?.works ?? []).filter((w) => {
+    if (searching || tab === 'rank') return true;
+    if (mode === '카테고리') return genre === '전체' ? AGES[age].keys.some((k) => w.genre.includes(k)) : w.genre === genre;
+    if (mode === '필터') {
+      if (fmt !== '전체' && typeLabel(w.type) !== fmt) return false;
+      if (phase !== '전체' && PHASE_LABEL[phaseOf(w.funding_status)] !== phase) return false;
+    }
+    return true;
+  });
   const ranked = useMemo(() => {
     const list = [...works];
-    if (tab === 'recommend') list.sort((a, b) => Number(b.funding_status === 'OPEN') - Number(a.funding_status === 'OPEN'));
+    if (tab === 'recommend' && mode === '필터') {
+      if (sort === '모집률 높은 순') list.sort((a, b) => pctOf(b) - pctOf(a));
+      else if (sort === '마감 임박 순') list.sort((a, b) => (fundingByWork.get(a.id)?.days_left ?? 999) - (fundingByWork.get(b.id)?.days_left ?? 999));
+    } else if (tab === 'recommend') list.sort((a, b) => Number(b.funding_status === 'OPEN') - Number(a.funding_status === 'OPEN'));
     return list;
-  }, [works, tab]);
+  }, [works, tab, mode, sort]);
 
   const cardOf = (w: Work) => {
     const f = fundingByWork.get(w.id);
@@ -79,7 +107,27 @@ export default function Explore() {
           {q ? <IconButton icon="close" label="검색어 지우기" onPress={() => setQ('')} /> : null}
         </View>
       ) : null}
-      {searching ? null : <ChipRow items={genres} value={genre} onChange={setGenre} />}
+      {searching || tab === 'rank' ? null : (
+        <View style={{ gap: spacing.gapM }}>
+          <Segmented options={(['전체', '카테고리', '필터'] as const).map((k) => ({ key: k, label: k }))} value={mode} onChange={setMode} grow />
+          {mode === '카테고리' ? (
+            <View style={{ gap: spacing.gapS }}>
+              <Txt v="label2" w="semibold" c={color.labelAlternative}>연령대별 보기</Txt>
+              <ChipRow items={Object.keys(AGES)} value={genre === '전체' ? age : ''} onChange={(a) => { setAge(a); setGenre('전체'); }} />
+              <Txt v="label2" w="semibold" c={color.labelAlternative}>장르</Txt>
+              <ChipRow items={genres.slice(1)} value={genre} onChange={(g) => setGenre(g === genre ? '전체' : g)} />
+            </View>
+          ) : null}
+          {mode === '필터' ? (
+            <View style={{ gap: spacing.gapS }}>
+              <ChipRow items={['모든 형식', '웹툰', '웹소설']} value={fmt === '전체' ? '모든 형식' : fmt} onChange={(v) => setFmt(v === '모든 형식' ? '전체' : v)} />
+              <ChipRow items={['모든 단계', '공모 전', '공모 중', '공모 종료']} value={phase === '전체' ? '모든 단계' : phase} onChange={(v) => setPhase(v === '모든 단계' ? '전체' : v)} />
+              <ChipRow items={[...SORTS]} value={sort} onChange={(v) => setSort(v as (typeof SORTS)[number])} />
+            </View>
+          ) : null}
+          {mode === '카테고리' ? <Txt v="headline2" w="bold" c={color.labelStrong}>{genre === '전체' ? AGES[age].label : `${genre} 작품`}</Txt> : null}
+        </View>
+      )}
       <ErrorBox error={error} onRetry={reload} />
       {loading && !data ? <Loading /> : null}
 
@@ -90,7 +138,7 @@ export default function Explore() {
         </Section>
       ) : null}
 
-      {!searching && tab === 'recommend' && openFundings.length ? (
+      {!searching && tab === 'recommend' && mode === '전체' && openFundings.length ? (
         // 배너: 지금 청약이 열린 작품들
         <Pressable onPress={() => router.push(`/funding/${openFundings[0].id}`)} style={s.banner}>
           <View style={{ flex: 1, gap: spacing.gapM }}>
@@ -127,12 +175,14 @@ export default function Explore() {
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', columnGap: spacing.gapL, rowGap: spacing.gapXl }}>
           {ranked.map((w) => {
             const f = fundingByWork.get(w.id);
-            const badge = f ? `모집 ${Math.round(f.progress.achievement_pct).toLocaleString('ko-KR')}%` : w.funding_status === 'LISTED' ? '거래 중' : `관심 ${w.dib_count.toLocaleString('ko-KR')}`;
+            const ph: Phase = phaseOf(w.funding_status);
+            const badge = f ? `공모 중 · ${Math.round(f.progress.achievement_pct).toLocaleString('ko-KR')}%` : ph === 'CLOSED' ? (w.funding_status === 'LISTED' ? '공모 종료 · 거래 중' : '공모 종료')
+              : w.funding_status === 'APPROVED' ? '공모 예정' : `관심 ${w.dib_count.toLocaleString('ko-KR')}`;
             return (
               <Pressable key={w.id} onPress={() => open(w)} style={{ width: '47.8%', gap: spacing.gapS }}>
                 <View>
                   <Cover id={w.id} title={w.title} url={w.cover_url} size="Large" />
-                  <View style={[s.over, f && { backgroundColor: 'rgba(222,87,134,0.92)' }]}>
+                  <View style={[s.over, f ? { backgroundColor: 'rgba(222,87,134,0.92)' } : ph === 'CLOSED' ? { backgroundColor: 'rgba(17,120,110,0.88)' } : w.funding_status === 'APPROVED' ? { backgroundColor: 'rgba(78,64,170,0.88)' } : null]}>
                     <Icon name={f ? 'trend' : w.funding_status === 'LISTED' ? 'candle' : 'star'} size={12} c={color.white} />
                     <Txt v="caption2" w="bold" c={color.white}>{badge}</Txt>
                   </View>

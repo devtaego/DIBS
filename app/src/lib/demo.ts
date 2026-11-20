@@ -2,9 +2,11 @@
 // 서버 없이 돌아가도록, 시연 데이터베이스에서 미리 받아 둔 응답(demo-fixtures.json)으로 GET 을 답하고
 // 쓰기 요청(청약·찜·주문 등)은 화면 흐름이 이어지도록 그럴듯한 응답을 돌려준다. 실제 저장은 하지 않는다.
 import fixtures from './demo-fixtures.json';
+import { scoreToLevel } from './risk';
 
 type Query = Record<string, string | number | boolean | undefined | null> | undefined;
 const F = fixtures as Record<string, unknown>;
+
 const local: Record<string, unknown> = {};
 
 export const DEMO = process.env.EXPO_PUBLIC_DEMO === '1';
@@ -37,12 +39,24 @@ export async function demoRequest(method: string, path: string, body?: unknown, 
     if (path in F) return clone(F[path]);
     const prefix = Object.keys(F).find((x) => x.startsWith(`${path}?`));
     if (prefix) return clone(F[prefix]);
-    if (/\/(subscriptions\/me)$/.test(path)) throw Object.assign(new Error('없음'), { status: 404, code: 'NOT_FOUND' });
+    if (/\/(subscriptions\/me)$/.test(path) || /^\/fundings\/\d+$/.test(path)) throw Object.assign(new Error('없음'), { status: 404, code: 'NOT_FOUND' });
     if (path.endsWith('/orderbook')) return { bids: [], asks: [], reference_price: null, last_price: null, price_band: { min: null, max: null } };
     return path.endsWith('s') || /\/(feed|chart|trades|history)$/.test(path) ? [] : {};
   }
   // ── 쓰기 요청 ──
   if (path === '/auth/dev-login') return { access_token: 'demo-token' };
+  if (path === '/me' && method === 'PATCH') {
+    const me = { ...((local['/me'] ?? F['/me']) as Record<string, unknown>), ...(body as Record<string, unknown>) };
+    local['/me'] = me;
+    return clone(me);
+  }
+  if (path === '/me/risk-profile') {
+    // 시연: 점수로 성향을 계산해 내 정보에 반영 (서버와 같은 기준)
+    const answers = ((body as { answers?: number[] })?.answers ?? []);
+    const me = { ...((local['/me'] ?? F['/me']) as Record<string, unknown>), risk_level: scoreToLevel(answers.reduce((a, b) => a + b, 0)), risk_checked_at: new Date().toISOString() };
+    local['/me'] = me;
+    return clone(me);
+  }
   const sub = path.match(/^\/fundings\/(\d+)\/subscriptions(\/me)?$/);
   if (sub) {
     const b = (body ?? {}) as { units?: number; reward_tier_id?: number | null };

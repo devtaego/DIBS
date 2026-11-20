@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>새벽 세시의 편의점 마법사 1화</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Gowun+Dodum&family=Nanum+Myeongjo:wght@700&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{background:#0b0e1c}
+  body{font-family:"Gowun Dodum","Apple SD Gothic Neo",sans-serif;color:#fff;-webkit-font-smoothing:antialiased}
+  .strip{
+    width:100%;max-width:720px;margin:0 auto;container-type:inline-size;overflow:hidden;
+    background:linear-gradient(180deg,#0b0e1c 0%,#0d1124 18%,#151534 30%,#1f1840 45%,#1f1840 70%,#141530 85%,#0b0e1c 100%);
+    padding-bottom:14cqw;
+  }
+  /* title */
+  .title{padding:30cqw 8cqw 26cqw;text-align:center}
+  .title .moon{width:13cqw;height:13cqw;border-radius:50%;margin:0 auto 9cqw;
+    background:radial-gradient(circle at 38% 36%,#fff8dc,#f2d58a 55%,#c9a24e);box-shadow:0 0 6cqw 1cqw rgba(242,213,138,.3)}
+  .title .ep{font-family:"Nanum Myeongjo",serif;font-size:3cqw;letter-spacing:.5em;color:#b9a8ff}
+  .title h1{font-family:"Black Han Sans",sans-serif;font-weight:400;font-size:9.4cqw;line-height:1.15;margin-top:4cqw;
+    background:linear-gradient(180deg,#fff 30%,#cdbcff);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .title .sub{font-family:"Nanum Myeongjo",serif;font-size:3.6cqw;margin-top:4cqw;color:#d9d3f0}
+
+  /* panels: one width for all, inserts narrower and centered */
+  .panel{position:relative;width:92%;margin:0 auto}
+  .panel.ins{width:70%}
+  .panel img{display:block;width:100%;height:auto;border-radius:1.2cqw;
+    box-shadow:0 0 0 .25cqw rgba(255,255,255,.06),0 2.4cqw 6cqw rgba(0,0,0,.5)}
+
+  /* spacing scale */
+  .gap-s{height:14cqw}.gap-m{height:32cqw}.gap-l{height:56cqw}.gap-xl{height:90cqw}
+  .panel+.panel{margin-top:14cqw}
+
+  /* dialogue lives in the gutter: me = left, her = right */
+  .line{display:flex;width:92%;margin:7cqw auto}
+  .line.me{justify-content:flex-start}
+  .line.her{justify-content:flex-end}
+  .line.think{justify-content:center;margin-top:8cqw}
+  .bub{position:relative;max-width:78%;background:#fff;color:#14121c;font-size:3.7cqw;line-height:1.5;font-weight:700;
+    padding:2.8cqw 4.6cqw;border-radius:7cqw;text-align:center;word-break:keep-all;
+    box-shadow:0 0 0 .45cqw #14121c,0 1cqw 3cqw rgba(0,0,0,.35)}
+  .bub.her{box-shadow:0 0 0 .45cqw #3b2a6e,0 0 3cqw rgba(180,150,255,.45)}
+  .bub.in{position:absolute;z-index:3;width:max-content;white-space:nowrap;font-size:3.4cqw;padding:2.4cqw 4cqw}
+  .bub.shout{border-radius:1.6cqw;font-size:3.9cqw;transform:rotate(-2deg);
+    box-shadow:0 0 0 .6cqw #14121c,.9cqw .9cqw 0 .6cqw #14121c}
+  .bub.her.shout{box-shadow:0 0 0 .6cqw #3b2a6e,.9cqw .9cqw 0 .6cqw #3b2a6e}
+  /* tail: dark triangle + white inner triangle, rotated around the attach point (0deg = down) */
+  .tail{position:absolute;width:0;height:0;transform:rotate(var(--r));z-index:2}
+  .tail::before,.tail::after{content:"";position:absolute;clip-path:polygon(0 0,100% 0,50% 100%)}
+  .tail::before{left:-2.3cqw;top:0;width:4.6cqw;height:4.4cqw;background:#14121c}
+  .tail::after{left:-1.55cqw;top:-.7cqw;width:3.1cqw;height:4.1cqw;background:#fff}
+  .bub.her .tail::before{background:#3b2a6e}
+  .think .bub{border-radius:50%;padding:5cqw 8cqw;background:rgba(255,255,255,.94);box-shadow:0 0 0 .35cqw rgba(20,18,28,.5)}
+
+  .line.mo{justify-content:center}
+  .mono{max-width:80%;background:rgba(236,232,250,.95);color:#1d1a2b;font-size:3.5cqw;line-height:1.6;font-weight:700;
+    padding:2.6cqw 4.6cqw;border-radius:1.4cqw;text-align:center;word-break:keep-all;
+    box-shadow:0 0 0 .3cqw rgba(20,18,28,.55),0 1cqw 3cqw rgba(0,0,0,.3)}
+  /* narration: centered, no box */
+  .narr{width:84%;margin:9cqw auto;text-align:center;font-family:"Nanum Myeongjo",serif;font-weight:700;
+    font-size:3.8cqw;line-height:1.7;color:#e8e2ff;word-break:keep-all}
+  .narr.big{font-size:4.4cqw;letter-spacing:.04em}
+
+  /* sound effects */
+  .fx{position:absolute;z-index:2;font-family:"Black Han Sans",sans-serif;font-size:7.4cqw;line-height:1;color:#fff;
+    -webkit-text-stroke:.45cqw #14121c;paint-order:stroke fill;text-shadow:.6cqw .6cqw 0 #14121c;white-space:nowrap;transform:rotate(-7deg)}
+  .fx.violet{color:#e2d6ff;-webkit-text-stroke-color:#2a1d4d;text-shadow:0 0 3cqw #a98bff,.5cqw .5cqw 0 #2a1d4d}
+  .fx.red{color:#ff6b6b}
+  .fx.big{font-size:11cqw}
+
+  .end{text-align:center;padding:26cqw 0 6cqw}
+  .end .coin{width:9cqw;height:9cqw;border-radius:50%;margin:0 auto 6cqw;
+    background:radial-gradient(circle at 35% 35%,#fff3c4,#e2b64f 55%,#9c7424);box-shadow:0 0 5cqw rgba(242,200,90,.5)}
+  .end .t{font-family:"Black Han Sans",sans-serif;font-size:6.4cqw;color:#cdbcff}
+  .end .p{font-family:"Nanum Myeongjo",serif;font-size:3.4cqw;color:#a99fcf;margin-top:3cqw}
+</style>
+</head>
+<body>
+<main class="strip">
+  <section class="title">
+    <div class="moon"></div>
+    <div class="ep">EPISODE 1</div>
+    <h1>새벽 세시의<br>편의점 마법사</h1>
+    <div class="sub">1화 · 떨어진 사람끼리</div>
+  </section>
+<figure class="panel full"><img src="img/n01_street.jpg" alt="비 오는 새벽, 큰길 모퉁이의 편의점"><span class="fx " style="right:6%;bottom:8%">쏴아아—</span></figure>
+<div class="gap-l"></div>
+<figure class="panel full"><img src="img/s02_work.jpg" alt="진열하다 하품하는 주인공, 주머니에서 울리는 휴대폰"><span class="fx " style="left:50%;top:46%">지잉—</span></figure>
+<div class="gap-s"></div>
+<div class="line mo"><p class="mono">최종 면접 결과 문자.</p></div>
+<figure class="panel full"><img src="img/c02.jpg" alt="휴대폰을 꺼내 보는 주인공"><p class="bub in me" style="right:4%;top:6%">이번엔… 제발.<i class="tail" style="left:18%;top:100%;--r:35deg"></i></p></figure>
+<figure class="panel ins"><img src="img/n03_phone.jpg" alt="K증권 최종 결과: 불합격"></figure>
+<div class="gap-s"></div>
+<figure class="panel full"><img src="img/c04.jpg" alt="허탈한 눈"></figure>
+<div class="gap-m"></div>
+<figure class="panel full"><img src="img/c05.jpg" alt="카운터에 엎드린 주인공"><p class="bub in me" style="left:4%;top:7%">…하하.<i class="tail" style="left:78%;top:100%;--r:-30deg"></i></p></figure>
+<div class="line mo"><p class="mono">다섯 번째.<br>이쯤 되면 웃음밖에 안 나온다.</p></div>
+<div class="gap-l"></div>
+<div class="line mo"><p class="mono">…배고프다.</p></div>
+<figure class="panel full"><img src="img/r01_ramen.jpg" alt="온수기에서 컵라면에 물을 붓는 주인공"><span class="fx " style="right:28%;bottom:8%">쪼르륵</span><p class="bub in me" style="left:4%;top:-6%">라면이나 먹자.<i class="tail" style="left:86%;top:100%;--r:-40deg"></i></p></figure>
+<div class="gap-xl"></div>
+<figure class="panel ins"><img src="img/clock300.jpg" alt="3시를 가리키는 벽시계"><span class="fx " style="left:5%;top:5%">째깍</span></figure>
+<div class="gap-m"></div>
+<p class="narr">벽시계가 새벽 3시를 가리키던, 그 순간—</p>
+<figure class="panel full"><img src="img/n07_freeze.jpg" alt="공중에 멈춘 빗방울과 물보라"></figure>
+<p class="narr">빗방울이, 공중에서 멈췄다.</p>
+<div class="gap-m"></div>
+<figure class="panel full"><img src="img/n08_startle.jpg" alt="멈춘 비를 보고 놀란 주인공"><p class="bub in me" style="right:6%;top:9%">…어?<i class="tail" style="left:0%;top:62%;--r:80deg"></i></p></figure>
+<div class="line mo"><p class="mono">비가… 멈췄어?</p></div>
+<div class="gap-m"></div>
+<figure class="panel full"><img src="img/s08_shift.jpg" alt="멈춘 빗방울 너머로 거리가 서서히 마법 도시로 바뀜"></figure>
+<div class="line mo"><p class="mono">…아니, 저건 또 뭐야.</p></div>
+<div class="gap-xl"></div>
+<figure class="panel full"><img src="img/c09.jpg" alt="자동문 너머 마법 도시와 작은 검은 고양이"><span class="fx violet" style="left:5%;top:8%">띵동—</span><p class="bub in me" style="left:6%;bottom:4%">…이 시간에 고양이?<i class="tail" style="left:30%;top:100%;--r:10deg"></i></p></figure>
+<div class="gap-m"></div>
+<figure class="panel full"><img src="img/r05_sniff.jpg" alt="문턱에서 라면 냄새를 맡는 고양이"><span class="fx " style="right:6%;top:40%">킁킁</span></figure>
+<div class="gap-s"></div>
+<figure class="panel full"><img src="img/n10_catglow.jpg" alt="문턱을 넘자 빛나기 시작하는 고양이"></figure>
+<div class="gap-s"></div>
+<figure class="panel full"><img src="img/m11_rise.jpg" alt="빛으로 흩어지며 뛰어오르는 고양이와 맺히는 소녀의 실루엣"><span class="fx violet big" style="left:5%;bottom:16%">화악—</span></figure>
+<p class="narr">빛 속에서, 고양이는 한 소녀가 되었다.</p>
+<div class="gap-m"></div>
+<figure class="panel full"><img src="img/m12_hood.jpg" alt="후드를 매만지며 수줍게 웃는 소녀"><p class="bub in her" style="right:4%;top:-6%">저기… 이 냄새,<br>여기서 나는 거 맞죠?<i class="tail" style="left:22%;top:100%;--r:30deg"></i></p></figure>
+<div class="gap-m"></div>
+<figure class="panel full"><img src="img/s13_shock.jpg" alt="놀라서 손가락질하는 주인공"><p class="bub in me shout" style="right:3%;top:6%">바, 방금<br>고양이였잖아요?!</p></figure>
+<div class="gap-s"></div>
+<figure class="panel full"><img src="img/n12_twoshot.jpg" alt="굳은 주인공과 머쓱하게 웃는 소녀"><p class="bub in her" style="left:36%;top:-6%">에헤헤…<br>놀라셨죠? 죄송해요.<i class="tail" style="left:80%;top:100%;--r:-30deg"></i></p></figure>
+<div class="line me"><p class="bub me">아니, 그게 문제가 아니라…<i class="tail" style="left:22%;top:0%;--r:178deg"></i></p></div>
+<div class="gap-xl"></div>
+<figure class="panel full"><img src="img/s14_coin.jpg" alt="배를 잡고 별 무늬 금화를 내미는 소녀"><span class="fx " style="left:4%;bottom:6%">꼬르륵—</span></figure>
+<div class="line her"><p class="bub her">…그, 그래서 말인데요.<br>이걸로 살 수 있을까요?<i class="tail" style="left:30%;top:0%;--r:160deg"></i></p></div>
+<div class="line me"><p class="bub me">…라면이요?<i class="tail" style="left:40%;top:0%;--r:182deg"></i></p></div>
+<div class="gap-m"></div>
+<figure class="panel full"><img src="img/c15.jpg" alt="손을 들어 사양하는 주인공"><p class="bub in me" style="right:3%;top:-6%">그건 여기서 못 써요.<i class="tail" style="left:12%;top:100%;--r:38deg"></i></p></figure>
+<div class="line me"><p class="bub me">…그냥 제가 살게요.<br>라면 하나쯤이야.<i class="tail" style="left:60%;top:0%;--r:200deg"></i></p></div>
+<div class="gap-m"></div>
+<figure class="panel full"><img src="img/c16.jpg" alt="바코드를 찍는 주인공과 신기해하는 소녀"><span class="fx red" style="left:28%;top:58%">삑!</span><p class="bub in her" style="right:3%;top:-6%">우와, 물건을 읽는 마도구?!<i class="tail" style="left:40%;top:100%;--r:10deg"></i></p></figure>
+<div class="line me"><p class="bub me">…바코드 리더기요.<i class="tail" style="left:40%;top:0%;--r:182deg"></i></p></div>
+<div class="gap-m"></div>
+<div class="line me"><p class="bub me">뜨거운 물은 저쪽 온수기에서—<i class="tail" style="left:35%;top:100%;--r:-6deg"></i></p></div>
+<figure class="panel full"><img src="img/n17_water.jpg" alt="온수기를 가리키는 주인공과 손끝에서 물을 붓는 소녀"><span class="fx violet" style="left:30%;top:60%">촤르르—</span></figure>
+<div class="line her"><p class="bub her">이렇게요?<i class="tail" style="left:55%;top:0%;--r:180deg"></i></p></div>
+<div class="line me"><p class="bub me">……네. 그렇게요.<i class="tail" style="left:40%;top:0%;--r:186deg"></i></p></div>
+<div class="gap-xl"></div>
+<figure class="panel full"><img src="img/c18.jpg" alt="창가에 나란히 앉아 라면을 먹는 두 사람"><p class="bub in me" style="left:4%;top:6%">근데…<br>어디서 오신 거예요?<i class="tail" style="left:65%;top:100%;--r:-5deg"></i></p></figure>
+<div class="gap-m"></div>
+<figure class="panel full"><img src="img/n19_girl.jpg" alt="라면을 보며 쓸쓸하게 웃는 소녀"><p class="bub in her" style="right:3%;top:-6%">문 너머 마법상점이요.<br>저도 야간 알바해요.<i class="tail" style="left:20%;top:100%;--r:35deg"></i></p></figure>
+<div class="line her"><p class="bub her">…사실 오늘 승급시험에 떨어졌거든요.<br>속상해서 하루 종일 굶었어요.<i class="tail" style="left:22%;top:0%;--r:158deg"></i></p></div>
+<div class="gap-m"></div>
+<figure class="panel full"><img src="img/c20.jpg" alt="휴대폰을 보며 씁쓸하게 웃는 주인공"><span class="fx " style="left:4%;bottom:8%">후루룩—</span><p class="bub in me" style="right:3%;top:-6%">…저도 오늘<br>면접 떨어졌는데.<i class="tail" style="left:15%;top:100%;--r:30deg"></i></p></figure>
+<div class="gap-m"></div>
+<figure class="panel full"><img src="img/c21.jpg" alt="환하게 웃는 소녀"><p class="bub in her" style="right:4%;top:8%">후후…<br>우리 둘 다,<br>오늘 최악이었네요.<i class="tail" style="left:0%;top:55%;--r:80deg"></i></p></figure>
+<div class="line her"><p class="bub her">그럼 오늘은 떨어진 사람끼리<br>건배해요. 라면으로!<i class="tail" style="left:24%;top:0%;--r:160deg"></i></p></div>
+<div class="gap-l"></div>
+<p class="narr big">국물이 식을 때까지,<br>우리는 시시한 이야기를 했다.</p>
+<div class="gap-xl"></div>
+<figure class="panel full"><img src="img/n22_alarm.jpg" alt="빛이 흔들리는 문을 보고 벌떡 일어나는 소녀"><p class="bub in her shout" style="left:34%;top:-6%">앗, 문이 닫히려 해요!</p></figure>
+<div class="gap-s"></div>
+<figure class="panel ins"><img src="img/n22_coin.jpg" alt="카운터에 금화를 내려놓는 손"><span class="fx " style="left:62%;top:56%">탁</span><p class="bub in her" style="left:4%;top:7%">라면 고마웠어요.<br>이건… 우리 세계 돈이지만요!<i class="tail" style="left:30%;top:100%;--r:0deg"></i></p></figure>
+<div class="gap-m"></div>
+<figure class="panel full"><img src="img/n22_fade.jpg" alt="창밖 마법 도시가 바래 가는 사이 서둘러 문으로 향하는 소녀"><span class="fx violet" style="left:6%;top:8%">파스스…</span></figure>
+<p class="narr">창밖의 등불이 하나둘 꺼져 가기 시작했다.</p>
+<div class="gap-m"></div>
+<figure class="panel full"><img src="img/r04_tocat.jpg" alt="문턱에서 손을 흔들며 다시 고양이로 변하는 소녀"><span class="fx violet" style="right:8%;bottom:16%">냐옹.</span></figure>
+<div class="line her"><p class="bub her">다음엔 둘 다 붙어서,<br>축하 라면 먹어요!<i class="tail" style="left:26%;top:0%;--r:162deg"></i></p></div>
+<div class="line me"><p class="bub me">자, 잠깐만요…!<i class="tail" style="left:0%;top:55%;--r:96deg"></i></p></div>
+<div class="gap-m"></div>
+<figure class="panel full"><img src="img/n23_window.jpg" alt="창밖 마법 도시가 빛 가루로 흩어지며 원래 거리가 드러남"></figure>
+<p class="narr">문이 닫혀 가며, 창밖도 원래의 거리로 돌아왔다.</p>
+<div class="gap-s"></div>
+<figure class="panel full"><img src="img/n22_doorshut.jpg" alt="닫힌 문 앞에 혼자 선 주인공"><span class="fx violet" style="left:5%;top:6%">스윽—</span></figure>
+<div class="line mo"><p class="mono">…이름도 못 물어봤는데.</p></div>
+<div class="gap-xl"></div>
+<figure class="panel full"><img src="img/n23_drop.jpg" alt="멈춰 있던 빗방울이 다시 떨어짐"><span class="fx " style="right:16%;bottom:24%">톡.</span></figure>
+<p class="narr">그녀가 돌아가자, 멈춰 있던 빗방울이 떨어졌다.</p>
+<div class="gap-m"></div>
+<figure class="panel ins"><img src="img/clock301.jpg" alt="분침이 한 칸 넘어간 벽시계"><span class="fx " style="right:5%;bottom:5%">째깍</span></figure>
+<p class="narr">그리고 다시, 빗소리가 들렸다.</p>
+<div class="gap-m"></div>
+<figure class="panel full"><img src="img/n24_end.jpg" alt="창가에서 금화를 바라보며 미소 짓는 주인공"><span class="fx " style="right:5%;bottom:30%">쏴아아—</span></figure>
+<div class="gap-m"></div>
+<div class="line think"><p class="bub">…꿈은 아니네.</p></div>
+<div class="gap-s"></div>
+<div class="line mo"><p class="mono">…다시, 만날 수 있을까.</p></div>
+  <section class="end">
+    <div class="coin"></div>
+    <div class="t">1화 끝</div>
+    <div class="p">다음 화에 계속</div>
+  </section>
+</main>
+</body>
+</html>

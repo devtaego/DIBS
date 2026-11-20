@@ -50,7 +50,7 @@ from app.schemas.wallet import WithdrawalOut
 from app.services import content as content_svc
 from app.services import dividend as div_svc
 from app.services import funding as svc
-from app.services import product, serial
+from app.services import product, reminders, serial
 from app.services import wallet as wallet_svc
 from app.services.market.mock_exchange import get_market
 
@@ -231,6 +231,11 @@ def serial_check(funding_id: int, db: Session = Depends(get_db)):
 @router.post("/fundings/{funding_id}/clawback", summary="귀책 중단 반환금 수납 → 보유자 분배")
 def clawback(funding_id: int, body: ClawbackIn, db: Session = Depends(get_db)):
     return serial.collect_clawback(db, svc.get_funding(db, funding_id), body.amount)
+
+
+@router.post("/jobs/deadline-reminders", summary="매일: 청약 마감 임박 알림 (청약자·찜한 회원)")
+def deadline_reminders(db: Session = Depends(get_db)):
+    return reminders.deadline_reminders(db)
 
 
 @router.post("/jobs/serial-check", summary="매일: 상장 작품 연재 지연 판정")

@@ -121,7 +121,8 @@ CATALOG = [
 COVERS: dict[str, str] = {t: f"covers/{slug}.jpg" for slug, t, *_ in CATALOG}
 # 1화 원고 이미지 (app/public/episodes)
 EPISODE_IMAGES: dict[str, str] = {"악녀인데 남주들이 나를 숭배한다": "episodes/akn-1.jpg", "청월도": "episodes/cwd-1.jpg",
-                                  "시골에선 슬로우라이프": "episodes/sgl-1.jpg"}
+                                  "시골에선 슬로우라이프": "episodes/sgl-1.jpg",
+                                  "새벽 세시의 편의점 마법사": "episodes/pmb-1@22.jpg"}  # 세로 스크롤 원고 22장 (docs/reference/webtoon-편의점마법사-1화)
 # 쇼츠 영상 (app/public/shorts). nch 는 드라이브 원본, 나머지는 app/scripts/make_demo_shorts.py 로 만든 모션코믹 시연용
 SHORT_VIDEOS: dict[str, tuple[str, int]] = {
     "새벽 세시의 편의점 마법사": ("shorts/pmb.mp4", 160),
@@ -242,7 +243,7 @@ def main() -> None:
             for ep in call("creator", "get", f"/works/{wid}/episodes")[3:]:
                 call("admin", "patch", f"/admin/episodes/{ep['id']}/pricing", json={"is_paid": True})
             seed_paying_fans(wid, 3_600 + i * 400)
-            for r in readers[6 + i: 9 + i]:
+            for r in readers[6 + i: 9 + i] + (["reader1"] if days <= 2 else []):  # reader1: 마감 임박 찜 알림 시연
                 call(r, "put", f"/works/{wid}/dib")
             now = clock.now()
             start = now - timedelta(days=max(0, 7 - days))  # 모집 기간은 7일 이상: 마감이 가까운 것은 일찍 연 것으로
@@ -254,6 +255,7 @@ def main() -> None:
             for r in readers[10: 10 + subscribers]:
                 call(r, "post", f"/fundings/{f['id']}/subscriptions", json={**SUB, "units": 40})
 
+        UPCOMING = {"새벽 세시의 편의점 마법사": 4}
         # 나머지 카탈로그: 펀딩 없이 작품만 (탐색·랭킹용). 찜 수는 서로 다르게
         done = {"악녀인데 남주들이 나를 숭배한다", "청월도", *(t for t, *_ in extra)}
         rest = [row for row in CATALOG if row[1] not in done]
@@ -261,6 +263,16 @@ def main() -> None:
             wid = make_work(title, genre, 3 + k % 5, wtype, COVERS.get(title), syn)
             for r in readers[: (k * 7) % 23]:
                 call(r, "put", f"/works/{wid}/dib")
+            if title in UPCOMING:  # 공모 예정 (승인 완료, 모집 시작 전)
+                now = clock.now()
+                f = call("creator", "post", f"/works/{wid}/fundings", json={
+                    "target_units": 1000, "open_at": (now + timedelta(days=UPCOMING[title])).isoformat(),
+                    "close_at": (now + timedelta(days=UPCOMING[title] + 10)).isoformat(),
+                    "use_of_funds": "작화 외주 60% · 편집 20% · 마케팅 20%", "reward_tiers": []})
+                call("admin", "post", f"/admin/fundings/{f['id']}/review", json={"approve": True, "terms": {}})
+
+        # 마감 임박 알림 (매일 돌리는 작업을 시연 시점에 한 번 실행)
+        print("마감 임박 알림:", call("admin", "post", "/admin/jobs/deadline-reminders"))
 
         print(f"작품 A id={a}, 펀딩 id={fa} (모집 중)")
         print(f"작품 B id={b}, 종목 id={fb} (상장)")

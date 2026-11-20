@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { useState, type ReactNode } from 'react';
-import { Pressable, RefreshControl, ScrollView, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import { Platform, Pressable, RefreshControl, ScrollView, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Icon, IconButton, Logo, Txt } from './base';
@@ -14,7 +14,8 @@ export function DScreen({ header, children, footer, onRefresh, tabBar, gap = spa
   const [refreshing, setRefreshing] = useState(false);
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: bg }} edges={footer ? ['top', 'bottom'] : ['top']}>
-      {header}
+      {/* 휴대폰에서는 상태바 바로 밑에 붙어 답답하지 않게 여백을 조금 둔다 */}
+      {header ? <View style={{ paddingTop: Platform.OS === 'web' ? 6 : 14 }}>{header}</View> : null}
       <ScrollView
         contentContainerStyle={{ paddingHorizontal: spacing.screen, paddingTop: padTop, paddingBottom: tabBar ? 120 : spacing.inset2xl, gap }}
         refreshControl={

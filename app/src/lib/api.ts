@@ -2,6 +2,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { DEMO, demoRequest } from './demo';
+import { nowMs } from './now';
 import Constants from 'expo-constants';
 
 const KEY_BASE = 'dibs.baseUrl';
@@ -100,7 +101,7 @@ export const api = {
 /** 이용 이벤트 (찜·연독률 분석 원천). 실패해도 화면에는 영향 없음. */
 export function track(event_type: string, ids: { work_id?: number; episode_id?: number; short_id?: number; funding_id?: number; progress?: number; referrer?: string } = {}) {
   const { referrer, ...rest } = ids;
-  const now = new Date();
+  const now = new Date(nowMs());
   const kst = new Date(now.getTime() + 9 * 3600 * 1000).toISOString().slice(0, 19);
   api
     .post('/events', { events: [{ event_type, occurred_at: kst, anon_id: 'expo-app', ...rest, props: { platform: 'expo', referrer } }] })
@@ -110,7 +111,7 @@ export function track(event_type: string, ids: { work_id?: number; episode_id?: 
 // ── 응답 타입 (백엔드 스키마 중 화면에서 쓰는 필드만) ──
 export type Me = {
   id: number; email: string; nickname: string; role: 'READER' | 'CREATOR' | 'ADMIN';
-  kyc_verified: boolean; risk_level: string | null; risk_checked_at: string | null; bio: string;
+  kyc_verified: boolean; risk_level: string | null; risk_checked_at: string | null; bio: string; avatar_url?: string | null;
   broker_name: string | null; broker_account_masked: string | null; created_at?: string;
 };
 export type Progress = { requested_units: number; raised_amount: number; participants: number; achievement_pct: number };

@@ -243,10 +243,7 @@ export function InvestSummary({ id, title, by, format = '웹툰', status, status
           {by ? <Txt v="caption1" c={color.labelAlternative}>{by}</Txt> : null}
         </View>
       </View>
-      {ride ? (
-        // 모집률은 디비 말풍선으로만 (숫자 중복 표시 없음)
-        mainSub ? <Txt v="label2" w="medium" c={color.labelNeutral}>{mainSub}</Txt> : null
-      ) : !compact ? (
+      {ride ? null : !compact ? (
         <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: spacing.gapL }}>
           <View style={{ gap: spacing.gap2xs }}>
             <Txt v="caption1" c={color.labelAlternative}>{mainLabel}</Txt>
@@ -257,7 +254,18 @@ export function InvestSummary({ id, title, by, format = '웹툰', status, status
       ) : mainSub ? (
         <Txt v="label2" w="medium" c={color.labelNeutral} style={{ textAlign: 'right' }}>{mainSub}</Txt>
       ) : null}
-      {ride ? <Ride pct={progress} label={`${mainLabel} ${mainValue}`} always /> : <LinearProgress value={progress} closed={status === 'Closed'} />}
+      {ride ? (
+        // 모집률은 디비 말풍선으로만, 금액은 막대 아래 한 줄 띄워서 (모인 금액 | 목표)
+        <View style={{ gap: spacing.gapM }}>
+          <Ride pct={progress} label={`${mainLabel} ${mainValue}`} always />
+          {mainSub ? (
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' }}>
+              <Txt v="body1" w="bold" c={color.labelStrong} tabular>{mainSub.split(' / ')[0]}</Txt>
+              {mainSub.includes(' / ') ? <Txt v="label2" c={color.labelAlternative} tabular>{mainSub.split(' / ')[1]}</Txt> : null}
+            </View>
+          ) : null}
+        </View>
+      ) : <LinearProgress value={progress} closed={status === 'Closed'} />}
       {stats?.length ? <StatGrid items={stats} /> : null}
       {actions ? (
         <View style={{ flexDirection: 'row', gap: spacing.gapL, paddingTop: spacing.insetL, borderTopWidth: 1, borderTopColor: color.lineNormal }}>
@@ -270,13 +278,17 @@ export function InvestSummary({ id, title, by, format = '웹툰', status, status
 }
 
 // ── Offering Table (공모 조건 표) ──
-export function OfferingTable({ rows }: { rows: { k: string; v: string; strong?: boolean }[] }) {
+export function OfferingTable({ rows }: { rows: { k: string; v: string; sub?: string; strong?: boolean }[] }) {
+  // 왼쪽 항목명은 한 줄, 오른쪽은 값(굵게) + 필요하면 작은 설명 한 줄
   return (
-    <View style={[s.panel, { gap: 0, paddingVertical: spacing.insetS }]}>
+    <View style={[s.panel, { gap: 0, paddingVertical: spacing.insetXs }]}>
       {rows.map((r, i) => (
         <View key={r.k} style={[s.otRow, i === rows.length - 1 && { borderBottomWidth: 0 }]}>
-          <Txt v="label1" c={color.labelAlternative} style={{ width: 104 }}>{r.k}</Txt>
-          <Txt v="label1" w={r.strong ? 'bold' : 'semibold'} c={r.strong ? color.highlight : color.labelStrong} style={{ flex: 1, textAlign: 'right' }}>{r.v}</Txt>
+          <Txt v="label1" c={color.labelAlternative} style={{ width: 84 }}>{r.k}</Txt>
+          <View style={{ flex: 1, alignItems: 'flex-end', gap: 3 }}>
+            <Txt v={r.strong ? 'body1' : 'label1'} w={r.strong ? 'bold' : 'semibold'} c={r.strong ? color.highlight : color.labelStrong} style={{ textAlign: 'right' }}>{r.v}</Txt>
+            {r.sub ? <Txt v="caption1" c={color.labelAlternative} style={{ textAlign: 'right' }}>{r.sub}</Txt> : null}
+          </View>
         </View>
       ))}
     </View>
@@ -379,6 +391,6 @@ const s = StyleSheet.create({
   panel: { borderRadius: radius.sheet, backgroundColor: color.elevatedNormal, borderWidth: 1, borderColor: color.lineAlternative, padding: spacing.insetXl, gap: spacing.gapL },
   row: { flexDirection: 'row', gap: spacing.gapL, alignItems: 'center', paddingVertical: spacing.insetM, borderBottomWidth: 1, borderBottomColor: color.lineAlternative },
   hero: { borderRadius: radius.sheet, borderWidth: 1, borderColor: color.lineAlternative, backgroundColor: color.elevatedNormal, overflow: 'hidden' },
-  otRow: { flexDirection: 'row', alignItems: 'center', minHeight: 44, borderBottomWidth: 1, borderBottomColor: color.lineAlternative, gap: spacing.gapL },
+  otRow: { flexDirection: 'row', alignItems: 'flex-start', minHeight: 52, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: color.lineAlternative, gap: spacing.gapL },
   mc: { flexDirection: 'row', alignItems: 'center', gap: spacing.gapL, paddingVertical: spacing.insetM, borderBottomWidth: 1, borderBottomColor: color.lineAlternative, minHeight: 72 },
 });

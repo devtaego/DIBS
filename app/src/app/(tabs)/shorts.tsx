@@ -429,9 +429,12 @@ function StoryBar({ count, index, ratio, cur, dur, onSeek, onJump }: {
           </View>
         ))}
       </View>
-      <View pointerEvents="none" style={{ flexDirection: 'row', justifyContent: 'flex-end', marginTop: -4 }}>
-        <Txt v="caption2" w="semibold" c="rgba(243,232,238,0.8)" tabular>{`${mmss(drag && drag.i === index ? drag.r * dur : cur)} / ${mmss(dur)}`}</Txt>
-      </View>
+      {/* 시간은 끄는 동안에만 잠깐 보여 준다 (평소엔 막대만으로 흐름이 보이니까) */}
+      {drag && drag.i === index ? (
+        <View pointerEvents="none" style={{ alignSelf: 'center', marginTop: 2, paddingHorizontal: 12, paddingVertical: 4, borderRadius: 999, backgroundColor: 'rgba(0,0,0,0.55)' }}>
+          <Txt v="label2" w="bold" c="#FFFFFF" tabular>{`${mmss(drag.r * dur)} / ${mmss(dur)}`}</Txt>
+        </View>
+      ) : null}
     </View>
   );
 }

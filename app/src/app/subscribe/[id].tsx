@@ -190,10 +190,11 @@ export default function SubscribeScreen() {
   return (
     <DScreen
       header={header}
-      footer={<Button label={units ? `${manwon(amount)} 펀딩하기` : '금액을 입력해 주세요'} disabled={!units || over || short} onPress={() => setStep('terms')} />}
+      footer={<Button label={units ? (existing ? `${manwon(amount)}으로 바꾸기` : `${manwon(amount)} 펀딩하기`) : '금액을 입력해 주세요'} disabled={!units || over || short} onPress={() => setStep('terms')} />}
       gap={spacing.gapXl}>
       <Stack.Screen options={{ headerShown: false }} />
-      <PageTitle title="얼마나 펀딩할까요?" sub={`목표 달성 시 ${unit.toLocaleString('ko-KR')}원 = 1조각 · 사용 가능 ${manwon(wallet.deposit_available)}`} />
+      <PageTitle title={existing ? '청약 금액을 바꿀까요?' : '얼마나 펀딩할까요?'}
+        sub={existing ? `지금 ${manwon(existing.units * unit)} 청약 중 · 마감 1시간 전까지 바꿀 수 있어요` : `목표 달성 시 ${unit.toLocaleString('ko-KR')}원 = 1조각 · 사용 가능 ${manwon(wallet.deposit_available)}`} />
       <View style={{ alignItems: 'center', gap: spacing.gapL, paddingVertical: spacing.inset2xl }}>
         <Txt v="display1" w="bold" c={raw ? color.labelStrong : color.labelDisable} tabular>{raw ? `${raw.toLocaleString('ko-KR')}원` : '0원'}</Txt>
         <View style={{ height: 28, paddingHorizontal: spacing.insetM, borderRadius: radius.chip, borderWidth: 1, borderColor: color.lineNormal, justifyContent: 'center' }}>

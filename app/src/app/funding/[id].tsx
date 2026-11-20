@@ -70,13 +70,13 @@ export default function FundingScreen() {
       onRefresh={reload}
       footer={
         <>
-          <IconButton icon={work.is_dibbed ? 'star' : 'starL'} label={work.is_dibbed ? '관심 해제' : '관심 등록'} variant="Background" c={work.is_dibbed ? color.cautionary : color.labelStrong} onPress={toggleDib} />
+          <IconButton icon={work.is_dibbed ? 'heartF' : 'heart'} label={work.is_dibbed ? '찜 해제' : '찜하기'} variant="Background" c={work.is_dibbed ? color.primaryNormal : color.labelStrong} onPress={toggleDib} />
           <View style={{ flex: 1 }}>
             {listed ? (
               <Button label="조각 시세 보기" onPress={() => router.push(`/security/${f.id}`)} />
             ) : (
               <Button
-                label={sub?.status === 'ACTIVE' ? `청약 ${sub.units}조각 · 수량 바꾸기` : `${f.unit_price.toLocaleString('ko-KR')}원부터 투자하기`}
+                label={sub?.status === 'ACTIVE' ? `${manwon(sub.units * f.unit_price)} 청약 중 · 금액 바꾸기` : `${f.unit_price.toLocaleString('ko-KR')}원부터 투자하기`}
                 disabled={!open}
                 onPress={() => router.push(`/subscribe/${f.id}`)}
               />
@@ -107,12 +107,12 @@ export default function FundingScreen() {
             <OfferingTable
               rows={[
                 { k: '모집 금액', v: manwon(f.target_amount), strong: true },
-                { k: '1인 한도', v: `${f.per_user_cap_units.toLocaleString('ko-KR')}조각 (${manwon(f.per_user_cap_units * f.unit_price)})` },
-                { k: '상품 기간', v: `시즌 ${ind.season_months}개월 + 완결 후 ${ind.tail_months}개월` },
-                { k: '내 몫 (작품 매출 중)', v: `처음엔 ${bps(f.terms.royalty_holder_bps)} → 투자금만큼 받은 뒤 ${bps(f.terms.royalty_holder_after_bps)}` },
-                { k: '정산', v: '분기마다 키움 계좌로' },
-                { k: '신청이 몰리면', v: '나눠서 배정 · 남은 돈은 환불' },
-                { k: '원금', v: '돌려주지 않아요 · 정산금으로 받아요' },
+                { k: '1인 한도', v: `${f.per_user_cap_units.toLocaleString('ko-KR')}조각`, sub: manwon(f.per_user_cap_units * f.unit_price) },
+                { k: '상품 기간', v: `시즌 ${ind.season_months}개월 + ${ind.tail_months}개월`, sub: '완결 후 기간까지 정산을 받아요' },
+                { k: '내 몫', v: `작품 매출의 ${bps(f.terms.royalty_holder_bps)}`, sub: `투자금만큼 받은 뒤엔 ${bps(f.terms.royalty_holder_after_bps)}` },
+                { k: '정산', v: '분기마다', sub: '키움증권 계좌로 들어와요' },
+                { k: '신청이 몰리면', v: '나눠서 배정', sub: '남은 돈은 바로 환불' },
+                { k: '원금', v: '돌려주지 않아요', sub: '정산금으로 돌려받는 구조예요' },
               ]}
             />
             <Callout title="투자금은 이렇게 돌아와요">

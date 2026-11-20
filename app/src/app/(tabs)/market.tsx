@@ -50,23 +50,12 @@ export default function Market() {
               {pnl ? <Txt v="label1" w="semibold" c={pnl > 0 ? color.rise : color.fall} tabular>{`${pnl > 0 ? '+' : '−'}${manwon(Math.abs(pnl))}`}</Txt> : null}
             </View>
           </View>
-          {data.holdings.length ? data.holdings.map((h) => {
-            const s = data.list.find((x) => x.funding_id === h.funding_id);
-            const w = workOf.get(s?.work_id ?? -1);
-            return (
-              <Pressable key={h.funding_id} onPress={() => router.push(`/security/${h.funding_id}`)} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.gapL }}>
-                <View style={{ width: 40 }}><Cover id={w?.id ?? h.funding_id} title={h.work_title} url={w?.cover_url} size="Small" /></View>
-                <View style={{ flex: 1, gap: 2 }}>
-                  <Txt v="label1" w="semibold" c={color.labelStrong} lines={1}>{h.work_title}</Txt>
-                  <Txt v="caption1" c={color.labelAlternative}>{`${h.units.toLocaleString('ko-KR')}조각 · 평균 ${h.avg_price.toLocaleString('ko-KR')}원`}</Txt>
-                </View>
-                <View style={{ alignItems: 'flex-end', gap: 2 }}>
-                  <Txt v="label1" w="bold" c={color.labelStrong} tabular>{won(h.eval_amount)}</Txt>
-                  <Txt v="caption1" w="semibold" c={h.pnl >= 0 ? color.rise : color.fall} tabular>{signedPct(h.pnl_pct)}</Txt>
-                </View>
-              </Pressable>
-            );
-          }) : <Txt v="body2" c={color.labelAlternative}>아직 가진 조각이 없어요. 청약에 참여하면 상장 뒤 여기서 사고팔 수 있어요.</Txt>}
+          {/* 작품별 보유는 아래 '거래 중인 조각' 목록에 '보유'로 표시 (같은 작품이 두 번 나오지 않게) */}
+          <Txt v="label2" c={color.labelAlternative}>
+            {data.holdings.length
+              ? `보유 ${data.holdings.length}종목 · ${data.holdings.reduce((x, h) => x + h.units, 0).toLocaleString('ko-KR')}조각`
+              : '아직 가진 조각이 없어요. 청약에 참여하면 상장 뒤 여기서 사고팔 수 있어요.'}
+          </Txt>
           <Pressable onPress={() => router.push('/wallet')} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingTop: spacing.gapM, borderTopWidth: 1, borderTopColor: color.lineAlternative }}>
             <Txt v="label2" c={color.labelAlternative}>{`주문 가능 예치금 ${won(data.wallet.deposit_available)}`}</Txt>
             <Txt v="label2" w="semibold" c={color.labelNeutral}>지갑 ›</Txt>
@@ -89,7 +78,7 @@ export default function Market() {
               id={x.work_id}
               title={x.work_title}
               coverUrl={workOf.get(x.work_id)?.cover_url}
-              meta={`${typeLabel(workOf.get(x.work_id)?.type ?? 'WEBTOON')} · 공모가 ${x.unit_price.toLocaleString('ko-KR')}원${h ? ` · 보유 ${h.units}조각` : ''}${x.status === 'SUSPENDED' ? ' · 거래 정지' : ''}`}
+              meta={h ? `보유 ${h.units}조각 · 평가 ${won(h.eval_amount)} (${signedPct(h.pnl_pct)})` : `${typeLabel(workOf.get(x.work_id)?.type ?? 'WEBTOON')} · ${workOf.get(x.work_id)?.genre ?? ''}${x.status === 'SUSPENDED' ? ' · 거래 정지' : ''}`}
               price={(x.last_price ?? x.unit_price).toLocaleString('ko-KR')}
               change={signedPct(x.change_pct)}
               trend={trendOf(x.change_pct)}
@@ -112,7 +101,7 @@ export default function Market() {
                 <View style={{ width: 40 }}><Cover id={f.work_id} title={f.work_title} url={w?.cover_url} size="Small" /></View>
                 <View style={{ flex: 1, gap: 2 }}>
                   <Txt v="label1" w="semibold" c={color.labelStrong} lines={1}>{f.work_title}</Txt>
-                  <Txt v="caption1" c={color.labelAlternative}>{`청약 ${Math.round(f.progress.achievement_pct)}% 모임 · 1조각 ${f.unit_price.toLocaleString('ko-KR')}원`}</Txt>
+                  <Txt v="caption1" c={color.labelAlternative}>{`청약 ${Math.round(f.progress.achievement_pct)}% 모임 · ${manwon(f.progress.raised_amount)}`}</Txt>
                 </View>
                 <View style={{ alignSelf: 'center' }}><Badge type="Deadline" label={`마감 ${ddayText(f) || '임박'}`} /></View>
               </Pressable>

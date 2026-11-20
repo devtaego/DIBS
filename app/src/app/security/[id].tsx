@@ -20,7 +20,8 @@ export default function SecurityScreen() {
         api.get<Trade[]>(`/market/securities/${id}/trades`, { limit: 10 }),
         api.get<Candle[]>(`/market/securities/${id}/chart`, { days: 30 }),
       ]);
-      return { d, book, trades, chart };
+      const work = await api.get<{ cover_url?: string | null }>(`/works/${d.work_id}`).catch(() => null); // 표지
+      return { d, book, trades, chart, cover: work?.cover_url ?? null };
     },
     [id],
     5_000, // 호가·체결 5초마다 갱신 (WebSocket 은 다음 단계)
@@ -39,7 +40,7 @@ export default function SecurityScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
     <Screen onRefresh={reload}>
-      <MiniWork id={d.work_id} title={d.work_title} line2={`${d.security_code ?? '발행 전'} · 플랫폼 매출 수익권`} />
+      <MiniWork id={d.work_id} title={d.work_title} coverUrl={data.cover} line2={`${d.security_code ?? '발행 전'} · 플랫폼 매출 수익권`} />
       {!tradable ? <View style={{ marginTop: space(3) }}><Badge label={FUNDING_STATUS[d.status]} tone="danger" /></View> : null}
       <T size={32} weight="700" style={{ marginTop: space(4) }}>{won(d.last_price)}</T>
       <T size={14} weight="600" color={changeColor(d.change_pct)}>

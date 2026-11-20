@@ -203,7 +203,7 @@ export default function SubscribeScreen() {
         <Txt v="display1" w="bold" c={raw ? color.labelStrong : color.labelDisable} tabular>{raw ? `${raw.toLocaleString('ko-KR')}원` : '0원'}</Txt>
         <View style={{ height: 28, paddingHorizontal: spacing.insetM, borderRadius: radius.chip, borderWidth: 1, borderColor: color.lineNormal, justifyContent: 'center' }}>
           <Txt v="label2" w="semibold" c={over || short ? color.negative : color.labelNormal}>
-            {over ? `최대 ${manwon(maxAmount)}까지 펀딩할 수 있어요` : short ? '예치금이 부족해요' : `${units.toLocaleString('ko-KR')}조각 · 1조각 ${unit.toLocaleString('ko-KR')}원`}
+            {over ? `최대 ${manwon(maxAmount)}까지 펀딩할 수 있어요` : short ? '예치금이 부족해요' : `${units.toLocaleString('ko-KR')}조각`}
           </Txt>
         </View>
         <View style={{ flexDirection: 'row', gap: spacing.gapM }}>

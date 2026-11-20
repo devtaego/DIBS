@@ -83,7 +83,6 @@ export default function MockKiwoomScreen() {
         </View>
         <View style={s.card}>
           <T size={15} weight="700">{f.work_title}</T>
-          <KV k="1조각" v={won(f.unit_price)} />
           <KV k="1인 한도" v={`${max.toLocaleString('ko-KR')}조각`} />
           <KV k="마감" v={dateText(f.close_at)} />
         </View>

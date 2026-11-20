@@ -3,6 +3,7 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
+import { StackHeader } from '@/components/StackHeader';
 import { SessionProvider } from '@/lib/session';
 import { colors, MODE } from '@/lib/theme';
 
@@ -21,6 +22,7 @@ export default function RootLayout() {
         <StatusBar style={MODE === 'light' ? 'dark' : 'light'} />
         <Stack
           screenOptions={{
+            header: (p) => <StackHeader options={p.options as never} />,
             headerStyle: { backgroundColor: colors.bg },
             headerTintColor: colors.text,
             headerTitleStyle: { fontFamily: 'Pretendard-SemiBold', fontSize: 16 },

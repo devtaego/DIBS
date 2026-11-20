@@ -1,7 +1,7 @@
 // DIBS 백엔드 API 클라이언트. 엔드포인트 목록은 백엔드 docs/SCREEN_API_MAP.md 기준.
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import { DEMO, demoRequest } from './demo';
+import { DEMO, demoRequest, loadDemoState } from './demo';
 import { nowMs } from './now';
 import Constants from 'expo-constants';
 
@@ -28,6 +28,7 @@ export async function loadConfig() {
   baseUrl = (await store.get(KEY_BASE)) || guessBaseUrl();
   token = await store.get(KEY_TOKEN);
   if (DEMO && !token) token = 'demo-token'; // 정적 데모: 시연 계정(reader1)으로 바로 시작
+  if (DEMO) await loadDemoState(); // 지난 시연 상태 이어서
   return { baseUrl, token };
 }
 

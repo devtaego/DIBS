@@ -40,3 +40,9 @@ export function useVisitStreak(todayMs: number): number {
   for (let t = todayMs; set.has(day(t)); t -= 86_400_000) n++;
   return Math.max(1, n);
 }
+
+/** 시연 초기화 때 화면에 남은 설정 값도 비운다 */
+export function clearPrefMemory() {
+  for (const k of Object.keys(mem)) delete mem[k];
+  subs.forEach((g) => g());
+}

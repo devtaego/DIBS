@@ -1,13 +1,14 @@
 import { router } from 'expo-router';
-import { Image, Pressable, View } from 'react-native';
+import { useState } from 'react';
+import { Image, Platform, Pressable, View } from 'react-native';
 
 import { AttendanceCard } from '@/components/AttendanceCard';
 import { ErrorBox } from '@/components/ui';
 import { Button, DScreen, GroupLabel, Icon, ListCell, Panel, TopAppBar, Txt, color, radius, spacing } from '@/ds';
 import { api, type Holding, type MySubscription, type Wallet, type WorkCard } from '@/lib/api';
-import { DEMO } from '@/lib/demo';
+import { DEMO, resetDemoState } from '@/lib/demo';
 import { nowMs } from '@/lib/now';
-import { useKiwoomLink, useVisitStreak } from '@/lib/prefs';
+import { clearPrefMemory, useKiwoomLink, useVisitStreak } from '@/lib/prefs';
 import { riskLabel } from '@/lib/risk';
 import { avatarSource } from '@/lib/avatar';
 import { useSession } from '@/lib/session';
@@ -16,7 +17,8 @@ import { useApi } from '@/lib/useApi';
 
 // V2 13 MY
 export default function My() {
-  const { me, logout, baseUrl } = useSession();
+  const { me, logout, baseUrl, refreshMe } = useSession();
+  const [resetArm, setResetArm] = useState(false);
   const [kiwoom] = useKiwoomLink();
   const visit = useVisitStreak(nowMs());
   const { data, error, reload } = useApi(async () => {
@@ -116,7 +118,15 @@ export default function My() {
         <ListCell title="약관 · 개인정보 처리방침" icon="doc" onPress={() => router.push('/me/terms')} />
         <ListCell title="앱 소개 다시 보기" icon="info" onPress={() => router.push({ pathname: '/intro', params: { replay: '1' } })} divider={false} />
       </View>
-      {DEMO ? null : <Txt v="caption2" c={color.labelAssistive}>{`서버: ${baseUrl}`}</Txt>}
+      {DEMO ? (
+        // 시연용: 청약·충전·출석 결과를 지우고 처음 상태로 (두 번 눌러야 실행)
+        <Button label={resetArm ? '한 번 더 누르면 처음 상태로 돌아가요' : '처음 상태로 되돌리기'} variant="Outlined" tone="Assistive" size="Medium"
+          onPress={async () => {
+            if (!resetArm) { setResetArm(true); setTimeout(() => setResetArm(false), 3000); return; }
+            await resetDemoState(); clearPrefMemory();
+            if (Platform.OS === 'web') { const d = globalThis.document; globalThis.location?.replace(d?.querySelector('base') ? new URL('index.html', d.baseURI).href : '/'); } else { await refreshMe(); router.replace('/'); }
+          }} />
+      ) : <Txt v="caption2" c={color.labelAssistive}>{`서버: ${baseUrl}`}</Txt>}
       <Button label="로그아웃" variant="Outlined" tone="Assistive" size="Medium" onPress={async () => { await logout(); router.replace('/login'); }} />
     </DScreen>
   );

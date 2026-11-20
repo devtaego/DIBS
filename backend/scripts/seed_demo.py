@@ -120,8 +120,8 @@ CATALOG = [
 ]
 COVERS: dict[str, str] = {t: f"covers/{slug}.jpg" for slug, t, *_ in CATALOG}
 # 1화 원고 이미지 (app/public/episodes)
-EPISODE_IMAGES: dict[str, str] = {"악녀인데 남주들이 나를 숭배한다": "episodes/akn-1.jpg", "청월도": "episodes/cwd-1.jpg",
-                                  "시골에선 슬로우라이프": "episodes/sgl-1.jpg",
+EPISODE_IMAGES: dict[str, str] = {"악녀인데 남주들이 나를 숭배한다": "episodes/akn-1@3.jpg", "청월도": "episodes/cwd-1@2.jpg",
+                                  "시골에선 슬로우라이프": "episodes/sgl-1@4.jpg",
                                   "새벽 세시의 편의점 마법사": "episodes/pmb-1@22.jpg"}  # 세로 스크롤 원고 22장 (docs/reference/webtoon-편의점마법사-1화)
 # 쇼츠 영상 (app/public/shorts). nch 는 드라이브 원본, 나머지는 app/scripts/make_demo_shorts.py 로 만든 모션코믹 시연용
 SHORT_VIDEOS: dict[str, tuple[str, int]] = {

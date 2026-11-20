@@ -2,6 +2,8 @@
 // 서버 없이 돌아가도록, 시연 데이터베이스에서 미리 받아 둔 응답(demo-fixtures.json)으로 GET 을 답하고
 // 쓰기 요청(청약·찜·주문 등)은 화면 흐름이 이어지도록 그럴듯한 응답을 돌려준다. 실제 저장은 하지 않는다.
 import fixtures from './demo-fixtures.json';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
 import { scoreToLevel } from './risk';
 
 type Query = Record<string, string | number | boolean | undefined | null> | undefined;
@@ -108,7 +110,36 @@ function clone<T>(x: T): T {
   return JSON.parse(JSON.stringify(x)) as T;
 }
 
+// ── 시연 상태 저장: 새로고침·앱 재실행에도 청약·충전·찜 같은 결과가 남게 (MY > 시연 처음부터 로 초기화) ──
+const SAVE_KEY = 'dibs.demoState';
+export async function loadDemoState() {
+  try {
+    const raw = await AsyncStorage.getItem(SAVE_KEY);
+    if (!raw) return;
+    const d = JSON.parse(raw) as { local: Record<string, unknown>; unlocked: number[]; attended: boolean; points: number; kiwoomCoupon: boolean; jid: number };
+    Object.assign(local, d.local ?? {});
+    (d.unlocked ?? []).forEach((x) => unlocked.add(x));
+    attended = !!d.attended; points = d.points ?? 3000; kiwoomCoupon = !!d.kiwoomCoupon; jid = d.jid ?? jid;
+  } catch { /* 무시 */ }
+}
+function saveDemoState() {
+  AsyncStorage.setItem(SAVE_KEY, JSON.stringify({ local, unlocked: [...unlocked], attended, points, kiwoomCoupon, jid })).catch(() => {});
+}
+/** 시연 처음부터: 저장한 시연 상태와 기기 설정(출석·키움 연결·좋아요 등)을 지운다 */
+export async function resetDemoState() {
+  const keys = (await AsyncStorage.getAllKeys().catch(() => [] as readonly string[])).filter((k) => k.startsWith('dibs.') && k !== 'dibs.introSeen' && k !== 'dibs.token' && k !== 'dibs.baseUrl');
+  await AsyncStorage.multiRemove(keys).catch(() => {});
+  for (const k of Object.keys(local)) delete local[k];
+  unlocked.clear(); attended = false; points = 3000; kiwoomCoupon = false;
+}
+
 export async function demoRequest(method: string, path: string, body?: unknown, query?: Query): Promise<unknown> {
+  const out = await demoRequestInner(method, path, body, query);
+  if (method !== 'GET') saveDemoState();
+  return out;
+}
+
+async function demoRequestInner(method: string, path: string, body?: unknown, query?: Query): Promise<unknown> {
   await new Promise((r) => setTimeout(r, 120)); // 네트워크처럼 보이게
   if (method === 'GET') {
     const k = key(path, query);

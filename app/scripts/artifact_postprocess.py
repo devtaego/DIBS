@@ -66,5 +66,22 @@ boot = ("<script>(function(){var d=location.pathname.replace(/[^/]*$/,'');"
 h = h.replace('<meta charset="utf-8" />', '<meta charset="utf-8" />\n    ' + boot, 1)
 h = h.replace('src="/xpo/', 'src="xpo/').replace('href="/favicon.ico"', 'href="favicon.ico"')
 h = h.replace("<title>DIBS</title>", "<title>DIBS 앱 데모 (디자인 v2.0)</title>")
+# 넓은 화면(데스크톱)에서는 가운데 휴대폰 틀(390x844)로, 휴대폰에서는 그대로 전체 화면
+frame = """<style id="phone-frame">
+@media (min-width: 480px) and (min-height: 560px) {
+  html, body { background: #E9EBF0; }
+  body { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; min-height: 100vh; overflow: hidden; }
+  #root {
+    flex: none; position: relative;
+    width: 390px; height: 844px; zoom: var(--phone-zoom, 1); /* 창이 작으면 틀째로 줄인다 (레이아웃은 그대로) */
+    border-radius: 46px; overflow: hidden; background: #fff;
+    box-shadow: 0 0 0 11px #15161c, 0 0 0 12px #3a3b44, 0 28px 70px rgba(20, 22, 30, 0.35);
+    transform: translateZ(0); /* 안쪽 fixed 요소를 틀 기준으로 */
+  }
+  body::after { content: "DIBS 앱 데모 · 휴대폰에서 열면 전체 화면"; font: 500 12px/1 Pretendard, -apple-system, sans-serif; color: #8a8f9c; }
+}
+</style>
+<script>(function(){function fit(){var z=Math.min(1,(innerHeight-64)/844,(innerWidth-48)/414);document.documentElement.style.setProperty('--phone-zoom',String(Math.max(0.5,z)))}fit();addEventListener('resize',fit)})();</script>"""
+h = h.replace("</head>", frame + "\n</head>", 1)
 open(idx, "w", encoding="utf-8").write(h)
 print(f"{len(renames)}개 파일 이름 변경, 상대 경로 처리 완료: {root}")

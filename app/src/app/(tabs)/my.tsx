@@ -70,7 +70,7 @@ export default function My() {
           [activeAmt ? `${(activeAmt / 10000).toLocaleString('ko-KR', { maximumFractionDigits: 1 })}만` : '0', '진행 중 펀딩'],
           [`${data?.dibs.length ?? 0}`, '관심 작품'],
         ].map(([v, l], i) => (
-          <Pressable key={l} onPress={() => router.push(i === 2 ? '/me/dibs' : '/portfolio')} style={[{ flex: 1, alignItems: 'center', gap: spacing.gap2xs }, i > 0 && { borderLeftWidth: 1, borderLeftColor: color.lineAlternative }]}>
+          <Pressable key={l} onPress={() => router.push(i === 2 ? '/me/dibs' : i === 1 ? { pathname: '/portfolio', params: { tab: 'subs' } } : '/portfolio')} style={[{ flex: 1, alignItems: 'center', gap: spacing.gap2xs }, i > 0 && { borderLeftWidth: 1, borderLeftColor: color.lineAlternative }]}>
             <Txt v="body1" w="bold" c={color.labelStrong} tabular>{v}</Txt>
             <Txt v="caption1" w="medium" c={color.labelAlternative}>{l}</Txt>
           </Pressable>
@@ -96,7 +96,7 @@ export default function My() {
 
       <View>
         <GroupLabel>투자</GroupLabel>
-        <ListCell title="내 펀딩" icon="heart" trailing="Value" value={`${active.length}건 진행 중`} onPress={() => router.push('/portfolio')} />
+        <ListCell title="내 펀딩" icon="heart" trailing="Value" value={`${active.length}건 진행 중`} onPress={() => router.push({ pathname: '/portfolio', params: { tab: 'subs' } })} />
         <ListCell title="관심 작품" icon="star" trailing="Value" value={`${data?.dibs.length ?? 0}작품`} onPress={() => router.push('/me/dibs')} />
         <ListCell title="투자·거래 내역" icon="doc" onPress={() => router.push('/portfolio')} />
         <ListCell title="정산 리포트" icon="chart" trailing="Badge" badge="분기" onPress={() => router.push('/dividends')} />

@@ -193,4 +193,4 @@ export type Holding = { funding_id: number; work_title: string; mode: string; un
 export type DividendPayment = { run_id: number; funding_id: number; work_title: string; period: string; pay_date: string; status: string; units: number; gross: number; tax: number; net: number };
 export type Notification = { id: number; type: string; title: string; body: string; ref_type: string | null; ref_id: number | null; is_read: boolean; created_at: string };
 export type ShortItem = { id: number; work_id: number; title: string; video_url: string; duration_sec: number; work_title: string; funding_id: number | null; funding_status: string | null };
-export type LedgerLine = { journal_id: number; kind: string; account: string; amount: number; created_at: string };
+export type LedgerLine = { journal_id: number; kind: string; account: string; amount: number; created_at: string; memo?: string | null };

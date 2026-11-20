@@ -243,7 +243,10 @@ export function InvestSummary({ id, title, by, format = '웹툰', status, status
           {by ? <Txt v="caption1" c={color.labelAlternative}>{by}</Txt> : null}
         </View>
       </View>
-      {!compact ? (
+      {ride ? (
+        // 모집률은 디비 말풍선으로만 (숫자 중복 표시 없음)
+        mainSub ? <Txt v="label2" w="medium" c={color.labelNeutral}>{mainSub}</Txt> : null
+      ) : !compact ? (
         <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: spacing.gapL }}>
           <View style={{ gap: spacing.gap2xs }}>
             <Txt v="caption1" c={color.labelAlternative}>{mainLabel}</Txt>
@@ -254,7 +257,7 @@ export function InvestSummary({ id, title, by, format = '웹툰', status, status
       ) : mainSub ? (
         <Txt v="label2" w="medium" c={color.labelNeutral} style={{ textAlign: 'right' }}>{mainSub}</Txt>
       ) : null}
-      {ride ? <Ride pct={progress} label={`${mainLabel} ${mainValue}`} /> : <LinearProgress value={progress} closed={status === 'Closed'} />}
+      {ride ? <Ride pct={progress} label={`${mainLabel} ${mainValue}`} always /> : <LinearProgress value={progress} closed={status === 'Closed'} />}
       {stats?.length ? <StatGrid items={stats} /> : null}
       {actions ? (
         <View style={{ flexDirection: 'row', gap: spacing.gapL, paddingTop: spacing.insetL, borderTopWidth: 1, borderTopColor: color.lineNormal }}>
@@ -337,7 +340,7 @@ export function ReturnSim({ amount, rows, note }: { amount: number; rows: { labe
             <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
               <Txt v="label2" c={color.labelNeutral}>{r.label}</Txt>
               <Txt v="label2" w="bold" c={loss ? color.fall : color.labelStrong} tabular>
-                {Math.round(amount * m).toLocaleString('ko-KR')}원 · {m.toFixed(2)}배{r.months ? ` · ${r.months}개월 회수` : loss ? ' · 원금 손실' : ''}
+                {Math.round(amount * m).toLocaleString('ko-KR')}원 · {m.toFixed(2)}배{r.months ? ` · ${r.months}개월이면 투자금만큼` : loss ? ' · 원금 손실' : ''}
               </Txt>
             </View>
             <View style={{ height: 8, borderRadius: 4, backgroundColor: color.fillNormal, overflow: 'hidden' }}>

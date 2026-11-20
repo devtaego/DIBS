@@ -83,10 +83,13 @@ export default function Explore() {
   const openFundings = [...(data?.fundings ?? [])].sort((x, y) => (x.days_left ?? 99) - (y.days_left ?? 99));
   const header = (
     <View style={{ height: 56, flexDirection: 'row', alignItems: 'center', gap: spacing.gapL, paddingLeft: spacing.screen, paddingRight: spacing.insetXs }}>
-      {(['recommend', 'rank'] as const).map((k) => (
-        <Pressable key={k} onPress={() => setTab(k)} accessibilityRole="tab" accessibilityState={{ selected: tab === k }} hitSlop={6}>
-          <Txt v="title3" w="bold" c={tab === k ? color.labelStrong : color.labelAssistive}>{k === 'recommend' ? '추천' : '랭킹'}</Txt>
-        </Pressable>
+      {(['recommend', 'rank'] as const).map((k, i) => (
+        <View key={k} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.gapL }}>
+          {i > 0 ? <View style={{ width: 1.5, height: 16, borderRadius: 1, backgroundColor: color.lineNormal }} /> : null}
+          <Pressable onPress={() => setTab(k)} accessibilityRole="tab" accessibilityState={{ selected: tab === k }} hitSlop={6}>
+            <Txt v="title3" w="bold" c={tab === k ? color.labelStrong : color.labelAssistive}>{k === 'recommend' ? '추천' : '랭킹'}</Txt>
+          </Pressable>
+        </View>
       ))}
       <View style={{ flex: 1 }} />
       <IconButton icon="cSearch" label="검색" onPress={() => setShowSearch(!showSearch)} />

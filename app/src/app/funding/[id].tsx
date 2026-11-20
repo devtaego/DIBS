@@ -109,12 +109,15 @@ export default function FundingScreen() {
                 { k: '모집 금액', v: manwon(f.target_amount), strong: true },
                 { k: '1인 한도', v: `${f.per_user_cap_units.toLocaleString('ko-KR')}조각 (${manwon(f.per_user_cap_units * f.unit_price)})` },
                 { k: '상품 기간', v: `시즌 ${ind.season_months}개월 + 완결 후 ${ind.tail_months}개월` },
-                { k: '매출 배분', v: `회수 전 ${bps(f.terms.royalty_holder_bps)} → 회수 후 ${bps(f.terms.royalty_holder_after_bps)}` },
-                { k: '정산', v: '분기마다' },
-                { k: '목표 초과 시 배정', v: `${bps(f.terms.allocation_params.equal_ratio_bps ?? 2000)}는 고르게, 나머지는 청약 비율대로` },
-                { k: '원금 상환', v: '없음 (분배금으로 회수)' },
+                { k: '내 몫 (작품 매출 중)', v: `처음엔 ${bps(f.terms.royalty_holder_bps)} → 투자금만큼 받은 뒤 ${bps(f.terms.royalty_holder_after_bps)}` },
+                { k: '정산', v: '분기마다 키움 계좌로' },
+                { k: '신청이 몰리면', v: '나눠서 배정 · 남은 돈은 환불' },
+                { k: '원금', v: '돌려주지 않아요 · 정산금으로 받아요' },
               ]}
             />
+            <Callout title="투자금은 이렇게 돌아와요">
+              {`작품이 벌어들인 매출의 ${bps(f.terms.royalty_holder_bps)}를 조각 가진 분들이 나눠 받아요. 받은 정산금이 투자한 금액만큼 쌓이면 그때부터는 ${bps(f.terms.royalty_holder_after_bps)}만 받고, 나머지는 작가에게 돌아가요.`}
+            </Callout>
           </Section>
           <Section title="청약 일정" size="Medium">
             <OfferingTimeline

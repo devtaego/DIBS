@@ -35,7 +35,7 @@ export default function Market() {
   const idx = marketIndex(data?.list ?? []);
   const subsAmt = (data?.subs ?? []).filter((x) => x.status === 'ACTIVE').reduce((a, x) => a + x.units * x.unit_price, 0);
   const pnl = (data?.holdings ?? []).reduce((a, h) => a + h.pnl, 0);
-  const total = (data?.holdings ?? []).reduce((a, h) => a + h.eval_amount, 0) + subsAmt + (data?.wallet?.deposit_available ?? 0);
+  const holdAmt = (data?.holdings ?? []).reduce((a, h) => a + h.eval_amount, 0);
   // 지수 흐름: 종목별 일봉 종가 ÷ 공모가의 날짜별 평균
   const series = useMemo(() => {
     if (!data) return [];
@@ -51,28 +51,17 @@ export default function Market() {
     <DScreen header={<TopAppBar type="Main" />} onRefresh={reload} tabBar>
       {data?.wallet ? (
         <>
-          <PortfolioSummary
-            label="총 자산"
-            badge={undefined}
-            total={Math.round(total).toLocaleString('ko-KR')}
-            change={pnl ? `${pnl > 0 ? '+' : '−'}${manwon(Math.abs(pnl))} 평가손익` : undefined}
-            trend={trendOf(pnl)}
-            items={[
-              ...data.holdings.map((h) => ({ label: h.work_title, value: h.eval_amount })),
-              ...(subsAmt ? [{ label: '청약 중', value: subsAmt }] : []),
-              ...(data.wallet.deposit_available ? [{ label: '예치금', value: data.wallet.deposit_available }] : []),
-            ]}
-          />
-          <Panel>
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-              <Txt v="label1" w="semibold" c={color.labelStrong}>예치금</Txt>
-              <Txt v="caption1" c={color.labelAlternative}>{me?.broker_account_masked ? `연결 계좌 ${me.broker_account_masked}` : data.wallet.mode === 'MOCK' ? '키움증권 연결 계좌' : '연결 계좌'}</Txt>
+          {/* 자산 전체는 홈, 예치금은 지갑에서. 여기서는 내 조각 평가만 짧게 */}
+          <Panel style={{ gap: spacing.gapS }}>
+            <Txt v="caption1" c={color.labelAlternative}>투자한 작품 평가금액</Txt>
+            <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' }}>
+              <Txt v="title2" w="bold" c={color.labelStrong} tabular>{`${Math.round(holdAmt).toLocaleString('ko-KR')}원`}</Txt>
+              {pnl ? <Txt v="label1" w="semibold" c={pnl > 0 ? color.rise : color.fall} tabular>{`${pnl > 0 ? '+' : '−'}${manwon(Math.abs(pnl))}`}</Txt> : null}
             </View>
-            <Txt v="title2" w="bold" c={color.labelStrong} tabular>{`${data.wallet.deposit_available.toLocaleString('ko-KR')}원`}</Txt>
-            <View style={{ flexDirection: 'row', gap: spacing.gapM }}>
-              <View style={{ flex: 1 }}><Button label="충전" size="Medium" onPress={() => router.push('/wallet')} /></View>
-              <View style={{ flex: 1 }}><Button label="출금" variant="Outlined" tone="Assistive" size="Medium" onPress={() => router.push('/wallet')} /></View>
-            </View>
+            <Pressable onPress={() => router.push('/wallet')} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: spacing.gapS, borderTopWidth: 1, borderTopColor: color.lineAlternative }}>
+              <Txt v="label2" c={color.labelAlternative}>{`주문 가능 예치금 ${data.wallet.deposit_available.toLocaleString('ko-KR')}원`}</Txt>
+              <Txt v="label2" w="semibold" c={color.labelNeutral}>지갑 ›</Txt>
+            </Pressable>
           </Panel>
           {data.holdings.length ? (
             <Section title="보유 조각" count="평가손익 기준">

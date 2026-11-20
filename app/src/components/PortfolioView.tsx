@@ -11,8 +11,8 @@ import { useApi } from '@/lib/useApi';
 type Tab = 'holdings' | 'subs' | 'orders';
 
 // 증권 탭의 '내 자산' 화면 (예전 portfolio 탭)
-export function PortfolioView({ header }: { header?: ReactNode }) {
-  const [tab, setTab] = useState<Tab>('holdings');
+export function PortfolioView({ header, initialTab = 'holdings' }: { header?: ReactNode; initialTab?: Tab }) {
+  const [tab, setTab] = useState<Tab>(initialTab);
   const { data, error, loading, reload } = useApi(async () => {
     const [wallet, holdings, subs, orders] = await Promise.all([
       api.get<Wallet>('/wallet'),

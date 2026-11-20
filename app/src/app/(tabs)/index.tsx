@@ -58,7 +58,8 @@ export default function Home() {
           change={pnl ? `${pnl > 0 ? '+' : '−'}${manwon(Math.abs(pnl))} 평가손익` : undefined}
           trend={trendOf(pnl)}
           items={[
-            ...(m.holdings.map((h) => ({ label: h.work_title, value: h.eval_amount }))),
+            // 작품이 늘어도 세 칸으로: 투자한 작품 / 청약 중 / 예치금
+            ...(m.holdings.length ? [{ label: `투자한 작품 ${m.holdings.length}`, value: m.holdings.reduce((x, h) => x + h.eval_amount, 0) }] : []),
             ...(subsAmt ? [{ label: '청약 중', value: subsAmt }] : []),
             ...(m.wallet.deposit_available ? [{ label: '예치금', value: m.wallet.deposit_available }] : []),
           ]}

@@ -117,6 +117,7 @@ class Settings(BaseModel):
     partner_coupon_coin: int = 20_000  # 계좌 개설 쿠폰: 증권사가 신규 계좌 고객에게 주는 DIBS 코인
     first_time_cap_amount: int = 100_000  # 투자 경험이 없다고 답한 고객의 1인 청약 한도
     enable_mock_broker: bool = _env_bool("DIBS_ENABLE_MOCK_BROKER", True)  # /dev/mock-kiwoom (운영에서 끔)
+    mock_instant_withdrawal: bool = True  # 모의 모드: 출금은 연결된 키움 계좌로 바로 (운영자 승인 생략)
 
     # ── 마켓 ──
     # 모의 거래소 규칙. 실제 가격제한폭·거래시간은 장외거래소 규정을 따른다

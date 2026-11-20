@@ -16,7 +16,7 @@ type EpMeta = { id: number; work_id: number; no: number; title: string; is_paid:
 const unlocked = new Set<number>();
 let attended = false;
 let points = 3000;
-const PAST = [true, true, false, true, true, true]; // 지난 6일 출석 기록 (오늘 출석하면 4일 연속)
+let kiwoomCoupon = false;
 function episodeMeta(id: number): (EpMeta & { work_id: number }) | null {
   for (const [k, v] of Object.entries(F)) {
     const m = k.match(/^\/works\/(\d+)\/episodes$/);
@@ -34,11 +34,65 @@ function addCoin(n: number) {
   w.coin += n;
   local['/wallet'] = w;
 }
+// ── 돈 흐름 (예치금 = 키움증권 연결 계좌 잔액). 청약·충전·출금이 지갑·내 펀딩·MY·펀딩 진행률에 함께 반영되게 ──
+type W = { mode: string; coin: number; deposit_available: number; deposit_locked: number };
+type Line = { journal_id: number; kind: string; account: string; amount: number; mode: string; ref_type: string | null; ref_id: number | null; memo: string | null; created_at: string };
+let jid = 90000;
+const nowIso = () => new Date(Date.parse('2027-03-02T09:00:00+09:00') + (Date.now() - T0)).toISOString().slice(0, 19);
+const T0 = Date.now();
+function setW(fn: (w: W) => void) { const w = clone(wallet()) as unknown as W; fn(w); local['/wallet'] = w; }
+function line(kind: string, account: string, amount: number, ref?: [string, number], memo?: string) {
+  const h = clone(((local['/wallet/history?limit=30'] ?? F['/wallet/history?limit=30'] ?? local['/wallet/history'] ?? F['/wallet/history']) ?? []) as Line[]);
+  h.unshift({ journal_id: ++jid, kind, account, amount, mode: 'MOCK', ref_type: ref?.[0] ?? null, ref_id: ref?.[1] ?? null, memo: memo ?? null, created_at: nowIso() });
+  local['/wallet/history?limit=30'] = h; local['/wallet/history'] = h;
+}
+const err = (status: number, code: string, message: string) => Object.assign(new Error(message), { status, code });
+type Prog = { requested_units: number; raised_amount: number; participants: number; achievement_pct: number };
+type Fd = { id: number; work_id: number; work_title: string; status: string; unit_price: number; target_units: number; close_at: string | null; progress: Prog };
+function bumpProgress(fid: number, delta: number, newcomer: number) {
+  const upd = (f: Fd) => {
+    const p = f.progress;
+    p.requested_units += delta; p.raised_amount = p.requested_units * f.unit_price; p.participants += newcomer;
+    p.achievement_pct = Math.round((p.requested_units / f.target_units) * 1000) / 10;
+  };
+  for (const k of [`/fundings/${fid}`]) { const f = clone((local[k] ?? F[k]) as Fd | undefined); if (f?.progress) { upd(f); local[k] = f; } }
+  for (const k of ['/fundings?status=OPEN', '/fundings']) {
+    const l = clone((local[k] ?? F[k]) as Fd[] | undefined);
+    if (Array.isArray(l)) { l.filter((f) => f.id === fid && f.progress).forEach(upd); local[k] = l; }
+  }
+}
+/** 청약하기·수량 바꾸기·취소 (DIBS 화면이든 키움 화면이든 같은 예치금에서) */
+function subscribe(fid: number, units: number) {
+  const f = (local[`/fundings/${fid}`] ?? F[`/fundings/${fid}`]) as Fd | undefined;
+  if (!f) throw err(404, 'NOT_FOUND', '펀딩을 찾을 수 없어요');
+  const subs = clone(((local['/me/subscriptions'] ?? F['/me/subscriptions']) ?? []) as Record<string, unknown>[]);
+  const cur = subs.find((x) => x.funding_id === fid && x.status === 'ACTIVE');
+  const prev = (cur?.units as number | undefined) ?? 0;
+  const delta = units - prev;
+  const amt = delta * f.unit_price;
+  if (amt > (wallet() as unknown as W).deposit_available) throw err(409, 'INSUFFICIENT_BALANCE', `예치금이 ${(amt - (wallet() as unknown as W).deposit_available).toLocaleString('ko-KR')}원 모자라요. 충전하고 다시 시도해 주세요`);
+  setW((w) => { w.deposit_available -= amt; w.deposit_locked += amt; });
+  if (amt) line(units === 0 ? 'SUBSCRIPTION_UNLOCK' : delta > 0 ? 'SUBSCRIPTION_LOCK' : 'SUBSCRIPTION_UNLOCK', 'DEPOSIT', -amt, ['funding', fid]);
+  let sub: Record<string, unknown>;
+  if (cur) { cur.units = units; if (units === 0) cur.status = 'CANCELLED'; sub = cur; }
+  else {
+    sub = { id: 9000 + fid, funding_id: fid, user_id: 3, units, status: 'ACTIVE', allocated_units: null, requested_tier_id: null, assigned_tier_id: null, first_subscribed_at: nowIso(),
+      work_title: f.work_title, unit_price: f.unit_price, funding_status: f.status, close_at: f.close_at, requested_tier_title: null, assigned_tier_title: null, tracking_carrier: null, tracking_no: null };
+    subs.unshift(sub);
+  }
+  local['/me/subscriptions'] = subs;
+  local[`/fundings/${fid}/subscriptions/me`] = units === 0 ? undefined : sub;
+  if (units === 0) delete local[`/fundings/${fid}/subscriptions/me`];
+  bumpProgress(fid, delta, cur ? (units === 0 ? -1 : 0) : 1);
+  return sub;
+}
+
+const LADDER = [50, 50, 200, 50, 50, 50, 300];
+const PRIOR = 2; // 시연 계정: 어제까지 2일 연속 출석 → 오늘은 3일째(200코인)
 function attendanceState() {
-  const week = [...PAST, attended];
-  let streak = 0;
-  for (let i = week.length - 1; i >= 0; i--) { if (week[i]) streak++; else if (i === week.length - 1) continue; else break; }
-  return { today: '2027-03-02', checked: attended, streak, week, coin: 100, bonus_days: 7, bonus: 300 };
+  const streak = PRIOR + (attended ? 1 : 0);
+  const filled = attended ? ((streak - 1) % 7) + 1 : streak % 7;
+  return { today: '2027-03-02', checked: attended, streak, ladder: LADDER, filled, today_coin: LADDER[attended ? filled - 1 : filled], week_total: 750 };
 }
 
 function key(path: string, query: Query) {
@@ -91,15 +145,17 @@ export async function demoRequest(method: string, path: string, body?: unknown, 
     const price = meta?.price_coin ?? 300;
     if (wallet().coin < price) throw Object.assign(new Error(`코인이 ${price - wallet().coin}개 모자라요`), { status: 409, code: 'INSUFFICIENT_BALANCE' });
     addCoin(-price);
+    line('EPISODE_UNLOCK', 'COIN', -price, ['episode', Number(un[1])]);
     unlocked.add(Number(un[1]));
     return { ok: true };
   }
   if (path === '/me/attendance') {
     const st = attendanceState();
     if (st.checked) throw Object.assign(new Error('오늘은 이미 출석했어요. 내일 또 만나요!'), { status: 409, code: 'ALREADY_ATTENDED' });
+    const granted = st.today_coin;
     attended = true;
-    const granted = 100 + ((st.streak + 1) % 7 === 0 ? 300 : 0);
     addCoin(granted);
+    line('ATTENDANCE', 'COIN', granted, undefined, '출석 체크');
     return { ...attendanceState(), granted };
   }
   if (path === '/me/partner-points/convert') {
@@ -108,6 +164,7 @@ export async function demoRequest(method: string, path: string, body?: unknown, 
     if (n > points) throw Object.assign(new Error('키움 포인트가 모자라요'), { status: 400, code: 'NOT_ENOUGH_POINTS' });
     points -= n;
     addCoin(n);
+    line('PARTNER_POINT', 'COIN', n, undefined, `키움 포인트 ${n.toLocaleString('ko-KR')}P`);
     return { broker: '키움증권', balance: points, converted: 3000 - points, unit: 100, rate: 1 };
   }
   if (path === '/me' && method === 'PATCH') {
@@ -123,11 +180,33 @@ export async function demoRequest(method: string, path: string, body?: unknown, 
     return clone(me);
   }
   const sub = path.match(/^\/fundings\/(\d+)\/subscriptions(\/me)?$/);
-  if (sub) {
-    const b = (body ?? {}) as { units?: number; reward_tier_id?: number | null };
-    const s = { id: 9000 + Number(sub[1]), funding_id: Number(sub[1]), units: b.units ?? 1, status: 'ACTIVE', allocated_units: null, requested_tier_id: b.reward_tier_id ?? null, assigned_tier_id: null };
-    local[`/fundings/${sub[1]}/subscriptions/me`] = s;
-    return s;
+  if (sub) return clone(subscribe(Number(sub[1]), method === 'DELETE' ? 0 : Number((body as { units?: number })?.units ?? 1)));
+  if (path === '/dev/mock-kiwoom/subscribe') {
+    // 키움 화면에서 결제: 토큰에 펀딩 번호가 들어 있다 (demo-<펀딩>)
+    const b = (body ?? {}) as { token?: string; units?: number; new_account?: boolean };
+    const fid = Number(String(b.token ?? '').replace('demo-', '')) || 1;
+    const s2 = subscribe(fid, Number(b.units ?? 1));
+    let coupon = 0;
+    if (b.new_account && !kiwoomCoupon) { kiwoomCoupon = true; coupon = 20000; addCoin(coupon); line('PARTNER_COUPON', 'COIN', coupon, undefined, '키움증권 계좌 개설 쿠폰'); }
+    return { subscription_id: s2.id, units: s2.units, link: { link_ref: 'kw_demo', coupon_coin: coupon } };
+  }
+  if (path === '/wallet/deposit/charge') {
+    const n = Number((body as { amount?: number })?.amount ?? 0);
+    setW((w) => { w.deposit_available += n; });
+    line('DEPOSIT_IN', 'DEPOSIT', n, undefined, '키움증권 계좌에서 입금');
+    return clone(wallet());
+  }
+  if (path === '/wallet/deposit/withdrawals') {
+    const n = Number((body as { amount?: number })?.amount ?? 0);
+    if (n > (wallet() as unknown as W).deposit_available) throw err(409, 'INSUFFICIENT_BALANCE', '출금할 수 있는 예치금보다 많아요');
+    setW((w) => { w.deposit_available -= n; });
+    line('WITHDRAWAL_OUT', 'DEPOSIT', -n, undefined, '키움증권 계좌로 출금');
+    return { id: ++jid, amount: n, status: 'DONE', created_at: nowIso() };
+  }
+  if (path === '/wallet/coin/charge') {
+    const n = Number((body as { amount?: number })?.amount ?? 0);
+    addCoin(n); line('COIN_CHARGE', 'COIN', n);
+    return clone(wallet());
   }
   const dib = path.match(/^\/works\/(\d+)\/dib$/);
   if (dib) {
@@ -150,7 +229,7 @@ export async function demoRequest(method: string, path: string, body?: unknown, 
     return { ok: true };
   }
   if (path === '/fundings/' + path.split('/')[2] + '/broker-handoff') {
-    return { channel: 'INTERNAL', broker: '키움증권', deeplink: 'kiwoom-mock://offering', token: 'demo', expires_at: new Date(Date.now() + 600000).toISOString(), linked: false };
+    return { channel: 'INTERNAL', broker: '키움증권', deeplink: 'kiwoom-mock://offering', token: `demo-${path.split('/')[2]}`, expires_at: new Date(Date.now() + 600000).toISOString(), linked: false };
   }
   if (path === '/market/orders') {
     const b = (body ?? {}) as { funding_id: number; side: string; price: number; units: number };

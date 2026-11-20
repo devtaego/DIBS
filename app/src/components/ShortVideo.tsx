@@ -10,6 +10,7 @@ export const isPlayable = (url: string) => Platform.OS === 'web' && videoSource(
 
 type Props = {
   url: string;
+  onProgress?: (ratio: number) => void; // 재생 위치 0~1 (위쪽 진행 막대용)
   durationSec: number;
   active?: boolean; // 화면에 보이는 영상만 재생
   muted?: boolean;
@@ -22,9 +23,11 @@ type Props = {
 
 type VideoEl = { play: () => Promise<void>; pause: () => void; currentTime: number; muted: boolean };
 
-export function ShortVideo({ url, durationSec, active = true, muted = true, loop = false, onEnded, onToggleMute, full, scrubBottom }: Props) {
+export function ShortVideo({ url, durationSec, active = true, muted = true, loop = false, onEnded, onToggleMute, full, scrubBottom, onProgress }: Props) {
   const ref = useRef<VideoEl | null>(null);
   const [cur, setCur] = useState(0);
+  const activeRef = useRef(active);
+  activeRef.current = active;
   const [dur, setDur] = useState(durationSec);
 
   useEffect(() => {
@@ -57,7 +60,12 @@ export function ShortVideo({ url, durationSec, active = true, muted = true, loop
           playsInline: true,
           preload: active ? 'auto' : 'metadata',
           onEnded,
-          onTimeUpdate: (e: { currentTarget: { currentTime: number } }) => setCur(e.currentTarget.currentTime),
+          // 데이터가 늦게 오면 그때 다시 재생 (탭 이동 직후 멈춰 있던 문제)
+          onCanPlay: (e: { currentTarget: { paused: boolean; play: () => Promise<void>; muted: boolean } }) => {
+            const v = e.currentTarget;
+            if (activeRef.current && v.paused) v.play().catch(() => { v.muted = true; v.play().catch(() => undefined); });
+          },
+          onTimeUpdate: (e: { currentTarget: { currentTime: number; duration: number } }) => { setCur(e.currentTarget.currentTime); onProgress?.(e.currentTarget.currentTime / (e.currentTarget.duration || durationSec || 1)); },
           onLoadedMetadata: (e: { currentTarget: { duration: number } }) => setDur(e.currentTarget.duration || durationSec),
           onClick: onToggleMute,
           style: { width: '100%', height: '100%', objectFit: 'cover', backgroundColor: '#000' },

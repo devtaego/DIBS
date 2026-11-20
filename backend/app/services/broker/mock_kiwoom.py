@@ -36,7 +36,10 @@ def subscribe(db: Session, token: str, units: int, new_account: bool = False) ->
     if broker._link(db, user.id) is None:
         linked = _send(db, "account-linked", {"handoff_token": token, "link_ref": f"kw_{secrets.token_hex(8)}",
                                               "new_account": new_account})
-    sub = funding_svc.subscribe(db, user, f, units, None, None, CONSENTS)
+    cur = db.scalar(select(Subscription).where(Subscription.funding_id == f.id, Subscription.user_id == user.id,
+                                               Subscription.status == SubscriptionStatus.ACTIVE))
+    # 이미 청약했으면 키움 화면의 수량으로 바꾼다 (DIBS ↔ 키움 어느 쪽에서 해도 같은 청약 1건)
+    sub = funding_svc.change_subscription(db, user, f, units) if cur else funding_svc.subscribe(db, user, f, units, None, None, CONSENTS)
     subs = list(db.scalars(select(Subscription).where(Subscription.funding_id == f.id,
                                                       Subscription.status == SubscriptionStatus.ACTIVE)))
     _send(db, "subscription-summary", {"funding_id": f.id, "subscribed_units": sum(s.units for s in subs),

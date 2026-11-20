@@ -423,12 +423,27 @@ def test_attendance_and_partner_points(api):
     api.login("att1")
     before = api.ok("att1", "get", "/wallet")
     r = api.ok("att1", "post", "/me/attendance")
-    assert r["granted"] == 100 and r["checked"] and r["streak"] == 1
+    assert r["granted"] == 50 and r["checked"] and r["streak"] == 1 and r["filled"] == 1
     api.err("att1", "post", "/me/attendance", code="ALREADY_ATTENDED")
     p = api.ok("att1", "get", "/me/partner-points")
     api.err("att1", "post", "/me/partner-points/convert", json={"points": 150}, code="BAD_POINTS")
     p2 = api.ok("att1", "post", "/me/partner-points/convert", json={"points": 300})
     assert p2["balance"] == p["balance"] - 300
     after = api.ok("att1", "get", "/wallet")
-    assert after["coin"] == before["coin"] + 400
+    assert after["coin"] == before["coin"] + 350
     assert after["deposit_available"] == before["deposit_available"]
+
+
+def test_attendance_ladder(api, now):
+    """3일째 200, 7일째 300, 하루 빠지면 처음부터."""
+    from datetime import timedelta
+    from app.core import clock
+    api.login("att2")
+    got = []
+    try:
+        for d in [0, 1, 2, 3, 4, 5, 6, 8]:
+            clock.set_now(now + timedelta(days=d))
+            got.append(api.ok("att2", "post", "/me/attendance")["granted"])
+    finally:
+        clock.set_now(now)
+    assert got == [50, 50, 200, 50, 50, 50, 300, 50]

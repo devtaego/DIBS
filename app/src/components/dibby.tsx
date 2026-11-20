@@ -159,9 +159,10 @@ export function SecH({ title, right }: { title: string; right?: ReactNode }) {
 }
 
 /** 진행 막대 위를 달리는 디비. label 을 주면 디비에 마우스를 올리거나(웹) 누르면 머리 위에 작게 보여 준다 */
-export function Ride({ pct, pose = 'run', label }: { pct: number; pose?: Pose; label?: string }) {
+export function Ride({ pct, pose = 'run', label, always }: { pct: number; pose?: Pose; label?: string; always?: boolean }) {
   const p = Math.max(0, Math.min(100, pct));
-  const [show, setShow] = useState(false);
+  const [hover, setShow] = useState(false);
+  const show = always || hover; // always: 말풍선을 늘 띄운다 (펀딩 상세)
   // 막대 끝 쪽에서는 말풍선이 패널 밖으로 나가지 않게 한쪽으로 붙인다
   const align = p > 85 ? 'flex-end' : p < 15 ? 'flex-start' : 'center';
   return (

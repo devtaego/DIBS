@@ -78,7 +78,7 @@ export default function OrderScreen() {
         aLabel: '종목으로',
         aHref: `/security/${params.id}`,
         bLabel: '내 자산 보기',
-        bHref: '/portfolio',
+        bHref: '/portfolio?tab=orders',
       });
     } catch (e) {
       setError(e as ApiError);

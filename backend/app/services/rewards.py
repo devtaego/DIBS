@@ -18,9 +18,11 @@ from app.services.ledger import Leg
 from app.services.policy import notify
 from app.services.wallet import COIN_MODE
 
-ATTEND_COIN = 100  # 매일
-STREAK_DAYS = 7
-STREAK_BONUS = 300  # 7일 연속 출석한 날 추가
+# 7일 출석 사다리 (유료 회차 1화 = 300코인 기준)
+# 3일째에 처음 1화를 열 수 있고(50+50+200), 7일을 채우면 750코인 = 2.5화. 하루 빠지면 1일째부터 다시.
+# 매일 주는 50코인은 '들르는 이유', 3일째·7일째 큰 보상은 '이어서 오는 이유'. 한 달 최대 약 3,200코인(≈10화).
+LADDER = [50, 50, 200, 50, 50, 50, 300]
+STREAK_DAYS = len(LADDER)
 POINT_START = 3_000  # 시연 계정의 키움 포인트 잔액 (제휴 API 전까지 고정값)
 POINT_UNIT = 100  # 100P 단위, 1P = 1코인
 
@@ -41,9 +43,10 @@ def attendance(db: Session, user: User) -> dict:
     today = clock.now().date()
     days = _days(db, user)
     streak = _streak(days, today)
-    week = [(today - timedelta(days=6 - i)) in days for i in range(7)]
-    return {"today": today.isoformat(), "checked": today in days, "streak": streak, "week": week,
-            "coin": ATTEND_COIN, "bonus_days": STREAK_DAYS, "bonus": STREAK_BONUS}
+    checked = today in days
+    done = (streak - 1) % STREAK_DAYS + 1 if (checked and streak) else streak % STREAK_DAYS  # 이번 주기에서 채운 칸
+    return {"today": today.isoformat(), "checked": checked, "streak": streak, "ladder": LADDER, "filled": done,
+            "today_coin": LADDER[(done - 1) if checked else done], "week_total": sum(LADDER)}
 
 
 def attend(db: Session, user: User) -> dict:
@@ -52,7 +55,7 @@ def attend(db: Session, user: User) -> dict:
     if today in days:
         raise DomainError("ALREADY_ATTENDED", "오늘은 이미 출석했어요. 내일 또 만나요!")
     streak = _streak(days | {today}, today)
-    amt = ATTEND_COIN + (STREAK_BONUS if streak % STREAK_DAYS == 0 else 0)
+    amt = LADDER[(streak - 1) % STREAK_DAYS]
     coin = ledger.get_account(db, AccountKind.COIN, COIN_MODE, user.id)
     ledger.post(db, "ATTENDANCE", [Leg(ledger.sys(db, AccountKind.SYS_PROMOTION, COIN_MODE), -amt), Leg(coin, amt)],
                 COIN_MODE, "user", user.id, memo=f"{today.isoformat()} 출석 {streak}일째")

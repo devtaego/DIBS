@@ -41,6 +41,7 @@ export default function RootLayout() {
           <Stack.Screen name="security/[id]" options={{ title: '종목' }} />
           <Stack.Screen name="order/[id]" options={{ title: '주문', presentation: 'modal' }} />
           <Stack.Screen name="wallet" options={{ title: '지갑' }} />
+          <Stack.Screen name="transfer" options={{ title: '예치금' }} />
           <Stack.Screen name="dividends" options={{ title: '정산 리포트' }} />
           <Stack.Screen name="notifications" options={{ title: '알림' }} />
           <Stack.Screen name="admin" options={{ title: '운영자 패널' }} />

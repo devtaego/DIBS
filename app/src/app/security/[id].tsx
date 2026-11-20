@@ -97,8 +97,8 @@ export default function SecurityScreen() {
         <KV k="최근 7일 거래량" v={`${d.volume_7d}조각 · ${d.trades_7d}건`} vColor={d.volume_7d < 10 ? colors.danger : colors.text} />
         <KV k="최근 4분기 주당 배당" v={won(d.dividend_4q_per_unit)} />
         <KV k="배당 대비 가격" v={d.price_to_dividend ? `${d.price_to_dividend}배` : '배당 전'} />
-        <KV k="지금 분배 비율" v={`순매출의 ${d.royalty_holder_bps / 100}% (${d.recoup_phase === 'AFTER_RECOUP' ? '원금 회수 후' : `회수 전 · 회수 후 ${d.royalty_holder_after_bps / 100}%`})`} />
-        <KV k="원금 회수 진행" v={`${d.recoup_progress_pct}%`} />
+        <KV k="지금 분배 비율" v={`작품 매출의 ${d.royalty_holder_bps / 100}% (${d.recoup_phase === 'AFTER_RECOUP' ? '투자금만큼 받은 뒤' : `투자금만큼 받으면 ${d.royalty_holder_after_bps / 100}%로`})`} />
+        <KV k="투자금 대비 받은 정산금" v={`${d.recoup_progress_pct}%`} />
         <KV k="작가 매입가" v={!d.buyback_enabled ? '매입 옵션 없음' : d.buyback_price ? won(d.buyback_price) : '배당 후 계산'} />
         <KV k="권리 종료" v={d.terminate_due_at ? `${dateText(d.terminate_due_at)} (완결 후 12개월)` : '완결 후 12개월 (저매출 2분기 연속이면 더 일찍)'} />
         {d.volume_7d < 10 ? <Muted style={{ marginTop: space(1) }}>거래량이 적어 원하는 때 팔지 못할 수 있어요.</Muted> : null}

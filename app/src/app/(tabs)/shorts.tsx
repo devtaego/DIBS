@@ -1,5 +1,5 @@
 import { LinearGradient } from 'expo-linear-gradient';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FlatList, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -15,7 +15,7 @@ import { ShortVideo, isPlayable } from '@/components/ShortVideo';
 
 // 순환 재생: 마지막 다음에 처음이 오도록 목록을 여러 번 이어 붙인다
 const LAPS = 50;
-const FEEDS = ['추천', '팔로잉', '펀딩 중', '투자 모집 중'] as const;
+const FEEDS = ['쇼츠', '찜한 작품'] as const;
 const LIGHT = '#F3E8EE';
 const DIM = 'rgba(243,232,238,0.72)';
 
@@ -26,9 +26,14 @@ const mmss = (sec: number) => `${Math.floor(sec / 60)}:${String(sec % 60).padSta
 export default function Shorts() {
   const insets = useSafeAreaInsets();
   const [h, setH] = useState(0);
-  const [feed, setFeed] = useState<(typeof FEEDS)[number]>('추천');
+  const [feed, setFeed] = useState<(typeof FEEDS)[number]>('쇼츠');
   const [liked, setLiked] = useState<Record<number, boolean>>({});
   const [current, setCurrent] = useState(0);
+  // 탭을 떠나면 멈추고, 돌아오면 바로 다시 재생
+  const [focused, setFocused] = useState(false);
+  useFocusEffect(useCallback(() => { setFocused(true); return () => setFocused(false); }, []));
+  const [prog, setProg] = useState(0);
+  useEffect(() => setProg(0), [current]);
   const [muted, setMuted] = useState(true);
   const listRef = useRef<FlatList<number>>(null);
   const { data } = useApi(async () => {
@@ -49,9 +54,9 @@ export default function Shorts() {
     const all = data?.shorts ?? [];
     const playable = all.filter((sh) => isPlayable(sh.video_url));
     const base = playable.length ? playable : all;
-    // 펀딩 중·투자 모집 중 탭은 모집 중인 작품만
-    return feed === '펀딩 중' || feed === '투자 모집 중' ? base.filter((sh) => sh.funding_status === 'OPEN') : base;
-  }, [data, feed]);
+    // 찜한 작품 탭: 내가 찜한 작품의 쇼츠만 (지금 화면에서 하트를 누른 것도 포함)
+    return feed === '찜한 작품' ? base.filter((sh) => liked[sh.id] ?? data?.dibbed.has(sh.work_id)) : base;
+  }, [data, feed]); // eslint-disable-line react-hooks/exhaustive-deps
   const n = items.length;
   const cycle = n > 1;
   const slots = useMemo(() => Array.from({ length: n * (cycle ? LAPS : 1) }, (_, i) => i), [n, cycle]);
@@ -88,8 +93,8 @@ export default function Shorts() {
           }}
           ListEmptyComponent={
             <View style={{ height: h, alignItems: 'center', justifyContent: 'center', gap: spacing.gapM }}>
-              <Txt v="body1" w="bold" c={LIGHT}>쇼츠는 곧 열려요</Txt>
-              <Txt v="label2" c={DIM}>작품 하이라이트 영상을 준비하고 있어요.</Txt>
+              <Txt v="body1" w="bold" c={LIGHT}>{feed === '찜한 작품' ? '찜한 작품의 쇼츠가 없어요' : '쇼츠는 곧 열려요'}</Txt>
+              <Txt v="label2" c={DIM}>{feed === '찜한 작품' ? '쇼츠에서 하트를 누르면 여기에 모여요.' : '작품 하이라이트 영상을 준비하고 있어요.'}</Txt>
             </View>
           }
           renderItem={({ item: slot }) => {
@@ -102,12 +107,13 @@ export default function Shorts() {
                   full
                   url={sh.video_url}
                   durationSec={sh.duration_sec}
-                  active={slot === current}
+                  active={focused && slot === current}
                   muted={muted}
                   loop={!cycle}
                   onEnded={() => next(slot)}
                   onToggleMute={() => setMuted(!muted)}
-                  scrubBottom={insets.bottom + 4}
+                  onProgress={slot === current ? setProg : undefined}
+                  scrubBottom={insets.bottom + 2}
                 />
                 <LinearGradient pointerEvents="none" colors={['rgba(0,0,0,0.55)', 'rgba(0,0,0,0)']} style={[s.shade, { top: 0, height: 150 + insets.top }]} />
                 <LinearGradient pointerEvents="none" colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.78)']} style={[s.shade, { bottom: 0, height: 360 }]} />
@@ -126,7 +132,7 @@ export default function Shorts() {
                   ))}
                 </View>
 
-                <View pointerEvents="box-none" style={[s.bottom, { paddingBottom: insets.bottom + 34 }]}>
+                <View pointerEvents="box-none" style={[s.bottom, { paddingBottom: insets.bottom + 50 }]}>
                   <View style={{ gap: 4, paddingRight: 64 }}>
                     <Txt v="headline1" w="bold" c={LIGHT} lines={1}>{sh.work_title}</Txt>
                     <Txt v="caption1" c={DIM} lines={1}>{`${mmss(sh.duration_sec)} 티저${f ? ` · 청약 ${ddayText(f) || '중'}` : ''}`}</Txt>
@@ -141,24 +147,26 @@ export default function Shorts() {
 
       {/* 위: 진행 막대 + 피드 탭 + 닫기 (넘겨도 고정) */}
       <View style={[s.top, { paddingTop: insets.top + 6 }]} pointerEvents="box-none">
-        {cycle ? (
-          <View style={s.stories} pointerEvents="none">
-            {items.map((sh, i) => (
-              <View key={sh.id} style={[s.story, { backgroundColor: i <= current % n ? LIGHT : 'rgba(243,232,238,0.32)' }]} />
-            ))}
-          </View>
-        ) : null}
+        {/* 가운데: 쇼츠 | 찜한 작품, 오른쪽: 닫기 */}
         <View style={s.feedRow}>
-          {FEEDS.map((x) => (
-            <Pressable key={x} onPress={() => setFeed(x)} hitSlop={6} style={{ paddingVertical: 6 }}>
-              <Txt v="label1" w={feed === x ? 'bold' : 'medium'} c={feed === x ? LIGHT : DIM}>{x}</Txt>
-            </Pressable>
+          {FEEDS.map((x, i) => (
+            <View key={x} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.gapL }}>
+              {i > 0 ? <View style={{ width: 1.5, height: 14, borderRadius: 1, backgroundColor: DIM }} /> : null}
+              <Pressable onPress={() => setFeed(x)} hitSlop={8} style={{ paddingVertical: 6 }} accessibilityRole="tab" accessibilityState={{ selected: feed === x }}>
+                <Txt v="body1" w={feed === x ? 'bold' : 'medium'} c={feed === x ? LIGHT : DIM}>{x}</Txt>
+              </Pressable>
+            </View>
           ))}
-          <View style={{ flex: 1 }} />
-          <Pressable accessibilityLabel="쇼츠 닫기" onPress={close} hitSlop={10}>
+          <Pressable accessibilityLabel="쇼츠 닫기" onPress={close} hitSlop={10} style={{ position: 'absolute', right: 0 }}>
             <Icon name="close" size={26} c={LIGHT} />
           </Pressable>
         </View>
+        {/* 상단바 아래 진행 막대: 아래 재생 바와 같은 비율로 차오른다 */}
+        {n ? (
+          <View style={s.topBar} pointerEvents="none" accessibilityLabel={`재생 ${Math.round(prog * 100)}%`}>
+            <View style={{ height: '100%', width: `${Math.min(100, Math.round(prog * 1000) / 10)}%`, backgroundColor: LIGHT }} />
+          </View>
+        ) : null}
       </View>
       {sheet ? <CommentSheet sh={sheet} onClose={() => setSheet(null)} bottomInset={insets.bottom} /> : null}
       {toast ? (
@@ -352,9 +360,8 @@ const s = StyleSheet.create({
   send: { width: 36, height: 36, borderRadius: 18, backgroundColor: color.primaryNormal, alignItems: 'center', justifyContent: 'center' },
   shade: { position: 'absolute', left: 0, right: 0 },
   top: { position: 'absolute', top: 0, left: 0, right: 0, paddingHorizontal: spacing.screen, gap: spacing.gapM },
-  stories: { flexDirection: 'row', gap: 4 },
-  story: { flex: 1, height: 2.5, borderRadius: 2 },
-  feedRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.gapL },
+  topBar: { height: 3, borderRadius: 2, overflow: 'hidden', backgroundColor: 'rgba(243,232,238,0.32)' },
+  feedRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.gapL, minHeight: 36 },
   actions: { position: 'absolute', right: spacing.insetM, gap: spacing.gapL, alignItems: 'center' },
   act: { alignItems: 'center', gap: 2, minWidth: 48 },
   bottom: { position: 'absolute', left: 0, right: 0, bottom: 0, paddingHorizontal: spacing.insetL, gap: spacing.gapL },

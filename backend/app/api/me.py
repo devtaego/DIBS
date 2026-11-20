@@ -154,7 +154,7 @@ def get_attendance(db: Session = Depends(get_db), user: User = Depends(current_u
     return rewards.attendance(db, user)
 
 
-@router.post("/attendance", summary="오늘 출석 → 열람 코인 100 (7일 연속이면 +300)")
+@router.post("/attendance", summary="오늘 출석 → 열람 코인 (7일 사다리 50·50·200·50·50·50·300)")
 def post_attendance(db: Session = Depends(get_db), user: User = Depends(current_user)):
     out = rewards.attend(db, user)
     db.commit()

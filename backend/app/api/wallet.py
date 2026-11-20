@@ -2,7 +2,9 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.core.db import get_db
+from app.models.enums import Mode
 from app.core.security import current_user
 from app.models import User, WithdrawalRequest
 from app.schemas.wallet import AmountIn, LedgerLineOut, WalletOut, WithdrawalOut
@@ -36,7 +38,10 @@ def deposit_to_coin(body: AmountIn, db: Session = Depends(get_db), user: User = 
 
 @router.post("/deposit/withdrawals", response_model=WithdrawalOut, status_code=201, summary="예치금 출금 요청 (운영자 승인)")
 def withdraw(body: AmountIn, db: Session = Depends(get_db), user: User = Depends(current_user)):
-    return svc.request_withdrawal(db, user, body.amount)
+    req = svc.request_withdrawal(db, user, body.amount)
+    if req.mode == Mode.MOCK and settings.mock_instant_withdrawal:
+        req = svc.decide_withdrawal(db, req.id, True)  # 연결 계좌로 즉시 이체
+    return req
 
 
 @router.get("/deposit/withdrawals", response_model=list[WithdrawalOut], summary="내 출금 요청 내역")

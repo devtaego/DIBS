@@ -12,6 +12,7 @@ export const isPlayable = (url: string) => videoSource(url) != null;
 
 type Props = {
   url: string;
+  onProgress?: (ratio: number) => void; // 재생 위치 0~1 (위쪽 진행 막대용)
   durationSec: number;
   active?: boolean; // 화면에 보이는 영상만 재생
   muted?: boolean;
@@ -35,8 +36,10 @@ export function ShortVideo(props: Props) {
   return <Player src={src} {...props} />;
 }
 
-function Player({ src, active = true, muted = true, loop = false, onEnded, onToggleMute, full, scrubBottom, durationSec }: Props & { src: number | string }) {
+function Player({ src, active = true, muted = true, loop = false, onEnded, onToggleMute, full, scrubBottom, durationSec, onProgress }: Props & { src: number | string }) {
   const [cur, setCur] = useState(0);
+  const progRef = useRef(onProgress);
+  progRef.current = onProgress;
   const player = useVideoPlayer(src, (p) => {
     p.muted = muted;
     p.loop = loop;
@@ -68,7 +71,7 @@ function Player({ src, active = true, muted = true, loop = false, onEnded, onTog
 
   useEffect(() => {
     player.timeUpdateEventInterval = 0.25;
-    const sub = player.addListener('timeUpdate', ({ currentTime }) => setCur(currentTime));
+    const sub = player.addListener('timeUpdate', ({ currentTime }) => { setCur(currentTime); progRef.current?.(currentTime / (player.duration || durationSec || 1)); });
     return () => sub.remove();
   }, [player]);
 

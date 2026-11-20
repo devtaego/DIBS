@@ -10,7 +10,8 @@ export const isPlayable = (url: string) => Platform.OS === 'web' && videoSource(
 
 type Props = {
   url: string;
-  onProgress?: (ratio: number) => void; // 재생 위치 0~1 (위쪽 진행 막대용)
+  onProgress?: (ratio: number, cur: number, dur: number) => void; // 재생 위치 (위쪽 진행 막대용)
+  seek?: { at: number; n: number }; // 바깥 막대에서 옮긴 위치 (n 이 바뀔 때마다 적용)
   durationSec: number;
   active?: boolean; // 화면에 보이는 영상만 재생
   muted?: boolean;
@@ -23,9 +24,10 @@ type Props = {
 
 type VideoEl = { play: () => Promise<void>; pause: () => void; currentTime: number; muted: boolean };
 
-export function ShortVideo({ url, durationSec, active = true, muted = true, loop = false, onEnded, onToggleMute, full, scrubBottom, onProgress }: Props) {
+export function ShortVideo({ url, durationSec, active = true, muted = true, loop = false, onEnded, onToggleMute, full, scrubBottom, onProgress, seek }: Props) {
   const ref = useRef<VideoEl | null>(null);
   const [cur, setCur] = useState(0);
+  useEffect(() => { if (seek && ref.current) { ref.current.currentTime = seek.at; setCur(seek.at); } }, [seek?.n]);
   const activeRef = useRef(active);
   activeRef.current = active;
   const [dur, setDur] = useState(durationSec);
@@ -65,7 +67,7 @@ export function ShortVideo({ url, durationSec, active = true, muted = true, loop
             const v = e.currentTarget;
             if (activeRef.current && v.paused) v.play().catch(() => { v.muted = true; v.play().catch(() => undefined); });
           },
-          onTimeUpdate: (e: { currentTarget: { currentTime: number; duration: number } }) => { setCur(e.currentTarget.currentTime); onProgress?.(e.currentTarget.currentTime / (e.currentTarget.duration || durationSec || 1)); },
+          onTimeUpdate: (e: { currentTarget: { currentTime: number; duration: number } }) => { setCur(e.currentTarget.currentTime); onProgress?.(e.currentTarget.currentTime / (e.currentTarget.duration || durationSec || 1), e.currentTarget.currentTime, e.currentTarget.duration || durationSec); },
           onLoadedMetadata: (e: { currentTarget: { duration: number } }) => setDur(e.currentTarget.duration || durationSec),
           onClick: onToggleMute,
           style: { width: '100%', height: '100%', objectFit: 'cover', backgroundColor: '#000' },

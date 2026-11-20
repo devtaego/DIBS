@@ -1,7 +1,7 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { FlatList, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { FlatList, KeyboardAvoidingView, PanResponder, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Icon, LinearProgress, Txt, color, radius, spacing, textStyle } from '@/ds';
@@ -19,7 +19,7 @@ const FEEDS = ['쇼츠', '찜한 작품'] as const;
 const LIGHT = '#F3E8EE';
 const DIM = 'rgba(243,232,238,0.72)';
 
-const mmss = (sec: number) => `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`;
+const mmss = (sec: number) => `${Math.floor(sec / 60)}:${String(Math.floor(sec % 60)).padStart(2, '0')}`;
 
 // V2 03 쇼츠 — 몰입형(하단 탭 없음, X 로 닫기). 위: 진행 막대 + 피드 탭, 오른쪽: 좋아요·댓글·공유·소리, 아래: 작품 + 펀딩 카드.
 // 재생 가능한 영상이 있으면 그 영상들만 차례로 돌린다 (끝나면 다음, 마지막 다음은 처음).
@@ -33,7 +33,9 @@ export default function Shorts() {
   const [focused, setFocused] = useState(false);
   useFocusEffect(useCallback(() => { setFocused(true); return () => setFocused(false); }, []));
   const [prog, setProg] = useState(0);
-  useEffect(() => setProg(0), [current]);
+  const [time, setTime] = useState<[number, number]>([0, 0]);
+  const [seekReq, setSeekReq] = useState<{ at: number; n: number } | undefined>(undefined);
+  useEffect(() => { setProg(0); setTime([0, 0]); }, [current]);
   const [muted, setMuted] = useState(true);
   const listRef = useRef<FlatList<number>>(null);
   const { data } = useApi(async () => {
@@ -113,8 +115,8 @@ export default function Shorts() {
                   loop={!cycle}
                   onEnded={() => next(slot)}
                   onToggleMute={() => setMuted(!muted)}
-                  onProgress={slot === current ? setProg : undefined}
-                  scrubBottom={insets.bottom + 2}
+                  onProgress={slot === current ? (r, c, d) => { setProg(r); setTime([c, d]); } : undefined}
+                  seek={slot === current ? seekReq : undefined}
                 />
                 <LinearGradient pointerEvents="none" colors={['rgba(0,0,0,0.55)', 'rgba(0,0,0,0)']} style={[s.shade, { top: 0, height: 150 + insets.top }]} />
                 <LinearGradient pointerEvents="none" colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.78)']} style={[s.shade, { bottom: 0, height: 360 }]} />
@@ -133,7 +135,7 @@ export default function Shorts() {
                   ))}
                 </View>
 
-                <View pointerEvents="box-none" style={[s.bottom, { paddingBottom: insets.bottom + 50 }]}>
+                <View pointerEvents="box-none" style={[s.bottom, { paddingBottom: insets.bottom + 24 }]}>
                   <View style={{ gap: 4, paddingRight: 64 }}>
                     <Txt v="headline1" w="bold" c={LIGHT} lines={1}>{sh.work_title}</Txt>
                     <Txt v="caption1" c={DIM} lines={1}>{`${mmss(sh.duration_sec)} 티저${f ? ` · 청약 ${ddayText(f) || '중'}` : ''}`}</Txt>
@@ -162,11 +164,17 @@ export default function Shorts() {
             <Icon name="close" size={26} c={LIGHT} />
           </Pressable>
         </View>
-        {/* 상단바 아래 진행 막대: 아래 재생 바와 같은 비율로 차오른다 */}
+        {/* 상단바 아래 재생 막대: 영상 수만큼 ㅡ ㅡ ㅡ 칸, 보는 영상 칸이 재생 시간만큼 차오른다. 끌어서 시간 이동, 다른 칸을 누르면 그 영상으로 */}
         {n ? (
-          <View style={s.topBar} pointerEvents="none" accessibilityLabel={`재생 ${Math.round(prog * 100)}%`}>
-            <View style={{ height: '100%', width: `${Math.min(100, Math.round(prog * 1000) / 10)}%`, backgroundColor: LIGHT }} />
-          </View>
+          <StoryBar
+            count={n}
+            index={current % n}
+            ratio={prog}
+            cur={time[0]}
+            dur={time[1] || items[current % n]?.duration_sec || 0}
+            onSeek={(sec) => setSeekReq({ at: sec, n: Date.now() })}
+            onJump={(i) => listRef.current?.scrollToIndex({ index: current - (current % n) + i, animated: false })}
+          />
         ) : null}
       </View>
       {sheet ? <CommentSheet sh={sheet} onClose={() => setSheet(null)} bottomInset={insets.bottom} /> : null}
@@ -371,3 +379,59 @@ const s = StyleSheet.create({
   pill: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, backgroundColor: 'rgba(222,87,134,0.32)', borderWidth: 1, borderColor: 'rgba(246,169,191,0.5)' },
   cta: { flexDirection: 'row', alignItems: 'center', gap: 6, height: 40, paddingHorizontal: spacing.insetL, borderRadius: 999, backgroundColor: '#F6A9BF' },
 });
+
+
+/** 쇼츠 상단 재생 막대 (ㅡ ㅡ ㅡ). 손가락이 닿기 쉬운 32pt 높이 */
+function StoryBar({ count, index, ratio, cur, dur, onSeek, onJump }: {
+  count: number; index: number; ratio: number; cur: number; dur: number; onSeek: (sec: number) => void; onJump: (i: number) => void;
+}) {
+  const box = useRef<{ measure: (cb: (x: number, y: number, w: number, h: number, px: number) => void) => void } | null>(null);
+  const geo = useRef({ x: 0, w: 1 });
+  const [drag, setDrag] = useState<{ i: number; r: number } | null>(null);
+  const cb = useRef({ index, dur, onSeek, onJump, count });
+  cb.current = { index, dur, onSeek, onJump, count };
+  const GAP = 4;
+  const at = (pageX: number) => {
+    const { count: c } = cb.current;
+    const segW = (geo.current.w - GAP * (c - 1)) / c;
+    const x = Math.min(geo.current.w - 0.01, Math.max(0, pageX - geo.current.x));
+    const i = Math.min(c - 1, Math.floor(x / (segW + GAP)));
+    return { i, r: Math.min(1, Math.max(0, (x - i * (segW + GAP)) / segW)) };
+  };
+  const measure = () => box.current?.measure((_x: number, _y: number, w: number, _h: number, px: number) => { geo.current = { x: px, w: w || 1 }; });
+  const pan = useRef(PanResponder.create({
+    onStartShouldSetPanResponder: () => true,
+    onMoveShouldSetPanResponder: () => true,
+    onPanResponderTerminationRequest: () => false,
+    onPanResponderGrant: (e) => { measure(); setDrag(at(e.nativeEvent.pageX)); },
+    onPanResponderMove: (e) => setDrag((d) => { const p = at(e.nativeEvent.pageX); return d && d.i === cb.current.index ? { i: d.i, r: p.i === d.i ? p.r : p.i > d.i ? 1 : 0 } : p; }),
+    onPanResponderRelease: (e) => {
+      const p = at(e.nativeEvent.pageX);
+      setDrag((d) => {
+        const { index: ci, dur: du } = cb.current;
+        if (d && d.i === ci) cb.current.onSeek((p.i === ci ? p.r : p.i > ci ? 0.999 : 0) * du);
+        else if (p.i !== ci) cb.current.onJump(p.i);
+        return null;
+      });
+    },
+    onPanResponderTerminate: () => setDrag(null),
+  })).current;
+  const shownR = drag && drag.i === index ? drag.r : ratio;
+  return (
+    <View>
+      <View ref={box as never} onLayout={measure} {...pan.panHandlers} style={{ height: 32, flexDirection: 'row', alignItems: 'center', gap: GAP }}
+        accessible accessibilityRole="adjustable" accessibilityLabel={`${count}개 중 ${index + 1}번째 영상, 재생 위치`} accessibilityValue={{ text: `${mmss(cur)} / ${mmss(dur)}` }}
+        accessibilityActions={[{ name: 'increment', label: '10초 앞으로' }, { name: 'decrement', label: '10초 뒤로' }]}
+        onAccessibilityAction={(e) => onSeek(Math.min(dur, Math.max(0, cur + (e.nativeEvent.actionName === 'increment' ? 10 : -10))))}>
+        {Array.from({ length: count }, (_, i) => (
+          <View key={i} pointerEvents="none" style={{ flex: 1, height: drag && i === index ? 6 : 3, borderRadius: 3, overflow: 'hidden', backgroundColor: 'rgba(243,232,238,0.32)' }}>
+            <View style={{ height: '100%', backgroundColor: LIGHT, width: `${i < index ? 100 : i === index ? Math.round(shownR * 1000) / 10 : 0}%` }} />
+          </View>
+        ))}
+      </View>
+      <View pointerEvents="none" style={{ flexDirection: 'row', justifyContent: 'flex-end', marginTop: -4 }}>
+        <Txt v="caption2" w="semibold" c="rgba(243,232,238,0.8)" tabular>{`${mmss(drag && drag.i === index ? drag.r * dur : cur)} / ${mmss(dur)}`}</Txt>
+      </View>
+    </View>
+  );
+}

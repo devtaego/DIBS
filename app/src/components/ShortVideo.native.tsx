@@ -12,7 +12,8 @@ export const isPlayable = (url: string) => videoSource(url) != null;
 
 type Props = {
   url: string;
-  onProgress?: (ratio: number) => void; // 재생 위치 0~1 (위쪽 진행 막대용)
+  onProgress?: (ratio: number, cur: number, dur: number) => void; // 재생 위치 (위쪽 진행 막대용)
+  seek?: { at: number; n: number }; // 바깥 막대에서 옮긴 위치 (n 이 바뀔 때마다 적용)
   durationSec: number;
   active?: boolean; // 화면에 보이는 영상만 재생
   muted?: boolean;
@@ -36,8 +37,9 @@ export function ShortVideo(props: Props) {
   return <Player src={src} {...props} />;
 }
 
-function Player({ src, active = true, muted = true, loop = false, onEnded, onToggleMute, full, scrubBottom, durationSec, onProgress }: Props & { src: number | string }) {
+function Player({ src, active = true, muted = true, loop = false, onEnded, onToggleMute, full, scrubBottom, durationSec, onProgress, seek }: Props & { src: number | string }) {
   const [cur, setCur] = useState(0);
+  useEffect(() => { if (seek) { player.currentTime = seek.at; setCur(seek.at); } }, [seek?.n]); // eslint-disable-line react-hooks/exhaustive-deps
   const progRef = useRef(onProgress);
   progRef.current = onProgress;
   const player = useVideoPlayer(src, (p) => {
@@ -71,7 +73,7 @@ function Player({ src, active = true, muted = true, loop = false, onEnded, onTog
 
   useEffect(() => {
     player.timeUpdateEventInterval = 0.25;
-    const sub = player.addListener('timeUpdate', ({ currentTime }) => { setCur(currentTime); progRef.current?.(currentTime / (player.duration || durationSec || 1)); });
+    const sub = player.addListener('timeUpdate', ({ currentTime }) => { setCur(currentTime); progRef.current?.(currentTime / (player.duration || durationSec || 1), currentTime, player.duration || durationSec); });
     return () => sub.remove();
   }, [player]);
 

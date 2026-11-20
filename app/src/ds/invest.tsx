@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'rea
 import Svg, { Defs, LinearGradient, Path, Stop } from 'react-native-svg';
 
 import { Ride } from '@/components/dibby';
+import { imageSource } from '@/lib/media';
 
 import { Icon, Txt } from './base';
 import { Badge, Button, LinearProgress, type BadgeType } from './controls';
@@ -18,8 +19,8 @@ export function Cover({ id, title, url, size = 'Medium', dim, badge, style }: {
   const [bg, fg] = TONES[id % TONES.length];
   return (
     <View style={[{ width: '100%', aspectRatio: 2 / 3, borderRadius: r, overflow: 'hidden', backgroundColor: bg }, style]} accessibilityLabel={title ? `${title} 표지` : undefined}>
-      {url ? (
-        <Image source={{ uri: url }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+      {imageSource(url) ? (
+        <Image source={imageSource(url)} style={StyleSheet.absoluteFill} resizeMode="cover" />
       ) : title ? (
         <View style={{ flex: 1, padding: size === 'Small' ? 6 : 12, justifyContent: 'flex-end' }}>
           <Txt v={size === 'Large' ? 'heading2' : size === 'Medium' ? 'label1' : 'caption2'} w="bold" c={fg} lines={size === 'Small' ? 3 : 4}>{title}</Txt>

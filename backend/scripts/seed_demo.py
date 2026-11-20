@@ -115,6 +115,8 @@ CATALOG = [
  ("hgd",  "회귀했더니 내 딸이 재벌 회장", "웹소설/회귀한 딸, 재벌 회장.png", "WEBNOVEL", "회귀 · 가족", "20년 뒤로 깨어나 보니 딸이 그룹 회장이 되어 있었다."),
  ("hwa",  "회귀했더니 원수의 아내가 되어 있었다", "웹소설/회귀한 원수의 아내.png", "WEBNOVEL", "로판 · 회귀", "눈을 떠 보니 가문의 원수와 결혼한 뒤였다."),
  ("nch",  "내가 찬 남자가 내일의 남편이다", None, "WEBNOVEL", "현대 로맨스", "소개팅에서 찬 남자가 다음 날 맞선 상대로 나왔다."),
+ # 레퍼런스 모션웹툰 (docs/reference/motion-webtoon-편의점마법사, 표지는 영상 제목 화면)
+ ("pmb",  "새벽 세시의 편의점 마법사", None, "WEBTOON", "판타지 · 일상", "최종 면접에 떨어진 새벽 세 시, 편의점에서 빛나는 동전을 내민 손님을 만났다."),
 ]
 COVERS: dict[str, str] = {t: f"covers/{slug}.jpg" for slug, t, *_ in CATALOG}
 # 1화 원고 이미지 (app/public/episodes)
@@ -122,6 +124,7 @@ EPISODE_IMAGES: dict[str, str] = {"악녀인데 남주들이 나를 숭배한다
                                   "시골에선 슬로우라이프": "episodes/sgl-1.jpg"}
 # 쇼츠 영상 (app/public/shorts). nch 는 드라이브 원본, 나머지는 app/scripts/make_demo_shorts.py 로 만든 모션코믹 시연용
 SHORT_VIDEOS: dict[str, tuple[str, int]] = {
+    "새벽 세시의 편의점 마법사": ("shorts/pmb.mp4", 160),
     "내가 찬 남자가 내일의 남편이다": ("shorts/nch.mp4", 60),
     "악녀인데 남주들이 나를 숭배한다": ("shorts/akn.mp4", 30),
     "청월도": ("shorts/cwd.mp4", 30),

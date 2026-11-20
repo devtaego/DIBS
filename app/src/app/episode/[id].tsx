@@ -1,6 +1,7 @@
 import { useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Alert, Image, View } from 'react-native';
+import { imageSource } from '@/lib/media';
 
 import { Button, Card, Loading, Muted, Screen, T } from '@/components/ui';
 import { api, ApiError, track } from '@/lib/api';
@@ -65,7 +66,7 @@ export default function EpisodeScreen() {
       <Muted>{ep.is_paid ? `유료 미리보기 (${ep.price_coin}원 · 공개 21일 뒤 무료)` : '무료 회차'}</Muted>
       {/\.(jpe?g|png|webp)$/i.test(ep.content_url) ? (
         // 앱과 같이 배포된 원고 이미지 (세로 1:3)
-        <Image source={{ uri: ep.content_url }} accessibilityLabel={`${ep.no}화 원고`} resizeMode="contain"
+        <Image source={imageSource(ep.content_url)} accessibilityLabel={`${ep.no}화 원고`} resizeMode="contain"
           style={{ width: '100%', aspectRatio: 724 / 2172, marginTop: space(3), borderRadius: 12, backgroundColor: colors.card }} />
       ) : (
         <>

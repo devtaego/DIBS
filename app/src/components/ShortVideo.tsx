@@ -2,10 +2,10 @@ import { createElement, useEffect, useRef } from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
 
 import { Icon, Txt, radius, spacing } from '@/ds';
+import { videoSource } from '@/lib/media';
 
-// 쇼츠 영상. 앱과 같이 배포된 파일(상대 경로)이면 웹에서 바로 재생하고,
-// 그 밖의 주소(시연용 가짜 CDN)나 네이티브에서는 자리 표시를 보여 준다.
-export const isPlayable = (url: string) => Platform.OS === 'web' && !/^https?:\/\/cdn\.example\//.test(url);
+// 웹 쇼츠 영상 (<video>). 시연용 가짜 CDN 주소면 자리 표시. iOS·Android 는 ShortVideo.native.tsx.
+export const isPlayable = (url: string) => Platform.OS === 'web' && videoSource(url) != null;
 
 type Props = {
   url: string;

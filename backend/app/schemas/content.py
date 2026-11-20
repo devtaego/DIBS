@@ -76,7 +76,7 @@ class EpisodePricingIn(BaseModel):
 class ShortIn(BaseModel):
     title: str
     video_url: str
-    duration_sec: int = Field(gt=0, le=60, description="1분 이하")
+    duration_sec: int = Field(gt=0, le=180, description="3분 이하 (하이라이트 1분 권장, 1화 모션웹툰 전편 허용)")
 
 
 class ShortOut(ORM):

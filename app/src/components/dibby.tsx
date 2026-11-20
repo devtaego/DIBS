@@ -3,6 +3,7 @@
 // 호가·차트 본문에는 넣지 않고, 수익·가격 상승을 축하하지 않는다. 한 화면에 한 번만.
 import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { imageSource } from '@/lib/media';
 import { Animated, Easing, Image, Modal, Pressable, StyleSheet, View, type ImageSourcePropType, type StyleProp, type ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -100,8 +101,8 @@ export function Cover({ id, title, genre, coverUrl, small, style }: { id: number
   const g = GRADS[id % GRADS.length];
   return (
     <View style={[{ overflow: 'hidden', backgroundColor: g[1] }, style]}>
-      {coverUrl ? (
-        <Image source={{ uri: coverUrl }} style={StyleSheet.absoluteFill} resizeMode="cover" accessibilityLabel={`${title} 표지`} />
+      {imageSource(coverUrl) ? (
+        <Image source={imageSource(coverUrl)} style={StyleSheet.absoluteFill} resizeMode="cover" accessibilityLabel={`${title} 표지`} />
       ) : (
         <>
           <LinearGradient colors={g} locations={[0, 0.55, 1]} start={{ x: 0.2, y: 0 }} end={{ x: 0.8, y: 1 }} style={StyleSheet.absoluteFill} />

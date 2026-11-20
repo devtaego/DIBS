@@ -121,6 +121,17 @@ export async function demoRequest(method: string, path: string, body?: unknown, 
       if (!unlocked.has(meta.id)) throw Object.assign(new Error(`이어서 보려면 ${meta.price_coin}코인이 필요해요`), { status: 402, code: 'PAYMENT_REQUIRED' });
       return { ...meta, content_url: `https://cdn.example/${meta.work_id}/${meta.no}` };
     }
+    const op = path.match(/^\/market\/securities\/(\d+)\/order-preview$/);
+    if (op) {
+      // 주문 미리보기: 입력한 가격·수량으로 다시 계산 (수수료 0.015%, 원 미만 버림)
+      const base = Object.entries(F).find(([kk]) => kk.startsWith(`${path}?`) && kk.includes(`side=${query?.side ?? 'BUY'}`))?.[1] as Record<string, unknown> | undefined;
+      const price = Number(query?.price ?? 0), units = Number(query?.units ?? 1);
+      const gross = price * units, fee = Math.floor((gross * 150) / 1_000_000);
+      const w = wallet() as unknown as W;
+      const band = (base?.price_band ?? { min: 0, max: 0 }) as { min: number; max: number };
+      const reasons = [price < band.min || price > band.max ? '가격 제한폭(±30%)을 벗어났어요' : null, query?.side !== 'SELL' && gross + fee > w.deposit_available ? '예치금이 모자라요' : null].filter(Boolean);
+      return { ...(base ?? {}), side: query?.side ?? 'BUY', price, units, gross, fee, total: query?.side === 'SELL' ? gross - fee : gross + fee, available_deposit: w.deposit_available, can_place: reasons.length === 0, reasons };
+    }
     if (path === '/me/attendance') return attendanceState();
     if (path === '/me/partner-points') return { broker: '키움증권', balance: points, converted: 3000 - points, unit: 100, rate: 1 };
     if (k in F) return clone(F[k]);

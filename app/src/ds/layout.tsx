@@ -45,9 +45,8 @@ export function TopAppBar({ type = 'Sub', title, actions = [], onBack }: {
   const main = type === 'Main';
   const acts = main && !actions.length
     ? [
-        { icon: 'cSearch', label: '검색', onPress: () => router.push('/explore') },
+        { icon: 'cSearch', label: '검색', onPress: () => router.push({ pathname: '/explore', params: { search: '1' } }) },
         { icon: 'cBell', label: '알림', onPress: () => router.push('/notifications') },
-        { icon: 'cUser', label: 'MY', onPress: () => router.push('/my') },
       ]
     : actions;
   return (

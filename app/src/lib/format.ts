@@ -18,7 +18,7 @@ export const dateText = (iso: string | null | undefined) => {
 
 export const FUNDING_STATUS: Record<string, string> = {
   IN_REVIEW: '심사 중',
-  APPROVED: '모집 예정',
+  APPROVED: '공모 예정',
   OPEN: '펀딩 중',
   FAILED: '펀딩 실패',
   ALLOCATED: '배정 완료',

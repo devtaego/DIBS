@@ -30,7 +30,12 @@ export default function OrderScreen() {
   const params = useLocalSearchParams<{ id: string; side?: 'BUY' | 'SELL'; price?: string }>();
   const { me } = useSession();
   const [side, setSide] = useState<'BUY' | 'SELL'>(params.side ?? 'BUY');
-  const [price, setPrice] = useState(params.price ?? '10000');
+  const [price, setPrice] = useState(params.price ?? '');
+  // 가격을 안 넘겼으면 지금 시세(최근 체결가)로 시작
+  useEffect(() => {
+    if (params.price) return;
+    api.get<{ last_price: number | null; unit_price: number }>(`/market/securities/${params.id}`).then((d) => setPrice(String(d.last_price ?? d.unit_price))).catch(() => setPrice('10000'));
+  }, [params.id, params.price]);
   const [units, setUnits] = useState(1);
   const [agree, setAgree] = useState(false);
   const [preview, setPreview] = useState<OrderPreview | null>(null);
@@ -109,7 +114,7 @@ export default function OrderScreen() {
           value={price}
           onChangeText={(v) => setPrice(v.replace(/[^0-9]/g, ''))}
           keyboardType="number-pad"
-          style={{ flex: 1, textAlign: 'center', color: colors.text, fontSize: 22, fontWeight: '700' }}
+          style={{ flex: 1, minWidth: 0, width: 0, textAlign: 'center', color: colors.text, fontSize: 22, fontWeight: '700' }}
         />
         <Pressable accessibilityLabel="가격 올리기" onPress={() => setPrice(String(Number(price) + 100))} style={s.tick}>
           <Ionicons name="add" size={20} color={colors.labelStrong} />

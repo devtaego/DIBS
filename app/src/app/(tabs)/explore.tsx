@@ -1,5 +1,5 @@
-import { router } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { router, useLocalSearchParams } from 'expo-router';
+import { useEffect, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 
 import { ErrorBox, Loading } from '@/components/ui';
@@ -28,7 +28,10 @@ const SORTS = ['찜 많은 순', '모집률 높은 순', '마감 임박 순'] as
 export default function Explore() {
   const [tab, setTab] = useState<Tab>('recommend');
   const [q, setQ] = useState('');
-  const [showSearch, setShowSearch] = useState(false);
+  const params = useLocalSearchParams<{ search?: string }>();
+  const [showSearch, setShowSearch] = useState(params.search === '1');
+  // 다른 화면의 검색 아이콘으로 들어오면 바로 검색창을 연다
+  useEffect(() => { if (params.search === '1') setShowSearch(true); }, [params.search]);
   const [genre, setGenre] = useState('전체');
   const [mode, setMode] = useState<Mode>('전체');
   const [age, setAge] = useState('20대');
@@ -81,7 +84,27 @@ export default function Explore() {
   };
 
   const openFundings = [...(data?.fundings ?? [])].sort((x, y) => (x.days_left ?? 99) - (y.days_left ?? 99));
-  const header = (
+  const closeSearch = () => { setQ(''); setShowSearch(false); router.setParams({ search: '' }); };
+  const header = showSearch || searching ? (
+    // 검색 중: 뒤로가기 + 검색창 (뒤로가기를 누르면 검색을 닫고 추천 화면으로)
+    <View style={{ height: 56, flexDirection: 'row', alignItems: 'center', gap: spacing.gapS, paddingLeft: spacing.insetXs, paddingRight: spacing.screen }}>
+      <IconButton icon="back" label="검색 닫기" onPress={closeSearch} />
+      <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing.gapM, height: 44, paddingHorizontal: spacing.insetL, borderRadius: radius.chip, backgroundColor: color.bgAlternative }}>
+        <Icon name="search" size={20} c={color.labelAlternative} />
+        <TextInput
+          value={q}
+          onChangeText={setQ}
+          autoFocus
+          placeholder="작품·작가 검색"
+          placeholderTextColor={color.labelAssistive}
+          returnKeyType="search"
+          style={[textStyle('body2'), { flex: 1, color: color.labelStrong }]}
+          accessibilityLabel="검색어"
+        />
+        {q ? <IconButton icon="close" label="검색어 지우기" onPress={() => setQ('')} /> : null}
+      </View>
+    </View>
+  ) : (
     <View style={{ height: 56, flexDirection: 'row', alignItems: 'center', gap: spacing.gapL, paddingLeft: spacing.screen, paddingRight: spacing.insetXs }}>
       {(['recommend', 'rank'] as const).map((k, i) => (
         <View key={k} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.gapL }}>
@@ -92,30 +115,15 @@ export default function Explore() {
         </View>
       ))}
       <View style={{ flex: 1 }} />
-      <IconButton icon="cSearch" label="검색" onPress={() => setShowSearch(!showSearch)} />
+      <IconButton icon="cSearch" label="검색" onPress={() => setShowSearch(true)} />
       <IconButton icon="cBell" label="알림" onPress={() => router.push('/notifications')} />
     </View>
   );
 
   return (
     <DScreen header={header} onRefresh={reload} tabBar gap={spacing.gapXl}>
-      {showSearch || searching ? (
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.gapM, height: 48, paddingHorizontal: spacing.insetL, borderRadius: radius.chip, backgroundColor: color.bgAlternative }}>
-          <Icon name="search" size={20} c={color.labelAlternative} />
-          <TextInput
-            value={q}
-            onChangeText={setQ}
-            autoFocus
-            placeholder="작품·작가 검색"
-            placeholderTextColor={color.labelAssistive}
-            returnKeyType="search"
-            style={[textStyle('body2'), { flex: 1, color: color.labelStrong }]}
-            accessibilityLabel="검색어"
-          />
-          {q ? <IconButton icon="close" label="검색어 지우기" onPress={() => setQ('')} /> : null}
-        </View>
-      ) : null}
-      {searching || tab === 'rank' ? null : (
+      {showSearch && !searching ? <Txt v="body2" c={color.labelAlternative}>작품 이름이나 장르로 찾아보세요.</Txt> : null}
+      {showSearch || searching || tab === 'rank' ? null : (
         <View style={{ gap: spacing.gapM }}>
           <Segmented options={(['전체', '카테고리', '필터'] as const).map((k) => ({ key: k, label: k }))} value={mode} onChange={setMode} grow />
           {mode === '카테고리' ? (
@@ -146,7 +154,7 @@ export default function Explore() {
         </Section>
       ) : null}
 
-      {!searching && tab === 'recommend' && mode === '전체' && openFundings.length ? (
+      {!searching && !showSearch && tab === 'recommend' && mode === '전체' && openFundings.length ? (
         // 배너: 지금 청약이 열린 작품들
         <Pressable onPress={() => router.push(`/funding/${openFundings[0].id}`)} style={s.banner}>
           <View style={{ flex: 1, gap: spacing.gapM }}>
@@ -170,7 +178,7 @@ export default function Explore() {
         </Pressable>
       ) : null}
 
-      {searching ? null : tab === 'rank' ? (
+      {searching || showSearch ? null : tab === 'rank' ? (
         <Section title="찜 많은 순" count={`${ranked.length}작품`}>
           {ranked.map((w, i) => (
             <View key={w.id} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.gapL }}>

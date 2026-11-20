@@ -118,17 +118,7 @@ export default function WorkScreen() {
               </View>
               <Ionicons name="chevron-forward" size={20} color={colors.labelAssistive} />
             </Pressable>
-            <Pressable style={s.opt} onPress={() => router.push(listed ? `/security/${funding.id}` : `/subscribe/${funding.id}`)}>
-              <View style={{ flex: 1 }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <T size={14} weight="700">{listed ? '조각 거래' : '조각 청약'}</T>
-                </View>
-                <T size={12} color={colors.labelAlternative} style={{ marginTop: 2 }}>
-                  1조각 {won(funding.unit_price)} · 플랫폼 매출 수익권 · 진행 {funding.progress.achievement_pct.toLocaleString('ko-KR')}%
-                </T>
-              </View>
-              <Ionicons name="chevron-forward" size={20} color={colors.labelAssistive} />
-            </Pressable>
+            {/* 청약·거래는 아래 버튼 하나로 (같은 기능 중복 제거) */}
           </>
         ) : null}
 

@@ -367,13 +367,13 @@ export function ReturnSim({ amount, rows, note }: { amount: number; rows: { labe
 }
 
 // ── Market Cell ──
-export function MarketCell({ id, title, meta, price, change, trend, favorite, onPress, last }: {
-  id: number; title: string; meta: string; price: string; change: string; trend: 'Rise' | 'Fall' | 'Flat'; favorite?: boolean; onPress?: () => void; last?: boolean;
+export function MarketCell({ id, title, meta, price, change, trend, favorite, onPress, last, coverUrl }: {
+  id: number; title: string; meta: string; price: string; change: string; trend: 'Rise' | 'Fall' | 'Flat'; favorite?: boolean; onPress?: () => void; last?: boolean; coverUrl?: string | null;
 }) {
   const tc = trend === 'Rise' ? color.rise : trend === 'Fall' ? color.fall : color.labelAlternative;
   return (
     <Pressable onPress={onPress} style={({ pressed }) => [s.mc, last && { borderBottomWidth: 0 }, pressed && { opacity: 0.7 }]}>
-      <View style={{ width: 44 }}><Cover id={id} title={title} size="Small" /></View>
+      <View style={{ width: 44 }}><Cover id={id} title={title} url={coverUrl} size="Small" /></View>
       <View style={{ flex: 1, gap: 2 }}>
         <Txt v="label1" w="semibold" c={color.labelStrong} lines={1}>{title}</Txt>
         <Txt v="caption1" c={color.labelAlternative} lines={1}>{meta}</Txt>

@@ -1,11 +1,16 @@
-import { useLocalSearchParams } from 'expo-router';
+import Ionicons from '@expo/vector-icons/Ionicons';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Alert, Image, View } from 'react-native';
+import { Alert, Image, Pressable, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ShortVideo } from '@/components/ShortVideo';
 import { imageSource } from '@/lib/media';
 
 import { Button, Card, Loading, Muted, Screen, T } from '@/components/ui';
-import { api, ApiError, track } from '@/lib/api';
+import { api, ApiError, track, type Episode, type WorkDetail } from '@/lib/api';
+import { phaseOf } from '@/lib/phase';
+import { usePref } from '@/lib/prefs';
+import { useApi } from '@/lib/useApi';
 import { colors, space } from '@/lib/theme';
 
 type EpisodeContent = { id: number; work_id: number; no: number; title: string; content_url: string; is_paid: boolean; price_coin: number };
@@ -89,6 +94,7 @@ export default function EpisodeScreen() {
   if (!ep) return <Screen><Loading /></Screen>;
 
   return (
+    <View style={{ flex: 1, backgroundColor: colors.bg }}>
     <Screen>
       <T size={20} weight="700">{ep.title === `${ep.no}화` ? ep.title : `${ep.no}화 · ${ep.title}`}</T>
       <Muted>{ep.is_paid ? `유료 미리보기 (${ep.price_coin}원 · 공개 21일 뒤 무료)` : '무료 회차'}</Muted>
@@ -113,19 +119,59 @@ export default function EpisodeScreen() {
         <>
           {[1, 2, 3].map((n) => (
             <View key={n} style={{ height: 360, backgroundColor: n % 2 ? colors.card : colors.cardAlt, borderRadius: 12, marginTop: space(3), alignItems: 'center', justifyContent: 'center' }}>
-              <Muted>{n === 1 ? '원고를 불러오고 있어요' : `웹툰 컷 ${n}`}</Muted>
+              <Muted>{n === 1 ? '이 회차 원고는 곧 올라와요' : `웹툰 컷 ${n}`}</Muted>
             </View>
           ))}
         </>
       )}
-      <Button
-        title="다 읽었어요"
-        style={{ marginTop: space(6) }}
-        onPress={() => {
-          track('VIEW_COMPLETE', { work_id: ep.work_id, episode_id: ep.id, progress: 1 });
-          Alert.alert('완독 기록', '연독률 집계에 반영돼요');
-        }}
-      />
     </Screen>
+    <ReaderBar ep={ep} />
+    </View>
+  );
+}
+
+/** 회차 하단 바: 이전화 · 좋아요 · 조각 사기 · 다음화 */
+function ReaderBar({ ep }: { ep: EpisodeContent }) {
+  const insets = useSafeAreaInsets();
+  const { data } = useApi(async () => {
+    const [eps, work] = await Promise.all([api.get<Episode[]>(`/works/${ep.work_id}/episodes`), api.get<WorkDetail>(`/works/${ep.work_id}`)]);
+    return { eps, work };
+  }, [ep.work_id]);
+  const [likes, setLikes] = usePref<number[]>('likedEpisodes', []);
+  const liked = likes.includes(ep.id);
+  const eps = data?.eps ?? [];
+  const i = eps.findIndex((e) => e.id === ep.id);
+  const prev = i > 0 ? eps[i - 1] : null;
+  const next = i >= 0 && i < eps.length - 1 ? eps[i + 1] : null;
+  const w = data?.work;
+  const ph = phaseOf(w?.funding_status);
+  const buy = () => {
+    if (!w) return;
+    if (ph === 'OPEN' && w.funding_id) return router.push(`/subscribe/${w.funding_id}`);
+    if (w.funding_status === 'LISTED' && w.funding_id) return router.push(`/security/${w.funding_id}`);
+    router.push(`/work/${w.id}`);
+  };
+  const buyLabel = ph === 'OPEN' ? '조각 사기' : w?.funding_status === 'LISTED' ? '조각 거래' : '공모 예정';
+  const go = (e: Episode | null, done: boolean) => {
+    if (!e) return;
+    if (done) track('VIEW_COMPLETE', { work_id: ep.work_id, episode_id: ep.id, progress: 1 }); // 다음 화로 넘어가면 완독
+    router.replace(`/episode/${e.id}`);
+  };
+  const Item = ({ icon, label, onPress, on, disabled }: { icon: string; label: string; onPress: () => void; on?: boolean; disabled?: boolean }) => (
+    <Pressable onPress={onPress} disabled={disabled} accessibilityRole="button" accessibilityLabel={label} style={{ flex: 1, alignItems: 'center', gap: 2, paddingVertical: 8, opacity: disabled ? 0.35 : 1 }}>
+      <Ionicons name={icon as never} size={22} color={on ? '#DE5786' : '#2B2D36'} />
+      <T size={11} weight="600" color={on ? '#DE5786' : '#4E5260'}>{label}</T>
+    </Pressable>
+  );
+  return (
+    <View style={{ flexDirection: 'row', borderTopWidth: 1, borderTopColor: '#ECEDF1', backgroundColor: '#FFFFFF', paddingBottom: Math.max(insets.bottom, 6), paddingHorizontal: 8 }}>
+      <Item icon="chevron-back" label="이전화" onPress={() => go(prev, false)} disabled={!prev} />
+      <Item icon={liked ? 'heart' : 'heart-outline'} label={liked ? '좋아요 취소' : '좋아요'} on={liked} onPress={() => setLikes(liked ? likes.filter((x) => x !== ep.id) : [...likes, ep.id])} />
+      <Pressable onPress={buy} accessibilityRole="button" accessibilityLabel={buyLabel}
+        style={{ flex: 1.4, marginVertical: 6, borderRadius: 999, backgroundColor: ph === 'OPEN' ? '#DE5786' : '#F2F3F6', alignItems: 'center', justifyContent: 'center' }}>
+        <T size={13} weight="700" color={ph === 'OPEN' ? '#FFFFFF' : '#2B2D36'}>{buyLabel}</T>
+      </Pressable>
+      <Item icon="chevron-forward" label="다음화" onPress={() => go(next, true)} disabled={!next} />
+    </View>
   );
 }

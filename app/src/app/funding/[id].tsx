@@ -4,7 +4,7 @@ import { View } from 'react-native';
 
 import { ErrorBox, Loading } from '@/components/ui';
 import {
-  Badge, Button, Callout, DisclosureBar, DScreen, IconButton, InvestSummary, KV, OfferingTable, OfferingTimeline, Panel, ReturnSim, RiskLevel, Section,
+  Badge, Button, Callout, DScreen, IconButton, InvestSummary, KV, OfferingTable, OfferingTimeline, Panel, Section,
   Tabs, TopAppBar, Txt, color, spacing,
 } from '@/ds';
 import { api, track, type Disclosure, type FundingDetail, type Indicators, type Serial, type Subscription, type WorkDetail } from '@/lib/api';
@@ -63,8 +63,6 @@ export default function FundingScreen() {
     else await api.put(`/works/${work.id}/dib`);
     reload();
   };
-  const sc = ind.scenarios;
-  const amount = Math.min(100_000, ind.per_user_cap_amount || 100_000);
 
   return (
     <DScreen
@@ -129,22 +127,6 @@ export default function FundingScreen() {
               ]}
             />
           </Section>
-          <RiskLevel level={5} note={`1인 최대 손실(유료 팬이 예상의 40%일 때) 약 ${manwon(ind.per_user_max_loss_downside)}`} />
-          <ReturnSim
-            amount={amount}
-            rows={[
-              { label: '유료 팬 40%', multiple: sc.downside.multiple, months: sc.downside.payback_months },
-              { label: '유료 팬 70% (기준)', multiple: sc.conservative.multiple, months: sc.conservative.payback_months },
-              { label: '예상대로 (100%)', multiple: sc.base.multiple, months: sc.base.payback_months },
-              { label: '150%', multiple: sc.optimistic.multiple, months: sc.optimistic.payback_months },
-            ]}
-            note="연 수익률은 기간이 짧아 과장되므로 배수와 회수 달만 보여 드려요. 과거·예상 수치는 미래 수익을 보장하지 않아요."
-          />
-          <Panel>
-            <Txt v="body1" w="bold" c={color.labelStrong}>수요 지표</Txt>
-            <KV k="파일럿 4주 유료 팬" v={`${ind.pilot_paying_fans_4w.toLocaleString('ko-KR')}명`} />
-            <KV k="이 금액에 필요한 유료 팬" v={`${ind.paying_fans_needed.toLocaleString('ko-KR')}명`} vColor={ind.passes_gate ? color.positive : color.cautionary} />
-          </Panel>
         </>
       ) : null}
 
@@ -203,7 +185,7 @@ export default function FundingScreen() {
         </>
       ) : null}
 
-      <DNote title="잠깐, 꼭 확인해 주세요" text="원금 손실이 날 수 있고 예금자 보호 대상이 아니에요. 만기에는 마지막 정산 후 상장폐지돼요." style={{ marginTop: 0 }} />
+      <DNote title="잠깐, 꼭 확인해 주세요" text="원금 손실이 날 수 있고 예금자 보호 대상이 아니에요. 만기에는 마지막 정산 후 권리가 작가에게 돌아가요." style={{ marginTop: 0 }} />
     </DScreen>
   );
 }

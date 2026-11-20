@@ -84,7 +84,7 @@ export default function MockKiwoomScreen() {
         </View>
         <View style={s.card}>
           <Check checked={newAccount} onToggle={() => setNewAccount(!newAccount)} label="키움 계좌를 이번에 처음 열었어요 (계좌 개설 쿠폰 대상)" />
-          <Check checked={agree} onToggle={() => setAgree(!agree)} label="원금 손실 가능, 시즌 완결 후 12개월이 지나면 권리가 사라진다는 점을 확인했어요 (키움 투자 위험 고지)" />
+          <Check checked={agree} onToggle={() => setAgree(!agree)} label="원금 손실 가능, 시즌 완결 후 12개월이 지나면 권리가 작가에게 돌아간다는 점을 확인했어요 (키움 투자 위험 고지)" />
           <T size={12} color={colors.labelAssistive} style={{ marginTop: space(2) }}>투자성향 확인·한도 확인·청약 대금은 키움이 처리해요. DIBS에는 청약 건수·금액 합계만 전달돼요.</T>
         </View>
         <ErrorBox error={error} />

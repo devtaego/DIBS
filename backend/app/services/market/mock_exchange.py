@@ -36,6 +36,9 @@ def in_maintenance(at: datetime) -> bool:
     return _hm(settings.maintenance_start) <= at.time() < _hm(settings.maintenance_end)
 
 
+PRICE_TICK = 100  # 호가 단위: 조각 가격은 100원 단위 (청약은 1조각 = 공모가 단위)
+
+
 def price_band(reference_price: int) -> tuple[int, int]:
     bps = settings.price_limit_bps
     return (math.ceil(reference_price * (10000 - bps) / 10000), math.floor(reference_price * (10000 + bps) / 10000))
@@ -69,6 +72,8 @@ class InternalMockExchange(MarketGateway):
         lo, hi = price_band(f.reference_price)
         if not lo <= price <= hi:
             raise DomainError("PRICE_OUT_OF_BAND", f"주문 가능 가격은 {lo:,}~{hi:,}원이에요")
+        if price % PRICE_TICK:
+            raise DomainError("PRICE_TICK", f"가격은 {PRICE_TICK:,}원 단위로 주문해요")
 
         order = Order(user_id=user.id, funding_id=f.id, mode=f.mode, side=side, price=price, units=units,
                       remaining_units=units, trade_date=now.date(), fee_ppm=settings.trade_fee_ppm)
@@ -165,6 +170,8 @@ class InternalMockExchange(MarketGateway):
         lo, hi = price_band(f.reference_price) if f.reference_price else (None, None)
         if lo is not None and not lo <= price <= hi:
             reasons.append("PRICE_OUT_OF_BAND")
+        if price % PRICE_TICK:
+            reasons.append("PRICE_TICK")
 
         gross = price * units
         fee_ppm = settings.trade_fee_ppm

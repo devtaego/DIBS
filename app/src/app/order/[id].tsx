@@ -113,6 +113,7 @@ export default function OrderScreen() {
         <TextInput
           value={price}
           onChangeText={(v) => setPrice(v.replace(/[^0-9]/g, ''))}
+          onBlur={() => setPrice((p) => String(Math.max(100, Math.round(Number(p || '0') / 100) * 100)))} // 호가 단위 100원
           keyboardType="number-pad"
           style={{ flex: 1, minWidth: 0, width: 0, textAlign: 'center', color: colors.text, fontSize: 22, fontWeight: '700' }}
         />
@@ -120,7 +121,7 @@ export default function OrderScreen() {
           <Ionicons name="add" size={20} color={colors.labelStrong} />
         </Pressable>
       </View>
-      {preview?.price_band.min ? <Muted style={{ marginTop: space(1) }}>주문 가능 {won(preview.price_band.min)} ~ {won(preview.price_band.max)}</Muted> : null}
+      {preview?.price_band.min ? <Muted style={{ marginTop: space(1) }}>주문 가능 {won(preview.price_band.min)} ~ {won(preview.price_band.max)} · 100원 단위</Muted> : null}
 
       <T weight="700" style={{ marginTop: space(5) }}>수량</T>
       <Card style={{ alignItems: 'center', marginTop: space(2) }}>

@@ -115,10 +115,14 @@ export default function SubscribeScreen() {
   const tierObj = f.reward_tiers.find((r) => r.id === tier);
   const onKey = (k: string) => {
     setError(null);
-    if (k === 'del') return setAmountText((t) => t.slice(0, -1));
-    setAmountText((t) => (t === '0' ? k.replace(/^0+/, '') : (t + k).slice(0, 9)));
+    // 청약은 조각 단위(1조각 = 공모가)라서 키패드는 '조각 수'를 입력하고 금액은 그 배수로만 만든다 (10,532원 같은 금액 없음)
+    setAmountText((t) => {
+      const n = Math.floor(Number(t || '0') / unit);
+      const next = k === 'del' ? Math.floor(n / 10) : Number(`${n || ''}${k}`.slice(0, 6));
+      return String(Math.min(next, Math.floor(maxAmount / unit)) * unit);
+    });
   };
-  const add = (n: number) => setAmountText((t) => String(Math.min(maxAmount, Number(t || '0') + n)));
+  const add = (n: number) => setAmountText((t) => String(Math.floor(Math.min(maxAmount, Number(t || '0') + n) / unit) * unit));
 
   const submit = async () => {
     if (!(agreeRisk && agreeTerm)) return setError(new ApiError(0, 'CONSENT_REQUIRED', '위험 안내 두 가지를 먼저 확인해 주세요'));
@@ -194,19 +198,19 @@ export default function SubscribeScreen() {
       gap={spacing.gapXl}>
       <Stack.Screen options={{ headerShown: false }} />
       <PageTitle title={existing ? '청약 금액을 바꿀까요?' : '얼마나 펀딩할까요?'}
-        sub={existing ? `지금 ${manwon(existing.units * unit)} 청약 중 · 마감 1시간 전까지 바꿀 수 있어요` : `목표 달성 시 ${unit.toLocaleString('ko-KR')}원 = 1조각 · 사용 가능 ${manwon(wallet.deposit_available)}`} />
+        sub={existing ? `지금 ${manwon(existing.units * unit)} 청약 중 · 마감 1시간 전까지 바꿀 수 있어요` : `1조각 ${unit.toLocaleString('ko-KR')}원 단위로 청약해요 · 사용 가능 ${manwon(wallet.deposit_available)}`} />
       <View style={{ alignItems: 'center', gap: spacing.gapL, paddingVertical: spacing.inset2xl }}>
         <Txt v="display1" w="bold" c={raw ? color.labelStrong : color.labelDisable} tabular>{raw ? `${raw.toLocaleString('ko-KR')}원` : '0원'}</Txt>
         <View style={{ height: 28, paddingHorizontal: spacing.insetM, borderRadius: radius.chip, borderWidth: 1, borderColor: color.lineNormal, justifyContent: 'center' }}>
           <Txt v="label2" w="semibold" c={over || short ? color.negative : color.labelNormal}>
-            {over ? `최대 ${manwon(maxAmount)}까지 펀딩할 수 있어요` : short ? '예치금이 부족해요' : `목표 달성 시 ${units.toLocaleString('ko-KR')}조각으로 전환`}
+            {over ? `최대 ${manwon(maxAmount)}까지 펀딩할 수 있어요` : short ? '예치금이 부족해요' : `${units.toLocaleString('ko-KR')}조각 · 1조각 ${unit.toLocaleString('ko-KR')}원`}
           </Txt>
         </View>
         <View style={{ flexDirection: 'row', gap: spacing.gapM }}>
           <Chip label="+1만" onPress={() => add(10_000)} />
           <Chip label="+5만" onPress={() => add(50_000)} />
           <Chip label="+10만" onPress={() => add(100_000)} />
-          <Chip label="최대" onPress={() => setAmountText(String(Math.min(maxAmount, wallet.deposit_available + (existing ? existing.units * unit : 0))))} />
+          <Chip label="최대" onPress={() => setAmountText(String(Math.floor(Math.min(maxAmount, wallet.deposit_available + (existing ? existing.units * unit : 0)) / unit) * unit))} />
         </View>
       </View>
       {short ? <Button label="예치금 충전하러 가기" variant="Outlined" tone="Primary" size="Medium" onPress={() => router.push('/wallet')} /> : null}

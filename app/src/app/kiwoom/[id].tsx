@@ -88,8 +88,19 @@ export default function MockKiwoomScreen() {
           <KV k="마감" v={dateText(f.close_at)} />
         </View>
         <View style={[s.card, { alignItems: 'center' }]}>
-          <Stepper value={units} onChange={setUnits} max={max} />
-          <T size={13} color={colors.labelAlternative} style={{ marginTop: space(2) }}>청약 금액 {won(units * f.unit_price)}</T>
+          {u0 ? (
+            // DIBS에서 정한 수량 그대로: 키움 화면에서는 바꾸지 않는다 (바꾸려면 DIBS로 돌아가서)
+            <>
+              <T size={13} color={colors.labelAlternative}>청약 수량</T>
+              <T size={26} weight="700" style={{ marginTop: space(1) }}>{units.toLocaleString('ko-KR')}조각</T>
+              <T size={13} color={colors.labelAlternative} style={{ marginTop: space(1) }}>청약 금액 {won(units * f.unit_price)} · DIBS에서 정한 수량이에요</T>
+            </>
+          ) : (
+            <>
+              <Stepper value={units} onChange={setUnits} max={max} />
+              <T size={13} color={colors.labelAlternative} style={{ marginTop: space(2) }}>청약 금액 {won(units * f.unit_price)}</T>
+            </>
+          )}
         </View>
         <View style={s.card}>
           {link.linked ? null : <Check checked={newAccount} onToggle={() => setNewAccount(!newAccount)} label="키움 계좌를 이번에 처음 열었어요 (계좌 개설 쿠폰 대상)" />}

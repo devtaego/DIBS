@@ -94,6 +94,7 @@ def test_full_flow(api, published_work, now):
     clock.set_now(datetime(2027, 3, 10, 10, 0))
     order = {"funding_id": fid, "agree_risk_notice": True, "agree_termination_rule": True}
     api.err("b", "post", "/market/orders", "PRICE_OUT_OF_BAND", json={**order, "side": "BUY", "price": 13_001, "units": 1})
+    api.err("b", "post", "/market/orders", "PRICE_TICK", json={**order, "side": "BUY", "price": 10_050, "units": 1})  # 100원 단위
     api.err("creator", "post", "/market/orders", "SELF_TRADE_FORBIDDEN", json={**order, "side": "BUY", "price": 10_000, "units": 1})
     api.err("c", "post", "/market/orders", "INSUFFICIENT_UNITS", json={**order, "side": "SELL", "price": 11_000, "units": 6})
     api.ok("a", "post", "/market/orders", json={**order, "side": "SELL", "price": 11_000, "units": 10})

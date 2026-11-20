@@ -55,8 +55,9 @@ export default function Shorts() {
     const playable = all.filter((sh) => isPlayable(sh.video_url));
     const base = playable.length ? playable : all;
     // 찜한 작품 탭: 내가 찜한 작품의 쇼츠만 (지금 화면에서 하트를 누른 것도 포함)
+    // 탭을 연 순간의 찜 목록으로 고정: 보는 중에 하트를 꺼도 영상이 갑자기 사라지지 않게
     return feed === '찜한 작품' ? base.filter((sh) => liked[sh.id] ?? data?.dibbed.has(sh.work_id)) : base;
-  }, [data, feed]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [data, feed]); // eslint-disable-line react-hooks/exhaustive-deps -- liked 는 탭 전환 때만 반영
   const n = items.length;
   const cycle = n > 1;
   const slots = useMemo(() => Array.from({ length: n * (cycle ? LAPS : 1) }, (_, i) => i), [n, cycle]);

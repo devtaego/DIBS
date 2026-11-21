@@ -20121,7 +20121,8 @@
           "PAID_EPISODE",
           "AD",
           "GOODS",
-          "EXTERNAL_SERIAL"
+          "EXTERNAL_SERIAL",
+          "SECONDARY_IP"
         ],
         "title": "RevenueSource"
       },

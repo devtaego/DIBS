@@ -59,6 +59,8 @@ def add_revenue(db: Session, f: Funding, period: str, source: RevenueSource, gro
         if not evidence_url:
             raise DomainError("EVIDENCE_REQUIRED", "외부 플랫폼 정산서(증빙)를 첨부해 주세요")
         deductions = gross - gross * f.external_share_bps // 10000
+    if source == RevenueSource.SECONDARY_IP and not evidence_url:
+        raise DomainError("EVIDENCE_REQUIRED", "2차·해외 IP 계약서와 정산서(증빙)를 첨부해 주세요")
     if db.scalar(select(DividendRun.id).where(DividendRun.funding_id == f.id, DividendRun.period == period)):
         raise Conflict("PERIOD_CLOSED", "이미 배당을 계산한 분기예요")
     r = RevenueRecord(funding_id=f.id, period=period, source=source, gross=gross, deductions=deductions,

@@ -215,3 +215,16 @@ def test_dividend_metrics_use_confirmed_quarters_only(api, published_work, now):
     assert s["last_dist_period"] == "2027Q2"  # 진행 중인 2027Q3은 지급했어도 제외
     assert s["last_dist_per_token"] == 300.0  # 315,600원 ÷ 1,052조각
     assert s["annual_dist_yield"] == round(300 / 1_000, 6)  # 확정 분기 합 ÷ 현재가(공모가 1,000원)
+
+
+def test_secondary_ip_revenue_split_like_primary(api, published_work, now):
+    """2차·해외 IP 수익은 실비만 빼고 1차 매출과 같은 60/30/10 (증빙 필수)."""
+    api.login("a")
+    api.ok("a", "post", "/wallet/deposit/charge", json={"amount": 2_000_000})
+    fid = listed(api, published_work["id"], now, {"a": 1000})
+    ip = {"funding_id": fid, "source": "SECONDARY_IP", "period": "2027Q2", "gross": 5_000_000, "deductions": 1_000_000}
+    api.err("admin", "post", "/admin/revenues", "EVIDENCE_REQUIRED", json=ip)
+    api.ok("admin", "post", "/admin/revenues", json={**ip, "evidence_url": "s3://dibs/contracts/drama-license.pdf"})
+    run = api.ok("admin", "post", f"/admin/fundings/{fid}/dividends", params={"force": True}, json={"period": "2027Q2"})
+    assert (run["net_revenue"], run["holder_pool"], run["creator_amount"], run["platform_amount"]) == (
+        4_000_000, 1_200_000, 2_400_000, 400_000)

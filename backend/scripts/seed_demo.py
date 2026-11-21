@@ -189,7 +189,7 @@ def main() -> None:
         seed_pilot_events(a, 44_000, 0.85, 0.55)
         for r in readers[:3]:
             call(r, "put", f"/works/{a}/dib")
-        call("creator", "patch", "/me", json={"bio": "로맨스 판타지를 그리는 신인 작가"})
+        call("creator", "patch", "/me", json={"nickname": "윤서하", "bio": "회사에 다니며 밤마다 그린 원고로 첫 연재를 준비하고 있어요. 로맨스 판타지와 따뜻한 일상물을 좋아해요. 응원해 주시면 약속한 회차까지 끝까지 그릴게요."})
         # 상장 전 공개 회차는 무료 (유료 미리보기는 상장 후). 상한은 열람자 44,000 × 결제율 15% = 6,600명 기준 1,500만 원
         fa = make_funding(a, 15000, [{"title": "에필로그 크레딧 등재", "min_units": 10},
                                      {"title": "한정판 양장본 + 넘버링 카드", "min_units": 300, "limited_qty": 50,

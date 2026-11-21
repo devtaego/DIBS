@@ -33,6 +33,8 @@ export default function RootLayout() {
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen name="login" options={{ headerShown: false }} />
           <Stack.Screen name="otp" options={{ headerShown: false }} />
+          <Stack.Screen name="onboard" options={{ headerShown: false }} />
+          <Stack.Screen name="seeds" options={{ headerShown: false }} />
           <Stack.Screen name="welcome" options={{ headerShown: false, gestureEnabled: false }} />
           <Stack.Screen name="auth" options={{ headerShown: false }} />
           <Stack.Screen name="intro" options={{ headerShown: false, animation: "fade" }} />

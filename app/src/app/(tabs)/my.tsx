@@ -15,7 +15,12 @@ import { useSession } from '@/lib/session';
 import { useApi } from '@/lib/useApi';
 
 
-// V2 13 MY
+// 13 MY (Screens – MVP v2): 투자성향을 친근한 이름의 칩으로 보여 준다
+const RISK_CHIP: Record<string, [string, string, string]> = {
+  STABLE: ['도토리 저금형', '#EAF6EE', '#2F7A4B'], STABLE_SEEKING: ['새싹 관찰형', '#E6F5F1', '#23806F'], NEUTRAL: ['균형 산책형', '#EAF1FE', '#2F62C9'],
+  ACTIVE: ['해바라기 성장형', '#FFF3D4', '#9A6A00'], AGGRESSIVE: ['로켓 도전형', '#FDE8EC', '#C4314F'],
+};
+
 export default function My() {
   const { me, logout, baseUrl, refreshMe } = useSession();
   const [resetArm, setResetArm] = useState(false);
@@ -55,13 +60,14 @@ export default function My() {
           <Image source={avatarSource(me.avatar_url)} style={{ width: 60, height: 60 }} resizeMode="cover" accessibilityLabel="프로필 디비" />
         </View>
         <View style={{ flex: 1, gap: spacing.gapXs }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.gapS }}>
-            <Txt v="headline1" w="bold" c={color.labelStrong}>{me.nickname}</Txt>
-            <View style={{ height: 22, paddingHorizontal: spacing.insetS, borderRadius: radius.chip, borderWidth: 1, borderColor: color.lineNormal, justifyContent: 'center' }}>
-              <Txt v="caption2" w="bold" c={color.labelNeutral}>{units ? '새싹 투자자' : '예비 투자자'}</Txt>
-            </View>
-          </View>
-          <Txt v="caption1" c={color.labelAlternative}>{`접속 ${visit}일째 · ${riskLabel(me.risk_level)}`}</Txt>
+          <Txt v="headline1" w="bold" c={color.labelStrong}>{me.nickname}</Txt>
+          {me.risk_level && RISK_CHIP[me.risk_level] ? (
+            <Pressable onPress={() => router.push('/risk-profile')} accessibilityRole="button" accessibilityLabel="투자성향 다시 확인"
+              style={{ alignSelf: 'flex-start', height: 26, paddingHorizontal: 10, borderRadius: 999, backgroundColor: RISK_CHIP[me.risk_level][1], flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+              <Txt v="caption1" w="bold" c={RISK_CHIP[me.risk_level][2]}>{riskLabel(me.risk_level)}</Txt>
+              <Txt v="caption1" w="medium" c={RISK_CHIP[me.risk_level][2]} style={{ opacity: 0.75 }}>· {RISK_CHIP[me.risk_level][0]}</Txt>
+            </Pressable>
+          ) : <Txt v="caption1" c={color.labelAlternative}>{`접속 ${visit}일째 · 투자성향 미확인`}</Txt>}
         </View>
         <Icon name="chev" size={20} c={color.labelAssistive} />
       </Pressable>
@@ -82,8 +88,11 @@ export default function My() {
       <Panel style={{ borderColor: color.lineNormal }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.gapS }}>
           <Icon name="cCoin" size={20} />
-          <Txt v="label2" w="semibold" c={color.labelStrong}>예치금</Txt>
-          <Txt v="caption1" w="medium" c={color.labelAlternative}>키움증권 연결 계좌</Txt>
+          <Txt v="label2" w="semibold" c={color.labelStrong}>키움증권 예치금</Txt>
+          <View style={{ height: 20, paddingHorizontal: 8, borderRadius: 999, backgroundColor: '#FDEBF1', flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+            <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: kiwoom.linked ? '#2EBD85' : color.labelAssistive }} />
+            <Txt v="caption2" w="bold" c="#C4426F">{kiwoom.linked ? `연결됨${kiwoom.account ? ` ··${kiwoom.account.slice(-4)}` : ''}` : '연결 전'}</Txt>
+          </View>
         </View>
         <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' }}>
           <Txt v="title2" w="bold" c={color.labelStrong} tabular>{deposit.toLocaleString('ko-KR')}원</Txt>
@@ -92,6 +101,7 @@ export default function My() {
             <Button label="충전" tone="Inverse" size="Small" fill={false} onPress={() => router.push('/wallet')} />
           </View>
         </View>
+        <Txt v="caption1" w="medium" c={color.labelAssistive}>충전·출금은 키움증권 앱에서 안전하게 진행돼요</Txt>
       </Panel>
 
       <AttendanceCard onDone={reload} coin={data?.wallet.coin} />

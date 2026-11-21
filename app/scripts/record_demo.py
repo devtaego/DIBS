@@ -57,6 +57,8 @@ def main():
         for e in eps:
             get(f"/episodes/{e['id']}")
         get(f"/works/{w['id']}/shorts")
+    for cid in sorted({w["creator_id"] for w in works}):
+        get(f"/creators/{cid}")
     fids = {w["funding_id"] for w in works if w.get("funding_id")}
     for fid in sorted(fids):
         for sub in ["", "/indicators", "/disclosure", "/serial", "/limits", "/breakeven", "/subscriptions/me", "/buyback-quote"]:

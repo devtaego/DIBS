@@ -67,7 +67,8 @@ export default function EpisodeScreen() {
       await load();
     } catch (e) {
       const err = e as ApiError;
-      Alert.alert(err.code === 'INSUFFICIENT_BALANCE' ? '코인이 부족해요' : '구매 실패', err.message);
+      if (err.code === 'INSUFFICIENT_BALANCE') router.push({ pathname: '/seeds', params: { back: '1' } });
+      else Alert.alert('구매 실패', err.message);
     } finally {
       setBusy(false);
     }
@@ -76,17 +77,25 @@ export default function EpisodeScreen() {
   if (locked) {
     const price = Number(locked.message.match(/(\d[\d,]*)코인/)?.[1]?.replace(/,/g, '') ?? 300);
     const need = Math.ceil(price / 100) * 100; // 키움 포인트는 100P 단위
+    const seedPrice = Math.round(price / 100);
+    const mySeeds = coin == null ? null : Math.floor(coin / 100);
+    const short = mySeeds != null && mySeeds < seedPrice;
     return (
       <Screen>
+        {/* 08 작품 · 회차 열기 (씨앗 3개) */}
         <Card style={{ alignItems: 'center', paddingVertical: space(10) }}>
           <T size={40}>🔒</T>
-          <T weight="700" style={{ marginTop: space(3) }}>{locked.message}</T>
-          <Muted style={{ marginTop: space(2), textAlign: 'center' }}>{`내 코인 ${coin?.toLocaleString('ko-KR') ?? '-'} · 키움 포인트 ${pts?.balance.toLocaleString('ko-KR') ?? '-'}P`}</Muted>
-          <Button title="코인으로 열기" onPress={unlock} loading={busy} style={{ marginTop: space(6), alignSelf: 'stretch' }} />
+          <T weight="700" style={{ marginTop: space(3) }}>미리보기 회차예요 · 씨앗 {seedPrice}개</T>
+          <Muted style={{ marginTop: space(2), textAlign: 'center' }}>{`내 씨앗 ${mySeeds?.toLocaleString('ko-KR') ?? '-'}개 · 키움 포인트 ${pts?.balance.toLocaleString('ko-KR') ?? '-'}P`}</Muted>
+          {short ? (
+            <Button title={`씨앗 ${seedPrice - (mySeeds ?? 0)}개가 모자라요 · 씨앗 사기`} onPress={() => router.push({ pathname: '/seeds', params: { back: '1' } })} style={{ marginTop: space(6), alignSelf: 'stretch' }} />
+          ) : (
+            <Button title={`씨앗 ${seedPrice}개로 열기`} onPress={unlock} loading={busy} style={{ marginTop: space(6), alignSelf: 'stretch' }} />
+          )}
           {pts && pts.balance >= need ? (
             <Button title={`키움 포인트 ${need.toLocaleString('ko-KR')}P로 열기`} kind="ghost" onPress={unlockWithPoints} loading={busy} style={{ marginTop: space(2), alignSelf: 'stretch' }} />
           ) : null}
-          <Muted style={{ marginTop: space(3), textAlign: 'center' }}>코인은 콘텐츠 전용이에요. 투자 예치금으로 바꿀 수 없어요.{'\n'}키움 포인트는 1P = 1코인으로 바뀌어요.</Muted>
+          <Muted style={{ marginTop: space(3), textAlign: 'center' }}>정식 공개되면 무료로 볼 수 있어요. 씨앗은 콘텐츠 전용이라 예치금으로 바꿀 수 없어요.{'\n'}키움 포인트 100P = 씨앗 1개.</Muted>
         </Card>
       </Screen>
     );

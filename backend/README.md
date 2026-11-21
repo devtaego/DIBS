@@ -80,13 +80,26 @@ tests/         배정 알고리즘 단위 테스트 + 전체 흐름 E2E
 | `DIBS_JWT_SECRET` | 개발용 값 | 운영에서 반드시 교체 |
 | `DIBS_TRADING_MODE` | `MOCK` | `MOCK` / `LIVE` |
 | `DIBS_LIVE_ENABLED` | `false` | 인가 전에는 false 유지 |
-| `DIBS_ENFORCE_GATE` | `false` | `true`면 펀딩 개설 조건(파일럿 유료 구매자 기준선)을 신청 때 강제 |
+| `DIBS_ENFORCE_GATE` | `false` | `true`면 펀딩 개설 조건(파일럿 열람자 × 15% 기준선)을 신청 때 강제 |
+| `DIBS_KAKAO_CLIENT_ID` / `_SECRET` | 비움 | 카카오 REST API 키 (+ 보안 키). 비우면 모의 동의 화면 |
+| `DIBS_NAVER_CLIENT_ID` / `_SECRET` | 비움 | 네이버 로그인 |
+| `DIBS_GOOGLE_CLIENT_ID` / `_SECRET` | 비움 | 구글 로그인 |
+| `DIBS_PUBLIC_BASE_URL` | 요청 주소 | 간편 로그인 콜백 주소 앞부분. 실제 키를 쓰면 등록한 주소로 고정 (예: `https://api.dibs.app`) |
+| `DIBS_APP_REDIRECTS` | `dibs://,exp://,http://localhost,…` | 로그인 뒤 토큰을 붙여 돌려보낼 수 있는 앱 주소 (쉼표로 구분) |
+
+## 간편 로그인 · 휴대폰 로그인
+
+- 앱은 `GET /auth/social/{kakao|naver|google}/start?redirect_uri=dibs://auth`로 동의 화면 주소를 받아 인증 세션 브라우저로 연다.
+  제공자가 `GET /auth/social/{provider}/callback`으로 돌려보내면 서버가 코드 교환 · 회원 조회/가입 뒤 `dibs://auth?token=…&is_new=1`로 앱에 돌려준다.
+- 카카오 개발자 콘솔에 Redirect URI `{DIBS_PUBLIC_BASE_URL}/auth/social/kakao/callback`을 등록하고, 동의 항목은 닉네임·이메일(선택).
+- 키가 없으면 서버가 띄우는 모의 동의 화면으로 같은 흐름을 탄다 (운영 `DIBS_ENV=prod`에서는 막힘).
+- 휴대폰: `POST /auth/phone/request` → `POST /auth/phone/verify`. 개발·시연 환경은 문자 대신 응답의 `dev_code`로 확인한다 (문자 발송 대행사 연동은 다음 단계).
 
 ## 아직 안 한 것 (다음 단계)
 
 - Alembic 마이그레이션 (지금은 `create_all`)
 - 동시성: 운영 DB에서 계정·주문 행 잠금 (`SELECT ... FOR UPDATE`)과 멱등 키
 - 배치 스케줄러: 마감 처리, 자정 주문 취소, 04:00 기준가 갱신 (지금은 `/admin/jobs/*`를 수동 호출)
-- 실제 연동: 본인확인기관, PG·인앱결제, 제휴 증권사 발행 API, 장외거래소 어댑터
+- 실제 연동: 본인확인기관, 문자 발송, Apple 로그인, PG·인앱결제, 제휴 증권사 발행 API, 장외거래소 어댑터
 - 세계관 묶음(ETF형) 상품 (확장 단계)
 - 파일 업로드(회차 이미지·숏츠 영상): 지금은 URL만 저장

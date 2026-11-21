@@ -1,3 +1,4 @@
+import { useSession } from '@/lib/session';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { Image, Pressable, StyleSheet, View } from 'react-native';
@@ -40,6 +41,7 @@ const BG = '#16151F';
 export default function Intro() {
   const insets = useSafeAreaInsets();
   const { replay } = useLocalSearchParams<{ replay?: string }>();
+  const { me } = useSession();
   const again = replay === '1'; // MY > 앱 소개 다시 보기: 마지막은 '닫기'
   const [i, setI] = useState(0);
   const slide = SLIDES[i];
@@ -47,7 +49,7 @@ export default function Intro() {
   const done = async () => {
     if (again) return router.canGoBack() ? router.back() : router.replace('/');
     await markIntroSeen();
-    router.replace('/');
+    router.replace(me ? '/' : '/onboard'); // 처음이면 온보딩(알아 둘 세 가지) → 로그인
   };
 
   return (

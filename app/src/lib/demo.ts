@@ -207,6 +207,14 @@ async function demoRequestInner(method: string, path: string, body?: unknown, qu
     line('ATTENDANCE', 'COIN', granted, undefined, '출석 체크');
     return { ...attendanceState(), granted };
   }
+  if (path === '/wallet/coin/packages/buy') {
+    const id = (body as { package_id?: string })?.package_id;
+    const pk = ((F['/wallet/coin/packages'] ?? []) as { id: string; coin: number; bonus_coin: number; price: number }[]).find((x) => x.id === id);
+    if (!pk) throw Object.assign(new Error('씨앗 묶음을 찾을 수 없어요'), { status: 404, code: 'PACKAGE_NOT_FOUND' });
+    addCoin(pk.coin + pk.bonus_coin);
+    line('COIN_CHARGE', 'COIN', pk.coin + pk.bonus_coin, undefined, `씨앗 묶음 (카드)`);
+    return { package: pk, channel: 'PG', paid_amount: pk.price, lots: [], wallet: wallet() };
+  }
   if (path === '/me/partner-points/convert') {
     const n = Number((body as { points?: number })?.points ?? 0);
     if (n <= 0 || n % 100) throw Object.assign(new Error('100P 단위로 바꿀 수 있어요'), { status: 400, code: 'BAD_POINTS' });

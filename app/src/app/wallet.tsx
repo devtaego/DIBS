@@ -35,7 +35,7 @@ export default function WalletScreen() {
       <Stack.Screen options={{ headerShown: false }} />
       <DScreen header={<TopAppBar title="지갑" />} onRefresh={reload} gap={spacing.gapXl}>
         <ErrorBox error={error} onRetry={reload} />
-        <Segmented grow options={[{ key: 'deposit', label: '예치금' }, { key: 'coin', label: '코인' }]} value={tab} onChange={(k) => { setTab(k); setMore(false); }} />
+        <Segmented grow options={[{ key: 'deposit', label: '예치금' }, { key: 'coin', label: '씨앗' }]} value={tab} onChange={(k) => { setTab(k); setMore(false); }} />
         {w && tab === 'deposit' ? (
           <Panel style={{ gap: spacing.gapM }}>
             <Txt v="caption1" c={color.labelAlternative}>{`키움증권 연결 계좌${link.account ? ` · ${link.account}` : ''}`}</Txt>
@@ -50,12 +50,12 @@ export default function WalletScreen() {
         {w && tab === 'coin' ? (
           <Panel style={{ gap: spacing.gapM }}>
             <Txt v="caption1" c={color.labelAlternative}>웹툰 · 웹소설 유료 회차 열람 전용</Txt>
-            <Txt v="title1" w="bold" c={color.labelStrong} tabular>{`${w.coin.toLocaleString('ko-KR')}코인`}</Txt>
+            <Txt v="title1" w="bold" c={color.labelStrong} tabular>{`씨앗 ${Math.floor(w.coin / 100).toLocaleString('ko-KR')}개`}</Txt>
             <View style={{ flexDirection: 'row', gap: spacing.gapM }}>
-              <View style={{ flex: 1 }}><Button label="1,000코인 충전" size="Medium" onPress={async () => { await api.post('/wallet/coin/charge', { amount: 1000 }); reload(); }} /></View>
+              <View style={{ flex: 1 }}><Button label="씨앗 사기" size="Medium" onPress={() => router.push('/seeds')} /></View>
               <View style={{ flex: 1 }}><Button label="키움 포인트로" size="Medium" variant="Outlined" tone="Assistive" onPress={() => router.push('/me/account')} /></View>
             </View>
-            <Txt v="caption1" c={color.labelAssistive}>코인은 예치금으로 바꾸거나 투자에 쓸 수 없어요.</Txt>
+            <Txt v="caption1" c={color.labelAssistive}>씨앗은 예치금으로 바꾸거나 투자에 쓸 수 없어요. 씨앗 1개 = 100원.</Txt>
           </Panel>
         ) : null}
 

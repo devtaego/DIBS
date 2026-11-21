@@ -21,6 +21,7 @@ export default function SecuritiesTab() {
   const [fmt, setFmt] = useState<'전체' | '웹툰' | '웹소설'>('전체');
   const [sort, setSort] = useState<Sort>('상승률순');
   const [open, setOpen] = useState(false);
+  const [idxW, setIdxW] = useState(300); // 지수 차트 폭은 카드 안쪽 너비에 맞춘다 (작은 폰에서 넘치지 않게)
   const { data, error, loading, reload } = useApi(async () => {
     const [list, works] = await Promise.all([api.get<SecurityItem[]>('/market/securities', { sort: 'change' }), api.get<WorkCard[]>('/works', { limit: 100 })]);
     const charts = await Promise.all(list.map((s) => api.get<Candle[]>(`/market/securities/${s.funding_id}/chart`).catch(() => [] as Candle[])));
@@ -70,7 +71,7 @@ export default function SecuritiesTab() {
           <Txt v="heading2" w="bold" c={color.labelStrong} tabular>{idx.value.toLocaleString('ko-KR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Txt>
           <Txt v="label2" w="bold" c={idx.change >= 0 ? color.rise : color.fall}>{idx.change >= 0 ? '▲' : '▼'} {Math.abs(idx.changePct ?? 0).toFixed(2)}%</Txt>
         </View>
-        <View style={{ marginTop: 6 }}><Spark values={idxSeries} up={idx.change >= 0} w={318} h={40} area /></View>
+        <View style={{ marginTop: 6 }} onLayout={(e) => setIdxW(Math.floor(e.nativeEvent.layout.width))}><Spark values={idxSeries} up={idx.change >= 0} w={idxW} h={40} area /></View>
         <Txt v="caption2" c={color.labelAssistive}>상장 종목 (현재가 ÷ 공모가) 평균 × 1,000</Txt>
       </View>
 

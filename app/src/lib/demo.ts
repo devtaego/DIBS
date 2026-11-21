@@ -89,12 +89,12 @@ function subscribe(fid: number, units: number) {
   return sub;
 }
 
-const LADDER = [50, 50, 200, 50, 50, 50, 300];
-const PRIOR = 2; // 시연 계정: 어제까지 2일 연속 출석 → 오늘은 3일째(200코인)
+const LADDER = [10, 10, 10, 10, 10, 10, 110]; // 디비 발자국: 매일 10P, 7일째 +100P
+const PRIOR = 3; // 시연 계정: 어제까지 3일 연속 출석 → 오늘은 4일째
 function attendanceState() {
   const streak = PRIOR + (attended ? 1 : 0);
   const filled = attended ? ((streak - 1) % 7) + 1 : streak % 7;
-  return { today: '2027-03-02', checked: attended, streak, ladder: LADDER, filled, today_coin: LADDER[attended ? filled - 1 : filled], week_total: 750 };
+  return { today: '2027-03-02', checked: attended, streak, ladder: LADDER, filled, today_coin: LADDER[attended ? filled - 1 : filled], week_total: 170 };
 }
 
 function key(path: string, query: Query) {

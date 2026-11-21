@@ -254,7 +254,24 @@ def main() -> None:
         UPCOMING = {"새벽 세시의 편의점 마법사": 4}
         # 토큰증권 탭 시연: 이미 상장해 거래 중인 종목을 몇 개 더 (마지막 체결가가 서로 다르게, 가격제한폭 ±30% 안)
         LISTED_MORE = {"오늘도 너에게 반했어": 1_210, "풍운행": 960, "이혼 도장 찍자마자 S급 각성": 1_280,
-                       "회귀했더니 내 딸이 재벌 회장": 1_060}
+                       "회귀했더니 내 딸이 재벌 회장": 1_060, "천검": 1_120, "재벌가 막내딸이 살인 예고를 받았다": 890,
+                       "죽을 때마다 통장에 100억": 1_240, "파문당한 제자가 흑월검을 얻었다": 1_030}
+        # 펀딩 탭 시연: 모집 중 펀딩을 더 (참여자 수 · 마감일이 서로 다르게)
+        OPEN_MORE = {"고양이빵집": (9, 12), "금요일엔 유령 분식": (13, 8), "심야 편의점 냥알바": (15, 5), "화분 키우는 카피바라": (12, 19),
+                     "내가 죽인 악역과 결혼해야 한다": (7, 10), "회귀했더니 원수의 아내가 되어 있었다": (11, 6),
+                     "전교 꼴찌의 상태창이 미쳤다": (5, 14)}
+
+        def open_now(wid: int, subscribers: int, days: int) -> None:
+            now = clock.now()
+            f = call("creator", "post", f"/works/{wid}/fundings", json={
+                "target_units": 10000, "open_at": (now - timedelta(days=max(0, 7 - days))).isoformat(),
+                "close_at": (now + timedelta(days=days)).isoformat(),
+                "use_of_funds": "채색 외주 50% · 연재 운영 30% · 작업 장비 20%", "reward_tiers": []})
+            call("admin", "post", f"/admin/fundings/{f['id']}/review", json={"approve": True, "terms": {}})
+            call("admin", "post", f"/admin/fundings/{f['id']}/open")
+            for r in readers[12: 12 + subscribers]:
+                call(r, "post", "/wallet/deposit/charge", json={"amount": 400_000})
+                call(r, "post", f"/fundings/{f['id']}/subscriptions", json={**SUB, "units": 400})
 
         def list_now(wid: int, price: int, k: int) -> None:
             f = make_funding(wid, 10000, [])
@@ -280,6 +297,9 @@ def main() -> None:
                 call(r, "put", f"/works/{wid}/dib")
             if title in LISTED_MORE:
                 list_now(wid, LISTED_MORE[title], k)
+            if title in OPEN_MORE:
+                seed_pilot_events(wid, 30_000 + k * 700, 0.8, 0.5)
+                open_now(wid, *OPEN_MORE[title])
             if title in UPCOMING:  # 공모 예정 (승인 완료, 모집 시작 전)
                 now = clock.now()
                 f = call("creator", "post", f"/works/{wid}/fundings", json={

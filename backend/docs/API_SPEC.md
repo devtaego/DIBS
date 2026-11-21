@@ -148,7 +148,7 @@
 | `GET` | `/me/notifications` | 알림 | 회원 |  | NotificationOut[] |
 | `POST` | `/me/notifications/{notification_id}/read` | 알림 읽음 | 회원 |  | OK |
 | `GET` | `/me/attendance` | 출석 현황 (최근 7일, 연속 출석) | 회원 |  |  |
-| `POST` | `/me/attendance` | 오늘 출석 → 열람 코인 (7일 사다리 50·50·200·50·50·50·300) | 회원 |  |  |
+| `POST` | `/me/attendance` | 오늘 출석 → 디비 발자국 10P (7일째 +100P, 1P = 1원어치 보너스 씨앗) | 회원 |  |  |
 | `GET` | `/me/partner-points` | 제휴 증권사(키움 모의) 포인트 잔액 | 회원 |  |  |
 | `POST` | `/me/partner-points/convert` | 키움 포인트 → 열람 코인 (한 방향만) | 회원 | PointsIn |  |
 

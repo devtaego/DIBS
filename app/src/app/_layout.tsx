@@ -3,6 +3,7 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
+import { PhoneFrame } from '@/components/PhoneFrame';
 import { StackHeader } from '@/components/StackHeader';
 import { SessionProvider } from '@/lib/session';
 import { colors, MODE } from '@/lib/theme';
@@ -18,6 +19,7 @@ export default function RootLayout() {
   if (!fontsLoaded && !fontError) return null;
   return (
     <SafeAreaProvider>
+      <PhoneFrame>
       <SessionProvider>
         <StatusBar style={MODE === 'light' ? 'dark' : 'light'} />
         <Stack
@@ -59,6 +61,7 @@ export default function RootLayout() {
           <Stack.Screen name="done" options={{ headerShown: false, gestureEnabled: false, animation: 'fade' }} />
         </Stack>
       </SessionProvider>
+      </PhoneFrame>
     </SafeAreaProvider>
   );
 }

@@ -1,8 +1,9 @@
 import { router } from 'expo-router';
 import { useMemo, useRef, useState } from 'react';
-import { FlatList, Pressable, ScrollView, Text, View, useWindowDimensions } from 'react-native';
+import { FlatList, Pressable, ScrollView, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 
+import { useScreenWidth } from '@/components/PhoneFrame';
 import { ErrorBox, Loading } from '@/components/ui';
 import { CoverImg, DropBtn, HeadBtn, Logo, PINK, Sheet, SheetOptions, Tag, Txt, color } from '@/ds';
 import { api, type FundingCard, type WorkCard } from '@/lib/api';
@@ -17,13 +18,13 @@ const match = (g: string, k: string) => k === '전체' || g.includes(k) || (k ==
 const dibText = (n: number) => (n >= 10000 ? `${Math.floor(n / 1000) / 10}만` : n.toLocaleString('ko-KR'));
 
 export default function Home() {
-  const { width } = useWindowDimensions();
-  const W = Math.min(width, 520);
+  const W = useScreenWidth();
   const [fmt, setFmt] = useState<Fmt>('웹툰');
   const [genre, setGenre] = useState('전체');
   const [sort, setSort] = useState<'인기순' | '최신순'>('인기순');
   const [pick, setPick] = useState(false);
   const [slide, setSlide] = useState(0);
+  const [more, setMore] = useState(false);
   const { data, error, loading, reload } = useApi(async () => {
     const [byDibs, latest, fundings] = await Promise.all([
       api.get<WorkCard[]>('/works', { sort: 'dibs', limit: 100 }),
@@ -49,7 +50,7 @@ export default function Home() {
         <Logo size={28} />
         <View style={{ flexDirection: 'row', gap: 14, alignItems: 'baseline', marginLeft: 14 }} accessibilityRole="tablist">
           {(['웹툰', '웹소설'] as Fmt[]).map((k) => (
-            <Pressable key={k} onPress={() => { setFmt(k); setGenre('전체'); setSlide(0); heroRef.current?.scrollToOffset({ offset: 0, animated: false }); }}
+            <Pressable key={k} onPress={() => { setFmt(k); setGenre('전체'); setMore(false); setSlide(0); heroRef.current?.scrollToOffset({ offset: 0, animated: false }); }}
               accessibilityRole="tab" accessibilityState={{ selected: fmt === k }}>
               <Txt v={fmt === k ? 'heading2' : 'headline1'} w={fmt === k ? 'bold' : 'semibold'} c={fmt === k ? color.labelStrong : color.labelAssistive}>{k}</Txt>
             </Pressable>
@@ -122,7 +123,7 @@ export default function Home() {
             ))}
           </View>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', columnGap: 10, rowGap: 18 }}>
-            {all.slice(0, 9).map((w) => (
+            {all.slice(0, more ? all.length : 12).map((w) => (
               <Pressable key={w.id} onPress={() => router.push(`/work/${w.id}`)} accessibilityRole="button" style={{ width: (W - 40 - 20) / 3 }}>
                 <CoverImg id={w.id} url={w.cover_url} title={w.title} w="100%" r={10} />
                 <Txt v="label2" w="semibold" c={color.labelStrong} lines={1} style={{ marginTop: 7 }}>{w.title}</Txt>
@@ -130,9 +131,9 @@ export default function Home() {
               </Pressable>
             ))}
           </View>
-          {all.length > 9 ? (
-            <Pressable onPress={() => router.push('/explore')} accessibilityRole="button" style={{ height: 48, marginTop: 18, borderRadius: 999, backgroundColor: color.fillNormal, alignItems: 'center', justifyContent: 'center' }}>
-              <Txt v="label1" w="semibold" c={color.labelNormal}>전체 작품 더보기</Txt>
+          {all.length > 12 ? (
+            <Pressable onPress={() => setMore(!more)} accessibilityRole="button" style={{ height: 48, marginTop: 18, borderRadius: 999, backgroundColor: color.fillNormal, alignItems: 'center', justifyContent: 'center' }}>
+              <Txt v="label1" w="semibold" c={color.labelNormal}>{more ? '접기' : `전체 작품 더보기 (${all.length - 12})`}</Txt>
             </Pressable>
           ) : null}
         </View>

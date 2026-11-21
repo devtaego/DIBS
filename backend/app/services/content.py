@@ -168,6 +168,7 @@ def work_metrics(db: Session, work: Work) -> dict:
         })
     return {
         "work_id": work.id,
+        **reader_change_1w(db, work.id),
         "detail_views": db.scalar(select(func.count()).where(ContentEvent.work_id == work.id,
                                                              ContentEvent.event_type == EventType.WORK_VIEW)),
         "unique_readers": uniq(EventType.VIEW_START),
@@ -176,6 +177,24 @@ def work_metrics(db: Session, work: Work) -> dict:
         "funding_cta_clicks": uniq(EventType.FUNDING_CTA),
         "episodes": per_ep,
     }
+
+
+def reader_change_1w(db: Session, work_id: int) -> dict:
+    """v_work_metrics_pre.reader_change_1w (데이터팀 정의):
+    직전 7일 대비 최근 7일 회차 뷰어(VIEW_START, 이벤트 코드 1102) 순독자 변화율 = (최근 − 직전) ÷ 직전.
+    직전 7일 순독자가 0명이면 null. 기준 시각은 이벤트 발생 시각(occurred_at)."""
+    viewer = func.coalesce(literal("u") + cast(ContentEvent.user_id, String), literal("a") + ContentEvent.anon_id)
+    now = clock.now()
+
+    def readers(start, end) -> int:
+        return db.scalar(select(func.count(distinct(viewer))).where(
+            ContentEvent.work_id == work_id, ContentEvent.event_type == EventType.VIEW_START,
+            ContentEvent.occurred_at >= start, ContentEvent.occurred_at < end)) or 0
+
+    recent = readers(now - timedelta(days=7), now)
+    prev = readers(now - timedelta(days=14), now - timedelta(days=7))
+    return {"readers_last_7d": recent, "readers_prev_7d": prev,
+            "reader_change_1w": round((recent - prev) / prev, 3) if prev else None}
 
 
 def review_metrics(db: Session, work: Work) -> dict:

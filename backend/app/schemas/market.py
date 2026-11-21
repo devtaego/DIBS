@@ -157,6 +157,10 @@ class SecurityDetailOut(SecurityListItem):
     trades_7d: int
     dividend_4q_per_unit: float = Field(description="최근 4분기 주당 배당 합계 (세전)")
     price_to_dividend: float | None = Field(description="현재가 ÷ 최근 4분기 주당 배당. 배당 없으면 null")
+    last_dist_per_token: float | None = Field(default=None, description="최근 확정 분기 토큰당 세전 배당 "
+                                              "(지급 완료 분기만, 진행 중 분기 제외)")
+    last_dist_period: str | None = Field(default=None, description="그 분기 (예: 2027Q3)")
+    annual_dist_yield: float | None = Field(default=None, description="연 배당수익률 = 최근 확정 4분기 토큰당 배당 합 ÷ 현재가")
     recoup_phase: str = Field(description="BEFORE_RECOUP | AFTER_RECOUP")
     recoup_progress_pct: float = Field(description="누적 세전 분배금 ÷ 발행액")
     royalty_holder_after_bps: int

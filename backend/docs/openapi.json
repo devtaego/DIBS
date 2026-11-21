@@ -20572,6 +20572,42 @@
             "title": "Price To Dividend",
             "description": "현재가 ÷ 최근 4분기 주당 배당. 배당 없으면 null"
           },
+          "last_dist_per_token": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Dist Per Token",
+            "description": "최근 확정 분기 토큰당 세전 배당 (지급 완료 분기만, 진행 중 분기 제외)"
+          },
+          "last_dist_period": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Dist Period",
+            "description": "그 분기 (예: 2027Q3)"
+          },
+          "annual_dist_yield": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Annual Dist Yield",
+            "description": "연 배당수익률 = 최근 확정 4분기 토큰당 배당 합 ÷ 현재가"
+          },
           "recoup_phase": {
             "type": "string",
             "title": "Recoup Phase",
@@ -22093,6 +22129,18 @@
               }
             ]
           },
+          "reader_change_1w": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reader Change 1W",
+            "description": "주간 독자 증가율 (펀딩 상세 '미리보기 반응 지표')"
+          },
           "display_status": {
             "type": "string",
             "title": "Display Status",
@@ -22193,6 +22241,28 @@
             "type": "integer",
             "title": "Work Id"
           },
+          "readers_last_7d": {
+            "type": "integer",
+            "title": "Readers Last 7D",
+            "description": "최근 7일 회차 뷰어(VIEW_START) 순독자"
+          },
+          "readers_prev_7d": {
+            "type": "integer",
+            "title": "Readers Prev 7D",
+            "description": "그 직전 7일 순독자"
+          },
+          "reader_change_1w": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reader Change 1W",
+            "description": "주간 독자 증가율 = (최근 − 직전) ÷ 직전. 직전 0명이면 null"
+          },
           "detail_views": {
             "type": "integer",
             "title": "Detail Views"
@@ -22224,6 +22294,9 @@
         "type": "object",
         "required": [
           "work_id",
+          "readers_last_7d",
+          "readers_prev_7d",
+          "reader_change_1w",
           "detail_views",
           "unique_readers",
           "dibs",

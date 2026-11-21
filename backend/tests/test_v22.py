@@ -178,3 +178,40 @@ def test_large_withdrawal_needs_approval(api, now):
     api.ok("big", "post", "/wallet/deposit/charge", json={"amount": 1_000_000})
     # 1회 1,000만 원을 넘으면 운영자(FIN) 승인 대기
     assert api.ok("big", "post", "/wallet/deposit/withdrawals", json={"amount": 10_000_001})["status"] == "PENDING"
+
+
+# ── 데이터팀 지표 뷰 수정 반영 (v_work_metrics_pre · v_work_metrics_post, 2026-11-21) ──
+
+def test_reader_change_1w(api, published_work, now):
+    """[추가] 직전 7일 대비 최근 7일 회차 뷰어(VIEW_START) 순독자 변화율, 직전 0명이면 빈칸."""
+    wid = published_work["id"]
+    ep1 = api.ok(None, "get", f"/works/{wid}/episodes")[0]
+    assert api.ok(None, "get", f"/works/{wid}")["reader_change_1w"] is None  # 직전 7일 0명
+
+    def view(anon, days_ago):
+        return {"event_type": "VIEW_START", "occurred_at": (now - timedelta(days=days_ago)).isoformat(),
+                "anon_id": anon, "work_id": wid, "episode_id": ep1["id"]}
+
+    events = [view("p1", 10), view("p2", 9), view("p2", 8),  # 직전 7일: 2명 (p2 두 번은 1명)
+              view("r1", 3), view("r2", 2), view("r3", 1), view("r1", 1)]  # 최근 7일: 3명
+    api.ok(None, "post", "/events", json={"events": events})
+    m = api.ok("creator", "get", f"/works/{wid}/metrics")
+    assert (m["readers_prev_7d"], m["readers_last_7d"], m["reader_change_1w"]) == (2, 3, 0.5)
+    assert api.ok(None, "get", f"/works/{wid}")["reader_change_1w"] == 0.5
+
+
+def test_dividend_metrics_use_confirmed_quarters_only(api, published_work, now):
+    """[재산출] 토큰당 배당·연 배당수익률은 확정(지급 완료) 분기만, 진행 중 분기는 제외."""
+    api.login("a")
+    api.ok("a", "post", "/wallet/deposit/charge", json={"amount": 2_000_000})
+    fid = listed(api, published_work["id"], now, {"a": 1000})  # 전체 1,052조각
+    ad = {"funding_id": fid, "source": "AD"}
+    clock.set_now(now.replace(month=7, day=15))  # 2027Q3 진행 중
+    for period in ("2027Q2", "2027Q3"):
+        api.ok("admin", "post", "/admin/revenues", json={**ad, "period": period, "gross": 1_052_000})
+        run = api.ok("admin", "post", f"/admin/fundings/{fid}/dividends", params={"force": True}, json={"period": period})
+        api.ok("admin", "post", f"/admin/dividends/{run['id']}/pay", params={"force": True})
+    s = api.ok(None, "get", f"/market/securities/{fid}")
+    assert s["last_dist_period"] == "2027Q2"  # 진행 중인 2027Q3은 지급했어도 제외
+    assert s["last_dist_per_token"] == 300.0  # 315,600원 ÷ 1,052조각
+    assert s["annual_dist_yield"] == round(300 / 1_000, 6)  # 확정 분기 합 ÷ 현재가(공모가 1,000원)

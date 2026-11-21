@@ -94,6 +94,7 @@ def get_work(work_id: int, db: Session = Depends(get_db), user: User | None = De
         **WorkOut.model_validate(w).model_dump(), dib_count=svc.dib_count(db, w.id), is_dibbed=dibbed,
         episode_count=len(w.episodes), funding_id=f.id if f else None, funding_status=f.status if f else None,
         display_status=svc.display_status(w, f),
+        reader_change_1w=svc.reader_change_1w(db, w.id)["reader_change_1w"],
     )
 
 

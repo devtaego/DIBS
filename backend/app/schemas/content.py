@@ -44,6 +44,7 @@ class WorkDetailOut(WorkOut):
     episode_count: int
     funding_id: int | None
     funding_status: FundingStatus | None
+    reader_change_1w: float | None = Field(default=None, description="주간 독자 증가율 (펀딩 상세 '미리보기 반응 지표')")
     display_status: str = Field(default="PUBLISHED", description="기획서 3-1 작품 상태: PUBLISHED · FUNDING · FUNDING_FAILED · "
                                 "ISSUING · LISTED · HALTED · DELISTED (작품 상태와 펀딩 상태를 합쳐 계산)")
 
@@ -138,6 +139,9 @@ class EpisodeMetric(BaseModel):
 
 class WorkMetricsOut(BaseModel):
     work_id: int
+    readers_last_7d: int = Field(description="최근 7일 회차 뷰어(VIEW_START) 순독자")
+    readers_prev_7d: int = Field(description="그 직전 7일 순독자")
+    reader_change_1w: float | None = Field(description="주간 독자 증가율 = (최근 − 직전) ÷ 직전. 직전 0명이면 null")
     detail_views: int
     unique_readers: int
     dibs: int

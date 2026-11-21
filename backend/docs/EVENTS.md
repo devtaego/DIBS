@@ -45,8 +45,12 @@
 | **연독률 (n화)** | n화 `VIEW_COMPLETE` 고유 사용자 ÷ 1화 `VIEW_COMPLETE` 고유 사용자 |
 | 숏츠 → 펀딩 전환 | `FUNDING_CTA`(referrer=shorts) 고유 사용자 ÷ `SHORT_PLAY` 고유 사용자 |
 | 찜 → 청약 전환 | 찜한 회원 중 해당 펀딩 청약 회원 비율 (dibs × subscriptions) |
+| **주간 독자 증가율** (`reader_change_1w`) | 직전 7일 대비 최근 7일 `VIEW_START`(회차 뷰어, 이벤트 코드 1102) 순독자 변화율 = (최근 − 직전) ÷ 직전. 직전 0명이면 null. `occurred_at` 기준. `GET /works/{id}/metrics`, `GET /works/{id}` |
+| **최근 분기 토큰당 배당** (`last_dist_per_token`) | 확정 분기(지급 완료, 진행 중 분기 제외) 중 가장 최근 분기의 토큰당 세전 배당. `GET /market/securities/{id}` |
+| **연 배당수익률** (`annual_dist_yield`) | 최근 확정 4분기 토큰당 배당 합 ÷ 현재가. 진행 중 분기 제외 |
 
-정의를 바꾸면 `app/services/content.py::work_metrics` 와 이 표를 함께 고칩니다.
+정의를 바꾸면 `app/services/content.py::work_metrics`·`reader_change_1w`, `app/api/market.py::security_detail` 와 이 표를 함께 고칩니다.
+데이터팀 뷰 `v_work_metrics_pre`·`v_work_metrics_post`의 같은 이름 컬럼과 정의를 맞춥니다 (2026-11-21 수정 반영).
 
 ## 예시
 

@@ -60,8 +60,11 @@ def security_detail(funding_id: int, db: Session = Depends(get_db), user: User |
     iss = db.scalar(select(Issuance).where(Issuance.funding_id == f.id))
     total_units = sum(db.scalars(select(Subscription.allocated_units).where(
         Subscription.funding_id == f.id, Subscription.status == SubscriptionStatus.ALLOCATED)))
+    # 확정 분기만 (v_work_quarterly.quarter_status = 확정): 지급까지 끝난 회차, 진행 중인 분기는 제외
+    now_q = f"{clock.now().year}Q{(clock.now().month - 1) // 3 + 1}"
     runs = list(db.scalars(select(DividendRun).where(DividendRun.funding_id == f.id,
-                                                     DividendRun.status == DividendStatus.PAID)
+                                                     DividendRun.status == DividendStatus.PAID,
+                                                     DividendRun.period < now_q)
                            .order_by(DividendRun.period.desc())))
     lo, hi = price_band(f.reference_price)
     vol, cnt = db.execute(select(func.coalesce(func.sum(Trade.units), 0), func.count()).where(
@@ -81,6 +84,9 @@ def security_detail(funding_id: int, db: Session = Depends(get_db), user: User |
         last_dividend=DividendRunOut.model_validate(runs[0]) if runs else None,
         volume_7d=int(vol), trades_7d=cnt, dividend_4q_per_unit=div4,
         price_to_dividend=round(price / div4, 1) if div4 else None,
+        last_dist_per_token=runs[0].per_unit_gross if runs else None,
+        last_dist_period=runs[0].period if runs else None,
+        annual_dist_yield=round(div4 / price, 6) if div4 and price else None,
         recoup_phase=rec["phase"], recoup_progress_pct=rec["progress_pct"],
         royalty_holder_after_bps=f.royalty_holder_after_bps, buyback_price=term["buyback_price"], buyback_enabled=term["buyback_enabled"],
         terminate_due_at=term["terminate_due_at"],

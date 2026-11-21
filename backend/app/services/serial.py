@@ -18,6 +18,10 @@
 - 작가 귀책(FAULT, 유죄 판결·표절·권리 분쟁·계약 위반·연재 기한 초과): 남은 지급분 + 유보금 전액을 보유자에게,
   이미 받은 작가 지급금의 50%를 반환 청구. 청구액을 다 채울 때까지 작가 매출 몫은 투자자에게 간다.
 
+최소 유보금 (v2.3, 모금액의 5%, 신탁 보관)
+- 약정 회차를 다 연재하고 완결하면 작가에게 준다. 조기 완결이면 연재 비율만큼 작가, 나머지는 보유자.
+- 연재 중단(귀책·불가피 모두)이면 전액 보유자에게 나눈다. 유보금은 연재가 끝까지 가지 못했을 때 투자자 손실을 줄이는 돈이다.
+
 돈이 보유자에게 가는 경로: INTERNAL 모드는 바로 예치금, BROKER 모드는 특별 분배 지시서 → 증권사 지급 → 완료 웹훅.
 """
 import math
@@ -324,6 +328,20 @@ def complete_season(db: Session, f: Funding) -> dict:
         to_holders += amount - part
         if early:
             ps.milestone_note = f"{ps.milestone_note} (조기 완결 {published}/{f.committed_episodes}화 비율 지급)"
+    reserve = f.reserve_balance or 0
+    reserve_creator = reserve * published // f.committed_episodes if early else reserve
+    if reserve_creator:
+        ledger.post(db, "RESERVE_RELEASE", [
+            Leg(ledger.sys(db, AccountKind.SYS_TRUST_RESERVE, f.mode), -reserve_creator),
+            Leg(ledger.user_accounts(db, work.creator_id, f.mode).deposit, reserve_creator),
+        ], f.mode, "funding", f.id, memo="완결: 최소 유보금 작가 지급")
+        notify(db, work.creator_id, "RESERVE_RELEASED", f"「{work.title}」 완결 유보금 {reserve_creator:,}원이 들어왔어요",
+               ref_type="funding", ref_id=f.id)
+    if reserve - reserve_creator:
+        distribute(db, f, reserve - reserve_creator, AccountKind.SYS_TRUST_RESERVE, "RESERVE_EARLY_COMPLETION",
+                   f"조기 완결 유보금 {published}/{f.committed_episodes}화",
+                   f"「{work.title}」 조기 완결로 남은 유보금을 나눠 드렸어요")
+    f.reserve_balance = 0
     sd = None
     if to_holders:
         sd = distribute(db, f, to_holders, AccountKind.SYS_CREATOR_PAYABLE, "EARLY_COMPLETION",
@@ -335,6 +353,7 @@ def complete_season(db: Session, f: Funding) -> dict:
     db.flush()
     return {"early": early, "published": published, "committed": f.committed_episodes,
             "paid_to_creator": to_creator, "distributed_to_holders": to_holders,
+            "reserve_to_creator": reserve_creator, "reserve_to_holders": reserve - reserve_creator,
             "special_distribution_id": sd.id if sd else None}
 
 
@@ -352,6 +371,10 @@ def discontinue(db: Session, f: Funding, reason: str, kind: DiscontinueKind | st
         p.status = PayoutStatus.CANCELLED
     sd = distribute(db, f, remaining, AccountKind.SYS_CREATOR_PAYABLE, "DISCONTINUE", reason,
                     f"「{work.title}」 연재 중단으로 미지급 작가 지급분을 나눠 드렸어요")
+    reserve = f.reserve_balance or 0
+    if reserve and distribute(db, f, reserve, AccountKind.SYS_TRUST_RESERVE, "RESERVE_DISCONTINUE", reason,
+                              f"「{work.title}」 연재 중단으로 신탁 유보금을 나눠 드렸어요"):
+        f.reserve_balance = 0
     forfeited = 0
     if kind == DiscontinueKind.FAULT:
         paid_total = sum(p.amount or 0 for p in schedules if p.status == PayoutStatus.PAID)
@@ -370,6 +393,7 @@ def discontinue(db: Session, f: Funding, reason: str, kind: DiscontinueKind | st
                                     "escrow_forfeited": forfeited, "clawback_due": f.clawback_due})
     db.flush()
     return {"kind": kind.value, "cancelled_payout_amount": remaining, "distributed": sd.amount if sd else 0,
+            "reserve_distributed": reserve - (f.reserve_balance or 0),
             "holders": len(sd.lines) if sd else len(_holders(db, f)), "escrow_forfeited": forfeited,
             "clawback_due": f.clawback_due, "clawback_outstanding": max(0, f.clawback_due - f.clawback_collected)}
 

@@ -180,7 +180,7 @@ def test_discontinue_distributes_unpaid_payouts(api, published_work, now):
     before = api.ok("b", "get", "/wallet")["deposit_available"]
     out = api.ok("admin", "post", f"/admin/fundings/{fid}/discontinue", json={"reason": "작가 연재 중단 확정"})
     assert out == {"kind": "NO_FAULT", "cancelled_payout_amount": 510_000, "distributed": 510_000, "holders": 2,
-                   "escrow_forfeited": 0, "clawback_due": 0, "clawback_outstanding": 0}
+                   "escrow_forfeited": 0, "reserve_distributed": 0, "clawback_due": 0, "clawback_outstanding": 0}
     assert api.ok("b", "get", "/wallet")["deposit_available"] == before + 127_500
     assert {p["status"] for p in api.ok("admin", "get", f"/admin/fundings/{fid}/payouts")[1:]} == {"CANCELLED"}
     assert api.ok(None, "get", f"/fundings/{fid}")["status"] == "SUSPENDED"

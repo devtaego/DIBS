@@ -270,6 +270,7 @@ erDiagram
         datetime delay_warned_at
         boolean early_completed
         bigint creator_escrow_balance
+        bigint reserve_balance
         bigint clawback_due
         bigint clawback_collected
         integer reference_price

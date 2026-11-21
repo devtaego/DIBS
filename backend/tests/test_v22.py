@@ -332,3 +332,25 @@ def test_dib_gives_no_allocation_priority(api, published_work, now):
     assert t["allocation_strategy"] == "EQUAL_THEN_PRO_RATA"
     assert t["allocation_params"] == {"equal_ratio_bps": 2000, "early_reader_bps": 0}
     assert (t["reserve_bps"], t["creator_token_bps"], t["creator_lockup_months"]) == (500, 500, 12)
+
+
+def test_reserve_goes_to_holders_on_discontinue(api, published_work, now):
+    for u in ("a", "b"):
+        api.login(u)
+        api.ok(u, "post", "/wallet/deposit/charge", json={"amount": 2_000_000})
+    fid = listed(api, published_work["id"], now, {"a": 900, "b": 100})  # 유보금 5만 원
+    out = api.ok("admin", "post", f"/admin/fundings/{fid}/discontinue", json={"reason": "건강 문제", "kind": "NO_FAULT"})
+    assert out["reserve_distributed"] == 50_000
+    assert balances(api)[("SYS_TRUST_RESERVE", "MOCK")] <= 1  # 원 단위 절사 잔여만
+
+
+def test_reserve_split_on_early_completion(api, published_work, now):
+    for u in ("a", "b"):
+        api.login(u)
+        api.ok(u, "post", "/wallet/deposit/charge", json={"amount": 2_000_000})
+    fid = listed(api, published_work["id"], now, {"a": 900, "b": 100})
+    out = api.ok("admin", "post", f"/admin/fundings/{fid}/complete")
+    assert out["early"] is True
+    c = out["committed"]
+    assert out["reserve_to_creator"] == 50_000 * out["published"] // c
+    assert out["reserve_to_creator"] + out["reserve_to_holders"] == 50_000

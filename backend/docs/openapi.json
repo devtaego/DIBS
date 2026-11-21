@@ -16650,6 +16650,12 @@
             "type": "integer",
             "title": "Holders"
           },
+          "reserve_distributed": {
+            "type": "integer",
+            "title": "Reserve Distributed",
+            "description": "보유자에게 나눈 신탁 유보금 (모금액 5%)",
+            "default": 0
+          },
           "escrow_forfeited": {
             "type": "integer",
             "title": "Escrow Forfeited",

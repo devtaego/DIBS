@@ -497,6 +497,7 @@ def _list_security(db: Session, f: Funding) -> None:
     if reserve:
         legs.append(Leg(ledger.sys(db, AccountKind.SYS_TRUST_RESERVE, f.mode), reserve))
     ledger.post(db, "LISTING_SETTLEMENT", legs, f.mode, "funding", f.id)
+    f.reserve_balance = reserve
 
     schedules = list(db.scalars(select(PayoutSchedule).where(PayoutSchedule.funding_id == f.id)
                                 .order_by(PayoutSchedule.seq)))

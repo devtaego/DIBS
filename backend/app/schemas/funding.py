@@ -407,6 +407,7 @@ class DiscontinueOut(BaseModel):
     cancelled_payout_amount: int
     distributed: int
     holders: int
+    reserve_distributed: int = Field(default=0, description="보유자에게 나눈 신탁 유보금 (모금액 5%)")
     escrow_forfeited: int = 0
     clawback_due: int = 0
     clawback_outstanding: int = 0

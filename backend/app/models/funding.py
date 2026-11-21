@@ -93,6 +93,7 @@ class Funding(TimestampMixin, Base):
     delay_warned_at: Mapped[datetime | None] = mapped_column(DateTime)
     early_completed: Mapped[bool] = mapped_column(Boolean, default=False)  # 약정 회차 전에 완결
     creator_escrow_balance: Mapped[int] = mapped_column(BigInteger, default=0)  # 유보 중인 작가 매출 몫
+    reserve_balance: Mapped[int] = mapped_column(BigInteger, default=0)  # 신탁 보관 중인 최소 유보금 (모금액 5%)
     clawback_due: Mapped[int] = mapped_column(BigInteger, default=0)  # 귀책 중단 반환 청구액
     clawback_collected: Mapped[int] = mapped_column(BigInteger, default=0)
 

@@ -24,7 +24,7 @@ export default function TabsLayout() {
   if (!seen) return <Redirect href="/intro" />; // 첫 실행이면 인트로 4장
   if (!me) return <Redirect href="/login" />;
 
-  // 순서 = 하단 탭 순서 (디자인: 홈 · 탐색 · 숏츠 · 증권 · MY)
+  // 순서 = 하단 탭 순서 (화면설계도 Screens – MVP v2: 홈 · 펀딩 · 토큰증권 · MY)
   return (
     <Tabs
       tabBar={(props) => <FloatingTabBar {...props} />}
@@ -37,9 +37,8 @@ export default function TabsLayout() {
         sceneStyle: { backgroundColor: colors.bg },
       }}>
       <Tabs.Screen name="index" options={{ title: '홈', headerShown: false }} />
-      <Tabs.Screen name="explore" options={{ title: '탐색', headerShown: false }} />
-      <Tabs.Screen name="shorts" options={{ title: '쇼츠', headerShown: false }} />
-      <Tabs.Screen name="market" options={{ title: '증권', headerShown: false }} />
+      <Tabs.Screen name="funding" options={{ title: '펀딩', headerShown: false }} />
+      <Tabs.Screen name="securities" options={{ title: '토큰증권', headerShown: false }} />
       <Tabs.Screen name="my" options={{ title: 'MY', headerShown: false }} />
     </Tabs>
   );

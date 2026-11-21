@@ -5,9 +5,10 @@ from app.models.dividend import DividendPayment, DividendRun, RevenueRecord
 from app.models.funding import Funding, Issuance, PayoutSchedule, RewardTier, SpecialDistribution, Subscription
 from app.models.ledger import Account, CoinLot, Journal, Posting, WithdrawalRequest
 from app.models.market import Holding, Order, Trade
-from app.models.user import Notification, User
+from app.models.user import Notification, PhoneOtp, SocialAccount, User
 
 __all__ = [
+    "PhoneOtp", "SocialAccount",
     "Account",
     "CoinLot",
     "BrokerEvent",

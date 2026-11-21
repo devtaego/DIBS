@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import admin, auth, broker, community, events, fundings, info, market, me, studio, wallet, works
+from app.api import admin, auth, broker, community, events, fundings, info, market, me, studio, wallet, works, social
 from app.core.config import settings
 from app.core.db import init_db
 from app.core.errors import register_error_handlers
@@ -49,7 +49,7 @@ def create_app() -> FastAPI:
     )
     app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
     register_error_handlers(app)
-    for r in (auth.router, works.router, community.router, info.router, events.router, wallet.router, fundings.router, market.router,
+    for r in (auth.router, social.router, works.router, community.router, info.router, events.router, wallet.router, fundings.router, market.router,
               me.router, studio.router, admin.router, broker.router):
         app.include_router(r)
 

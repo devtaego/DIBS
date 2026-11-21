@@ -1,30 +1,18 @@
 import type { BottomTabBarProps } from 'expo-router/tabs';
-import { Pressable, StyleSheet, View } from 'react-native';
-import Svg, { Path, Rect } from 'react-native-svg';
+import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Icon, color, radius, shadow, spacing } from '@/ds';
 
-// v2.0 Bottom Navigation: 떠 있는 반투명 캡슐, 아이콘만, 활성은 채움 아이콘. 가운데 = 쇼츠
-const TABS: Record<string, { label: string; icon: string; activeIcon: string; center?: boolean }> = {
+// Screens – MVP v2 · Navigation/Bottom Navigation
+// 떠 있는 반투명 캡슐, 4칸(홈 · 펀딩 · 토큰증권 · MY), 아이콘 20 + 글자. 활성 칸은 연분홍 면 + 진분홍 글자
+const TABS: Record<string, { label: string; icon: string; activeIcon: string }> = {
   index: { label: '홈', icon: 'home', activeIcon: 'homeF' },
-  explore: { label: '탐색', icon: 'search', activeIcon: 'searchB' },
-  shorts: { label: '쇼츠 보기', icon: 'play', activeIcon: 'play', center: true },
-  market: { label: '증권', icon: 'candle', activeIcon: 'candleF' },
+  funding: { label: '펀딩', icon: 'heart', activeIcon: 'heartF' },
+  securities: { label: '토큰증권', icon: 'candle', activeIcon: 'candleF' },
   my: { label: 'MY', icon: 'userL', activeIcon: 'userF' },
 };
 
-function ShortsGlyph({ c }: { c: string }) {
-  return (
-    <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
-      <Rect x={6.2} y={3.5} width={11.6} height={17} rx={3} stroke={c} strokeWidth={2} />
-      <Path d="M10.4 9.3v5.4l4.3-2.7z" fill={c} />
-    </Svg>
-  );
-}
-
 export function FloatingTabBar({ state, navigateToTab, insets }: BottomTabBarProps) {
-  // 쇼츠는 몰입형 화면이라 하단 탭을 숨긴다 (닫기 X 로 나감)
-  if (state.routes[state.index]?.name === 'shorts') return null;
   return (
     <View pointerEvents="box-none" style={[s.wrap, { paddingBottom: Math.max(insets.bottom, spacing.insetXl) }]}>
       <View style={s.nav} accessibilityRole="tabbar" accessibilityLabel="하단 메뉴">
@@ -32,18 +20,7 @@ export function FloatingTabBar({ state, navigateToTab, insets }: BottomTabBarPro
           const tab = TABS[route.name];
           if (!tab) return null;
           const active = state.index === i;
-          if (tab.center) {
-            return (
-              <Pressable
-                key={route.key}
-                accessibilityLabel={tab.label}
-                accessibilityState={{ selected: active }}
-                onPress={() => navigateToTab(route.key)}
-                style={[s.item, active && s.shortsOn]}>
-                <ShortsGlyph c={active ? color.shortsActiveLabel : color.labelNeutral} />
-              </Pressable>
-            );
-          }
+          const c = active ? color.primaryStrong : color.labelNeutral;
           return (
             <Pressable
               key={route.key}
@@ -52,7 +29,8 @@ export function FloatingTabBar({ state, navigateToTab, insets }: BottomTabBarPro
               accessibilityState={{ selected: active }}
               onPress={() => navigateToTab(route.key)}
               style={[s.item, active && s.itemOn]}>
-              <Icon name={active ? tab.activeIcon : tab.icon} size={22} c={active ? color.primaryNormal : color.interactionInactive} />
+              <Icon name={active ? tab.activeIcon : tab.icon} size={20} c={c} />
+              <Text style={[s.label, { color: c }]}>{tab.label}</Text>
             </Pressable>
           );
         })}
@@ -64,18 +42,19 @@ export function FloatingTabBar({ state, navigateToTab, insets }: BottomTabBarPro
 const s = StyleSheet.create({
   wrap: { position: 'absolute', left: 0, right: 0, bottom: 0, paddingHorizontal: spacing.insetL },
   nav: {
-    height: 56,
+    height: 60,
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.gapXs,
     paddingHorizontal: spacing.insetS,
     borderRadius: radius.chip,
-    backgroundColor: 'rgba(255,255,255,0.92)',
+    backgroundColor: 'rgba(255,255,255,0.86)',
     borderWidth: 1,
-    borderColor: color.lineAlternative,
+    borderColor: 'rgba(255,255,255,0.6)',
+    ...(Platform.OS === 'web' ? ({ backdropFilter: 'blur(24px) saturate(1.8)' } as object) : null),
     ...shadow.large,
   },
-  item: { flex: 1, height: 46, borderRadius: radius.chip, alignItems: 'center', justifyContent: 'center' },
-  itemOn: { backgroundColor: color.shortsActiveFill },
-  shortsOn: { backgroundColor: color.shortsActiveFill, borderWidth: 1, borderColor: '#F6BFD0' },
+  item: { flex: 1, height: 48, borderRadius: radius.chip, alignItems: 'center', justifyContent: 'center', gap: 1 },
+  itemOn: { backgroundColor: '#FBD9E3', borderWidth: 1, borderColor: '#F6BFD0' },
+  label: { fontFamily: 'Pretendard-Bold', fontSize: 11, lineHeight: 13 },
 });

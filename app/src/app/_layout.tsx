@@ -32,7 +32,13 @@ export default function RootLayout() {
           }}>
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen name="login" options={{ headerShown: false }} />
+          <Stack.Screen name="otp" options={{ headerShown: false }} />
+          <Stack.Screen name="welcome" options={{ headerShown: false, gestureEnabled: false }} />
+          <Stack.Screen name="auth" options={{ headerShown: false }} />
           <Stack.Screen name="intro" options={{ headerShown: false, animation: "fade" }} />
+          <Stack.Screen name="explore" options={{ headerShown: false }} />
+          <Stack.Screen name="shorts" options={{ headerShown: false, animation: 'fade' }} />
+          <Stack.Screen name="market" options={{ headerShown: false }} />
           <Stack.Screen name="work/[id]" options={{ title: '작품' }} />
           <Stack.Screen name="episode/[id]" options={{ title: '회차 보기' }} />
           <Stack.Screen name="funding/[id]" options={{ title: '펀딩' }} />

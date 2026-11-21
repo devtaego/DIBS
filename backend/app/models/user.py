@@ -1,6 +1,6 @@
 from datetime import date, datetime
 
-from sqlalchemy import BigInteger, Boolean, Date, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import BigInteger, Boolean, Date, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core import clock
@@ -31,6 +31,7 @@ class User(TimestampMixin, Base):
     account_changed_at: Mapped[datetime | None] = mapped_column(DateTime)  # 계좌 변경 시각 (24시간 출금 금지)
     coin_debt: Mapped[int] = mapped_column(BigInteger, default=0)  # 인앱 환불로 생긴 씨앗 부족분 (다음 충전 때 상계)
     birth_date: Mapped[date | None] = mapped_column(Date)  # 본인인증 결과의 생년월일 (만 나이 확인용)
+    phone: Mapped[str | None] = mapped_column(String(20), unique=True, index=True)  # 휴대폰 로그인 (숫자만, 010xxxxxxxx)
 
     def age(self, today: date) -> int | None:
         if self.birth_date is None:
@@ -63,4 +64,32 @@ class Notification(Base):
     ref_type: Mapped[str | None] = mapped_column(String(50))
     ref_id: Mapped[int | None] = mapped_column(Integer)
     is_read: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=clock.now)
+
+
+class SocialAccount(Base):
+    """간편 로그인 연결 (카카오·네이버·구글). 한 회원에 여러 개 연결할 수 있다."""
+
+    __tablename__ = "social_accounts"
+    __table_args__ = (UniqueConstraint("provider", "provider_user_id", name="uq_social_provider_uid"),)
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    provider: Mapped[str] = mapped_column(String(20))  # kakao | naver | google
+    provider_user_id: Mapped[str] = mapped_column(String(100))
+    email: Mapped[str | None] = mapped_column(String(255))
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=clock.now)
+
+
+class PhoneOtp(Base):
+    """휴대폰 인증번호. 번호 자체는 해시로만 저장하고 3분 뒤 만료, 5번 틀리면 다시 받아야 한다."""
+
+    __tablename__ = "phone_otps"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    phone: Mapped[str] = mapped_column(String(20), index=True)
+    code_hash: Mapped[str] = mapped_column(String(64))
+    expires_at: Mapped[datetime] = mapped_column(DateTime)
+    attempts: Mapped[int] = mapped_column(Integer, default=0)
+    used: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=clock.now)

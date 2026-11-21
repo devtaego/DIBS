@@ -23,6 +23,21 @@ class Settings(BaseModel):
     jwt_alg: str = "HS256"
     jwt_exp_minutes: int = 60 * 24
 
+    # 간편 로그인 (OAuth). 키가 비어 있으면 개발·시연용 모의 동의 화면으로 대신한다 (운영에서는 키 필수)
+    # 콜백 주소의 앞부분. 비우면 요청이 들어온 주소를 쓴다 (폰에서 PC 주소로 접속하는 시연용). 실제 키를 쓸 때는 등록한 주소로 고정
+    public_base_url: str = os.getenv("DIBS_PUBLIC_BASE_URL", "")
+    kakao_client_id: str = os.getenv("DIBS_KAKAO_CLIENT_ID", "")  # 카카오 REST API 키
+    kakao_client_secret: str = os.getenv("DIBS_KAKAO_CLIENT_SECRET", "")
+    naver_client_id: str = os.getenv("DIBS_NAVER_CLIENT_ID", "")
+    naver_client_secret: str = os.getenv("DIBS_NAVER_CLIENT_SECRET", "")
+    google_client_id: str = os.getenv("DIBS_GOOGLE_CLIENT_ID", "")
+    google_client_secret: str = os.getenv("DIBS_GOOGLE_CLIENT_SECRET", "")
+    # 로그인 뒤 토큰을 붙여 돌려보낼 수 있는 앱 주소 (그 밖의 주소로는 보내지 않는다)
+    app_redirect_prefixes: list = [p for p in os.getenv(
+        "DIBS_APP_REDIRECTS", "dibs://,exp://,http://localhost,http://127.0.0.1,https://localhost").split(",") if p]
+    otp_ttl_seconds: int = 180
+    otp_max_attempts: int = 5
+
     # 모의투자 / 실거래 스위치 (기본: 모의투자)
     trading_mode: str = os.getenv("DIBS_TRADING_MODE", "MOCK")  # MOCK | LIVE
     live_trading_enabled: bool = _env_bool("DIBS_LIVE_ENABLED", False)

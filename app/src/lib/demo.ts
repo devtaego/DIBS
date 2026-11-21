@@ -181,6 +181,13 @@ async function demoRequestInner(method: string, path: string, body?: unknown, qu
   }
   // ── 쓰기 요청 ──
   if (path === '/auth/dev-login') return { access_token: 'demo-token' };
+  // 간편 로그인·휴대폰 인증: 정적 데모는 서버가 없어 시연 계정(reader1)으로 바로 들어간다
+  if (/^\/auth\/social\/[a-z]+\/token$/.test(path)) return { access_token: 'demo-token', user_id: 3, is_new: false };
+  if (path === '/auth/phone/request') return { expires_in: 180, dev_code: '123456' };
+  if (path === '/auth/phone/verify') {
+    if ((body as { code?: string })?.code !== '123456') throw Object.assign(new Error('인증번호가 맞지 않아요 (1/5)'), { status: 400, code: 'OTP_MISMATCH' });
+    return { access_token: 'demo-token', user_id: 3, is_new: false };
+  }
   const un = path.match(/^\/episodes\/(\d+)\/unlock$/);
   if (un) {
     const meta = episodeMeta(Number(un[1]));

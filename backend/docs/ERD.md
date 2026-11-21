@@ -363,6 +363,15 @@ erDiagram
         bigint amount
         integer paid_journal_id FK
     }
+    phone_otps {
+        integer id PK
+        string phone
+        string code_hash
+        datetime expires_at
+        integer attempts
+        boolean used
+        datetime created_at
+    }
     post_reports {
         integer id PK
         integer post_id FK
@@ -420,6 +429,14 @@ erDiagram
         integer duration_sec
         datetime created_at
         datetime updated_at
+    }
+    social_accounts {
+        integer id PK
+        integer user_id FK
+        string provider
+        string provider_user_id
+        string email
+        datetime created_at
     }
     special_distributions {
         integer id PK
@@ -488,6 +505,7 @@ erDiagram
         datetime account_changed_at
         bigint coin_debt
         date birth_date
+        string phone
         datetime created_at
         datetime updated_at
     }
@@ -564,6 +582,7 @@ erDiagram
     users ||--o{ orders : "user_id"
     users ||--o{ post_reports : "reporter_id"
     users ||--o{ posts : "author_id"
+    users ||--o{ social_accounts : "user_id"
     users ||--o{ subscriptions : "user_id"
     users ||--o{ trades : "buyer_id"
     users ||--o{ trades : "seller_id"

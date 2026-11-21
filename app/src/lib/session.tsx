@@ -7,6 +7,8 @@ type Session = {
   me: Me | null;
   baseUrl: string;
   login: (email: string, role?: Me['role']) => Promise<void>;
+  /** 간편 로그인·휴대폰 인증으로 받은 토큰으로 로그인 */
+  loginWithToken: (token: string) => Promise<Me | null>;
   logout: () => Promise<void>;
   refreshMe: () => Promise<void>;
   changeBaseUrl: (url: string) => Promise<void>;
@@ -48,6 +50,19 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     [refreshMe],
   );
 
+  const loginWithToken = useCallback(async (token: string) => {
+    await setToken(token);
+    try {
+      const user = await api.get<Me>('/me');
+      setMe(user);
+      return user;
+    } catch {
+      await setToken(null);
+      setMe(null);
+      return null;
+    }
+  }, []);
+
   const logout = useCallback(async () => {
     await setToken(null);
     setMe(null);
@@ -58,7 +73,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     setBase(getBaseUrl());
   }, []);
 
-  return <Ctx.Provider value={{ ready, me, baseUrl, login, logout, refreshMe, changeBaseUrl }}>{children}</Ctx.Provider>;
+  return <Ctx.Provider value={{ ready, me, baseUrl, login, loginWithToken, logout, refreshMe, changeBaseUrl }}>{children}</Ctx.Provider>;
 }
 
 export function useSession() {

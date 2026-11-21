@@ -23,6 +23,13 @@
 |---|---|---|---|---|---|
 | `POST` | `/auth/dev-login` | 개발용 로그인 (없으면 가입) | 공개 | DevLoginIn | TokenOut |
 | `POST` | `/auth/kyc/mock` | 모의 본인인증 완료 처리 | 회원 |  | UserOut |
+| `GET` | `/auth/social/providers` | 간편 로그인 목록 (설정 여부) | 회원 |  |  |
+| `GET` | `/auth/social/{provider}/start` | 간편 로그인 시작 (동의 화면 주소) | 회원 |  | SocialStartOut |
+| `GET` | `/auth/social/{provider}/callback` | 간편 로그인 콜백 (제공자 → 서버 → 앱으로 돌려보냄) | 회원 |  |  |
+| `POST` | `/auth/social/{provider}/token` | 간편 로그인 (네이티브 SDK 액세스 토큰) | 회원 | SocialTokenIn | LoginOut |
+| `GET` | `/auth/social/{provider}/mock` | [모의] 간편 로그인 동의 화면 (키가 없을 때) | 회원 |  |  |
+| `POST` | `/auth/phone/request` | 휴대폰 인증번호 받기 | 회원 | PhoneIn | OtpOut |
+| `POST` | `/auth/phone/verify` | 휴대폰 인증번호 확인 → 로그인 (처음이면 가입) | 회원 | PhoneVerifyIn | LoginOut |
 | `GET` | `/health` | 헬스체크 | 공개 |  |  |
 
 ## works — 작품·회차·숏츠·찜 (STEP 1)
@@ -288,7 +295,10 @@
 | `INVALID_ORDER` | 지정가 주문은 가격을 입력해 주세요 |
 | `INVALID_PAYOUT_SCHEDULE` | 작가 지급 비율 합계는 100%여야 해요 |
 | `INVALID_PERIOD` | 기간은 '2027Q1' 형식이에요 |
+| `INVALID_PHONE` | 휴대폰 번호를 다시 확인해 주세요 |
 | `INVALID_REVENUE` | 매출과 공제액을 확인해 주세요 |
+| `INVALID_SOCIAL_TOKEN` | 간편 로그인 정보를 확인하지 못했어요 |
+| `INVALID_STATE` | 로그인 시간이 지났어요. 다시 시도해 주세요 |
 | `INVALID_TERMS` | 모금액 배분율 합계는 100%여야 해요 |
 | `INVALID_TOKEN` | 로그인이 필요해요 |
 | `INVALID_UNITS` | 1조각 이상 청약해 주세요 |
@@ -311,6 +321,7 @@
 | `NOT_IAP` | 인앱결제 묶음만 스토어 환불 처리할 수 있어요 |
 | `NOT_LISTED` | 상장 후에 확인할 수 있어요 |
 | `NOT_LISTED_YET` | 유료 미리보기는 상장 후에 열 수 있어요. 상장 전 공개 회차는 무료예요 |
+| `NOT_MOCK` | 실제 간편 로그인이 설정돼 있어요 |
 | `NOT_REFUNDABLE` | 카드·계좌 결제(PG)로 충전한 씨앗만 환불할 수 있어요. 인앱결제는 스토어에서 환불해요 |
 | `NOT_TRADABLE` | 거래할 수 없는 종목이에요 (미상장 또는 거래 정지) |
 | `NOT_WORK_OWNER` | 내 작품만 관리할 수 있어요 |
@@ -321,6 +332,10 @@
 | `NO_HOLDERS` | 기준일 보유자가 없어요 |
 | `ORDER_NOT_FOUND` | 주문을 찾을 수 없어요 |
 | `ORDER_NOT_OPEN` | 이미 체결되었거나 취소된 주문이에요 |
+| `OTP_EXPIRED` | 인증번호 시간이 지났어요. 다시 받아 주세요 |
+| `OTP_LOCKED` | 5번 틀렸어요. 인증번호를 다시 받아 주세요 |
+| `OTP_MISMATCH` | 인증번호가 맞지 않아요 ({otp.attempts}/{settings.otp_max_attempts}) |
+| `OTP_TOO_SOON` | 30초 뒤에 다시 받을 수 있어요 |
 | `PACKAGE_NOT_FOUND` | 씨앗 묶음을 찾을 수 없어요 |
 | `PAYMENT_REQUIRED` | 이어서 보려면 {e.price_coin}코인이 필요해요 |
 | `PAYOUT_ALREADY_DONE` | 이미 처리된 지급이에요 |
@@ -332,6 +347,8 @@
 | `POST_NOT_FOUND` | 글을 찾을 수 없어요 |
 | `PRICE_OUT_OF_BAND` | 주문 가능 가격은 {lo:,}~{hi:,}원이에요 |
 | `PRICE_TICK` | 가격은 {PRICE_TICK:,}원 단위로 주문해요 |
+| `PROVIDER_NOT_FOUND` | 지원하지 않는 간편 로그인이에요 |
+| `REDIRECT_NOT_ALLOWED` | 허용되지 않은 돌아갈 주소예요 |
 | `REFUND_TOO_SMALL` | 남은 금액이 {settings.coin_refund_min:,}원 미만이라 환불할 수 없어요 |
 | `RETRY_COOLDOWN` | 펀딩이 목표에 못 미친 작품은 {until:%m월 %d일}부터 다시 신청할 수 있어요 |
 | `RIGHTS_NOT_DECLARED` | 작품 공개 권한을 확인해 주세요 |
@@ -347,6 +364,9 @@
 | `SHIPPING_NOT_REQUIRED` | 배송이 필요 없는 리워드예요 |
 | `SHIPPING_REQUIRED` | 배송지를 입력해 주세요 |
 | `SHORT_REQUIRED` | 댓글을 달 숏츠를 지정해 주세요 |
+| `SOCIAL_NOT_CONFIGURED` | {PROVIDERS[provider]['name']} 로그인이 아직 설정되지 않았어요 |
+| `SOCIAL_PROVIDER_ERROR` | 간편 로그인 서버와 연결하지 못했어요. 잠시 뒤 다시 시도해 주세요 |
+| `SOCIAL_TOKEN_FAILED` | 간편 로그인을 마치지 못했어요. 다시 시도해 주세요 |
 | `SPECIAL_ALREADY_PAID` | 이미 지급한 분배예요 |
 | `SPECIAL_NOT_FOUND` | 특별 분배 내역을 찾을 수 없어요 |
 | `SUBSCRIPTION_LOCKED` | 마감 {settings.subscription_lock_minutes}분 전부터는 감액·취소할 수 없어요 |

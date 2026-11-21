@@ -34,7 +34,7 @@ export default function OrderScreen() {
   // 가격을 안 넘겼으면 지금 시세(최근 체결가)로 시작
   useEffect(() => {
     if (params.price) return;
-    api.get<{ last_price: number | null; unit_price: number }>(`/market/securities/${params.id}`).then((d) => setPrice(String(d.last_price ?? d.unit_price))).catch(() => setPrice('10000'));
+    api.get<{ last_price: number | null; unit_price: number }>(`/market/securities/${params.id}`).then((d) => setPrice(String(d.last_price ?? d.unit_price))).catch(() => setPrice('1000'));
   }, [params.id, params.price]);
   const [units, setUnits] = useState(1);
   const [agree, setAgree] = useState(false);

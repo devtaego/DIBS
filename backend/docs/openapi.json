@@ -18344,6 +18344,29 @@
             ],
             "title": "Days Left",
             "description": "모집 중일 때 마감까지 남은 일수 (D-day)"
+          },
+          "creator_nickname": {
+            "type": "string",
+            "title": "Creator Nickname",
+            "description": "작가 이름 (펀딩 카드)",
+            "default": ""
+          },
+          "work_type": {
+            "type": "string",
+            "title": "Work Type",
+            "description": "WEBTOON | WEBNOVEL",
+            "default": "WEBTOON"
+          },
+          "genre": {
+            "type": "string",
+            "title": "Genre",
+            "default": ""
+          },
+          "pitch": {
+            "type": "string",
+            "title": "Pitch",
+            "description": "카드 한 줄 소개 (작품 소개 첫 문장)",
+            "default": ""
           }
         },
         "type": "object",
@@ -22161,6 +22184,29 @@
             ],
             "title": "Days Left",
             "description": "모집 중일 때 마감까지 남은 일수 (D-day)"
+          },
+          "creator_nickname": {
+            "type": "string",
+            "title": "Creator Nickname",
+            "description": "작가 이름 (펀딩 카드)",
+            "default": ""
+          },
+          "work_type": {
+            "type": "string",
+            "title": "Work Type",
+            "description": "WEBTOON | WEBNOVEL",
+            "default": "WEBTOON"
+          },
+          "genre": {
+            "type": "string",
+            "title": "Genre",
+            "default": ""
+          },
+          "pitch": {
+            "type": "string",
+            "title": "Pitch",
+            "description": "카드 한 줄 소개 (작품 소개 첫 문장)",
+            "default": ""
           },
           "review_note": {
             "anyOf": [

@@ -117,9 +117,10 @@ export type Me = {
 };
 export type Progress = { requested_units: number; raised_amount: number; participants: number; achievement_pct: number };
 export type WorkCard = { id: number; title: string; genre: string; type: string; synopsis: string; cover_url?: string | null; creator_id: number; dib_count: number; funding_id: number | null; funding_status: string | null };
-export type WorkDetail = WorkCard & { is_dibbed: boolean; episode_count: number };
+export type WorkDetail = WorkCard & { is_dibbed: boolean; episode_count: number; reader_change_1w?: number | null; display_status?: string };
+export type Creator = { id: number; nickname: string; bio: string; avatar_url: string | null; works: WorkCard[] };
 export type Episode = { id: number; no: number; title: string; is_paid: boolean; paid_preview: boolean; price_coin: number; free_unlock_at: string | null; unlocked: boolean };
-export type FundingCard = { id: number; work_id: number; work_title: string; status: string; mode: string; unit_price: number; target_units: number; target_amount: number; close_at: string | null; days_left: number | null; progress: Progress };
+export type FundingCard = { id: number; work_id: number; work_title: string; status: string; mode: string; unit_price: number; target_units: number; target_amount: number; close_at: string | null; days_left: number | null; progress: Progress; cover_url?: string | null; creator_nickname?: string; work_type?: string; genre?: string; pitch?: string };
 export type RewardTier = { id: number; title: string; description: string; min_units: number; limited_qty: number | null; requires_shipping: boolean };
 export type FundingDetail = FundingCard & {
   use_of_funds: string; risk_note: string; max_units_per_user: number | null; open_at: string | null; lock_at: string | null;
@@ -153,7 +154,8 @@ export type Reconciliation = { period: string; unlock_gross: number; trust_inflo
 /** 공시: 투자금 쓰임·매출 배분·상품 기간·분기별 정산 대사와 원장 해시 */
 export type Disclosure = {
   funding_id: number;
-  cost_per_100: { creator: number; issuance_cost: number; dibs: number };
+  cost_per_100: { creator: number; issuance_cost: number; dibs: number; reserve?: number };
+  creator_token?: { bps: number; lockup_months: number };
   term: { season_months: number; after_completion_months: number; principal_repayment: boolean };
   per_user_cap_amount: number; buyback_enabled: boolean; settlement_basis: string; verification: string[];
   reconciliation: Reconciliation[];
@@ -183,6 +185,7 @@ export type SecurityDetail = SecurityItem & {
   volume_7d: number; trades_7d: number; dividend_4q_per_unit: number; price_to_dividend: number | null;
   recoup_phase: 'BEFORE_RECOUP' | 'AFTER_RECOUP'; recoup_progress_pct: number; royalty_holder_after_bps: number; buyback_enabled: boolean; buyback_price: number | null; terminate_due_at: string | null;
   my_units: number | null; my_avg_price: number | null; royalty_holder_bps: number;
+  last_dist_per_token?: number | null; last_dist_period?: string | null; annual_dist_yield?: number | null; cumulative_dividend_per_unit?: number;
 };
 export type BookLevel = { price: number; units: number; orders: number };
 export type OrderBook = { bids: BookLevel[]; asks: BookLevel[]; reference_price: number | null; last_price: number | null; price_band: { min: number | null; max: number | null } };

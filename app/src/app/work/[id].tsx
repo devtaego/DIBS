@@ -1,155 +1,161 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Alert, Pressable, StyleSheet, View } from 'react-native';
+import { Alert, Image, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { Chip, Cover, CtaBar, SecH } from '@/components/dibby';
-import { Button, ErrorBox, Loading, Screen, T } from '@/components/ui';
-import { api, ApiError, track, type Episode, type FundingDetail, type WorkDetail } from '@/lib/api';
-import { FUNDING_STATUS, won } from '@/lib/format';
-import { colors, radii, space, type as ts } from '@/lib/theme';
-import { nowMs } from '@/lib/now';
+import { ErrorBox, Loading } from '@/components/ui';
+import { CoverImg, HeadBtn, Icon, PINK, SeedChip, Txt, UnderTabs, color, pctText, wonText } from '@/ds';
+import { api, ApiError, track, type Episode, type FundingDetail, type SecurityItem, type WorkDetail } from '@/lib/api';
+import { FUNDING_STATUS } from '@/lib/format';
+import { imageSource } from '@/lib/media';
 import { shareWork } from '@/lib/share';
 import { useApi } from '@/lib/useApi';
 
-// 프로토타입 S.detail
+// 07 작품 상세 (Screens – MVP v2): 흐린 표지 배경 + 가운데 표지 · 첫화 보기 · 회차 목록 · 아래 IP토큰/펀딩 바로가기
+type Tab = '회차' | '작품소개';
+const dibText = (n: number) => (n >= 10000 ? `${Math.floor(n / 1000) / 10}만` : n.toLocaleString('ko-KR'));
+
 export default function WorkScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const [tab, setTab] = useState<Tab>('회차');
   const [note, setNote] = useState('');
   const { data, error, loading, reload, setData } = useApi(async () => {
     const [work, episodes] = await Promise.all([api.get<WorkDetail>(`/works/${id}`), api.get<Episode[]>(`/works/${id}/episodes`)]);
     const funding = work.funding_id ? await api.get<FundingDetail>(`/fundings/${work.funding_id}`).catch(() => null) : null;
-    return { work, episodes, funding };
+    const listed = !!work.funding_status && ['LISTED', 'SUSPENDED'].includes(work.funding_status);
+    const sec = listed && work.funding_id ? await api.get<SecurityItem>(`/market/securities/${work.funding_id}`).catch(() => null) : null;
+    return { work, episodes, funding, sec };
   }, [id]);
 
-  useEffect(() => {
-    track('WORK_VIEW', { work_id: Number(id) });
-  }, [id]);
+  useEffect(() => { track('WORK_VIEW', { work_id: Number(id) }); }, [id]);
 
   const toggleDib = async () => {
     if (!data) return;
     const on = !data.work.is_dibbed;
-    setData({ ...data, work: { ...data.work, is_dibbed: on, dib_count: data.work.dib_count + (on ? 1 : -1) } }); // 낙관적 갱신
+    setData({ ...data, work: { ...data.work, is_dibbed: on, dib_count: data.work.dib_count + (on ? 1 : -1) } });
     try {
       if (on) await api.put(`/works/${id}/dib`);
       else await api.del(`/works/${id}/dib`);
+      if (on) { setNote('찜했어요 · 펀딩이 열리면 알려 드릴게요'); setTimeout(() => setNote(''), 1800); }
     } catch (e) {
       Alert.alert('찜 실패', (e as ApiError).message);
       reload();
     }
   };
 
-  if (loading && !data) return <Screen><Loading /></Screen>;
-  if (!data) return <Screen><ErrorBox error={error} onRetry={reload} /></Screen>;
-  const { work, episodes, funding } = data;
+  if (loading && !data) return <SafeAreaView style={{ flex: 1, backgroundColor: color.bgNormal }}><Loading /></SafeAreaView>;
+  if (!data) return <SafeAreaView style={{ flex: 1, backgroundColor: color.bgNormal }}><ErrorBox error={error} onRetry={reload} /></SafeAreaView>;
+  const { work, episodes, funding, sec } = data;
   const fs = work.funding_status;
-  const listed = !!fs && ['LISTED', 'SUSPENDED', 'TERMINATED'].includes(fs);
-
-  const primary = () => {
-    if (!work.funding_id || !fs || ['DRAFT', 'IN_REVIEW', 'APPROVED', 'REJECTED'].includes(fs)) {
-      // 공모 전: 하트(찜)로 공모 시작 알림을 받는다
-      const upcoming = fs === 'APPROVED';
-      return <Button title={work.is_dibbed ? (upcoming ? '공모 예정 · 열리면 알려 드려요' : '공모 전 · 찜한 작품이에요') : (upcoming ? '공모 예정 · 찜하고 알림 받기' : '공모 전 · 찜하고 알림 받기')}
-        kind="ghost" onPress={() => { if (!work.is_dibbed) toggleDib(); }} style={{ flex: 1 }} />;
-    }
-    if (fs === 'OPEN') return <Button title="조각 청약" onPress={() => router.push(`/subscribe/${work.funding_id}`)} style={{ flex: 1 }} />;
-    if (listed) return <Button title="조각 시세 보기" onPress={() => router.push(`/security/${work.funding_id}`)} style={{ flex: 1 }} />;
-    return <Button title={`펀딩 결과 (${FUNDING_STATUS[fs]})`} kind="ghost" onPress={() => router.push(`/funding/${work.funding_id}`)} style={{ flex: 1 }} />;
-  };
+  const first = episodes[0];
+  const sorted = [...episodes].sort((a, b) => b.no - a.no);
+  const status = fs === 'OPEN' ? '펀딩 중' : fs === 'LISTED' ? '거래 중' : '연재중';
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      <Stack.Screen
-        options={{
-          title: '',
-          headerRight: () => (
-            <View style={{ flexDirection: 'row', gap: 18, paddingRight: 4 }}>
-              <Pressable accessibilityLabel="작품 링크 공유" onPress={async () => { const m = await shareWork(work.id, work.title); if (m) { setNote(m); setTimeout(() => setNote(''), 1800); } }} hitSlop={10}>
-                <Ionicons name="share-outline" size={23} color={colors.labelStrong} />
-              </Pressable>
-              <Pressable accessibilityLabel={work.is_dibbed ? '찜 해제' : '찜하기'} accessibilityState={{ selected: work.is_dibbed }} onPress={toggleDib} hitSlop={10}>
-                <Ionicons name={work.is_dibbed ? 'heart' : 'heart-outline'} size={24} color={work.is_dibbed ? colors.primary : colors.labelStrong} />
-              </Pressable>
+    <View style={{ flex: 1, backgroundColor: color.bgNormal }}>
+      <Stack.Screen options={{ headerShown: false }} />
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 120 }}>
+        <View style={{ height: 352, overflow: 'hidden' }}>
+          {imageSource(work.cover_url) ? (
+            <Image source={imageSource(work.cover_url)} blurRadius={26} resizeMode="cover" style={{ position: 'absolute', top: -30, left: -30, right: -30, bottom: -30, opacity: 0.9 }} />
+          ) : <View style={[StyleSheet.absoluteFill, { backgroundColor: '#3A2A33' }]} />}
+          <LinearGradient colors={['rgba(10,8,14,0.35)', 'rgba(10,8,14,0.15)', color.bgNormal]} locations={[0, 0.5, 1]} style={StyleSheet.absoluteFill} />
+          <SafeAreaView edges={['top']}>
+            <View style={{ height: 56, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 8 }}>
+              <HeadBtn icon="back" label="뒤로" c={color.white} onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))} />
+              <HeadBtn icon="share" label="작품 링크 공유" c={color.white} onPress={async () => { const m = await shareWork(work.id, work.title); if (m) { setNote(m); setTimeout(() => setNote(''), 1800); } }} />
             </View>
-          ),
-        }}
-      />
+            <View style={{ alignItems: 'center', marginTop: 4 }}>
+              <CoverImg id={work.id} url={work.cover_url} title={work.title} w={152} h={228} r={14} style={{ shadowOpacity: 0.35, shadowRadius: 24, shadowOffset: { width: 0, height: 16 } }} />
+            </View>
+          </SafeAreaView>
+        </View>
+
+        <View style={{ paddingHorizontal: 24, paddingTop: 16, alignItems: 'center', gap: 6 }}>
+          <Txt v="heading1" w="bold" c={color.labelStrong} center>{work.title}</Txt>
+          <Txt v="label2" w="medium" c={color.labelAlternative} center>{work.genre} · {work.type === 'WEBNOVEL' ? '웹소설' : '웹툰'} · {status}</Txt>
+          <Txt v="label2" w="semibold" c={color.labelNeutral} center>관심 {dibText(work.dib_count)} <Txt v="label2" c={color.labelDisable}>·</Txt> 회차 {work.episode_count}</Txt>
+        </View>
+
+        <View style={{ flexDirection: 'row', gap: 10, paddingHorizontal: 24, paddingTop: 18 }}>
+          <Pressable onPress={() => first && router.push(`/episode/${first.id}`)} accessibilityRole="button" disabled={!first}
+            style={({ pressed }) => ({ flex: 1, height: 52, borderRadius: 999, backgroundColor: '#F6A9BF', alignItems: 'center', justifyContent: 'center', opacity: pressed ? 0.85 : 1 })}>
+            <Txt v="body1" w="bold" c="#5B1A33">첫화 무료보기</Txt>
+          </Pressable>
+          <Pressable onPress={toggleDib} accessibilityRole="button" accessibilityLabel={work.is_dibbed ? '관심 해제' : '관심 등록'} accessibilityState={{ selected: work.is_dibbed }}
+            style={{ width: 52, height: 52, borderRadius: 999, backgroundColor: color.fillNormal, alignItems: 'center', justifyContent: 'center' }}>
+            <Icon name={work.is_dibbed ? 'heartF' : 'heart'} size={24} c={work.is_dibbed ? PINK : color.labelStrong} />
+          </Pressable>
+        </View>
+
+        <View style={{ paddingHorizontal: 24, paddingTop: 18 }}>
+          <UnderTabs items={[`회차` as Tab, '작품소개']} value={tab} onChange={setTab} />
+        </View>
+
+        {tab === '회차' ? (
+          <View style={{ paddingHorizontal: 24, paddingTop: 4 }}>
+            {sorted.map((ep) => {
+              const locked = ep.is_paid && !ep.unlocked;
+              return (
+                <Pressable key={ep.id} onPress={() => router.push(`/episode/${ep.id}`)} accessibilityRole="button" style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12 }}>
+                  <CoverImg id={work.id} url={work.cover_url} w={72} h={44} r={8} shadow={false} />
+                  <View style={{ flex: 1 }}>
+                    <Txt v="body2" w="semibold" c={color.labelStrong} lines={1}>{ep.title === `${ep.no}화` ? ep.title : `${ep.no}화 · ${ep.title}`}</Txt>
+                    <Txt v="caption1" c={color.labelAssistive}>{ep.is_paid ? (ep.unlocked ? '구매함' : '미리보기') : ep.paid_preview ? '무료 전환' : '무료 회차'}</Txt>
+                  </View>
+                  {locked ? <SeedChip n={Math.round(ep.price_coin / 100)} /> : <Txt v="caption1" w="bold" c={ep.is_paid ? color.labelAlternative : PINK}>{ep.is_paid ? '열람 가능' : '무료'}</Txt>}
+                </Pressable>
+              );
+            })}
+            <Txt v="caption1" c={color.labelAssistive} style={{ marginTop: 8 }}>상장 전 공개 회차는 무료예요. 상장 뒤 미리보기는 회당 씨앗 3개이고, 정식 공개되면 무료로 풀려요.</Txt>
+          </View>
+        ) : (
+          <View style={{ paddingHorizontal: 24, paddingTop: 16, gap: 16 }}>
+            <Txt v="body2" c={color.labelNeutral}>{work.synopsis || '줄거리가 아직 없어요'}</Txt>
+            {funding ? (
+              <Pressable onPress={() => router.push(`/funding/${funding.id}`)} accessibilityRole="button"
+                style={{ padding: 16, borderRadius: 16, borderWidth: 1, borderColor: color.lineAlternative, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                <View style={{ flex: 1 }}>
+                  <Txt v="label1" w="bold" c={color.labelStrong}>펀딩 · {FUNDING_STATUS[funding.status] ?? funding.status}</Txt>
+                  <Txt v="caption1" c={color.labelAlternative}>달성률 {Math.round(funding.progress.achievement_pct)}% · 목표 {wonText(funding.target_amount)}</Txt>
+                </View>
+                <Icon name="chev" size={18} c={color.labelAssistive} />
+              </Pressable>
+            ) : null}
+          </View>
+        )}
+      </ScrollView>
+
+      {sec ? (
+        <Pressable onPress={() => router.push(`/security/${sec.funding_id}`)} accessibilityRole="button" accessibilityLabel="IP토큰 시세 보기" style={st.bar}>
+          <View style={st.tag}><Txt v="caption1" w="bold" c={PINK}>IP토큰</Txt></View>
+          <Txt v="label1" w="semibold" c={color.labelStrong} style={{ flex: 1 }} tabular>{wonText(sec.last_price ?? sec.unit_price)}</Txt>
+          <Txt v="label1" w="bold" c={(sec.change_pct ?? 0) >= 0 ? color.rise : color.fall} tabular>{pctText(sec.change_pct, 1)}</Txt>
+          <Icon name="chev" size={18} c={color.labelAssistive} />
+        </Pressable>
+      ) : funding && fs === 'OPEN' ? (
+        <Pressable onPress={() => router.push(`/funding/${funding.id}`)} accessibilityRole="button" accessibilityLabel="펀딩 보기" style={st.bar}>
+          <View style={st.tag}><Txt v="caption1" w="bold" c={PINK}>펀딩 중</Txt></View>
+          <Txt v="label1" w="semibold" c={color.labelStrong} style={{ flex: 1 }}>{Math.round(funding.progress.achievement_pct)}% 달성</Txt>
+          <Txt v="label1" w="bold" c={PINK}>참여하기</Txt>
+          <Icon name="chev" size={18} c={color.labelAssistive} />
+        </Pressable>
+      ) : null}
+
       {note ? (
-        <View pointerEvents="none" style={{ position: 'absolute', top: 12, left: 0, right: 0, zIndex: 10, alignItems: 'center' }}>
+        <View pointerEvents="none" style={{ position: 'absolute', bottom: 100, left: 0, right: 0, alignItems: 'center' }}>
           <View style={{ backgroundColor: 'rgba(25,31,40,0.88)', paddingHorizontal: 16, paddingVertical: 10, borderRadius: 999 }}>
-            <T size={13} weight="600" color="#fff">{note}</T>
+            <Txt v="label2" w="semibold" c={color.white}>{note}</Txt>
           </View>
         </View>
       ) : null}
-      <Screen onRefresh={reload}>
-        <Cover id={work.id} title={work.title} genre={work.genre} coverUrl={work.cover_url} style={{ height: 250, borderRadius: radii.card }} />
-
-        <View style={{ flexDirection: 'row', gap: 6, marginTop: space(4) }}>
-          <Chip label={work.genre} />
-          <Chip label={work.type === 'WEBNOVEL' ? '웹소설' : '웹툰'} />
-          {fs ? <Chip label={FUNDING_STATUS[fs]} tone="pink" /> : null}
-        </View>
-        <T size={ts.heading1.fontSize} weight="700" style={{ marginTop: space(3) }}>{work.title}</T>
-        <T size={13} weight="500" color={colors.labelAlternative} style={{ marginTop: 6 }}>회차 {work.episode_count}개 공개</T>
-        <T size={15} color={colors.labelNeutral} style={{ marginTop: space(3) }}>{work.synopsis || '줄거리가 아직 없어요'}</T>
-
-        <View style={s.stats}>
-          {[
-            ['펀딩', funding?.progress ? `${funding.progress.achievement_pct.toLocaleString('ko-KR')}%` : '-'],
-            ['관심', work.dib_count.toLocaleString('ko-KR')],
-            ['회차', String(episodes.length)],
-          ].map(([k, v]) => (
-            <View key={k} style={{ flex: 1, alignItems: 'center' }}>
-              <T size={12} weight="500" color={colors.labelAlternative}>{k}</T>
-              <T size={18} weight="700" style={{ marginTop: 2 }}>{v}</T>
-            </View>
-          ))}
-        </View>
-
-        {funding ? (
-          <>
-            <SecH title="참여 방법" />
-            <Pressable style={s.opt} onPress={() => router.push(`/funding/${funding.id}`)}>
-              <View style={{ flex: 1 }}>
-                <T size={14} weight="700">펀딩 자세히 보기</T>
-                <T size={12} color={colors.labelAlternative} style={{ marginTop: 2 }}>
-                  배정 방식 · 손익분기 · 작가 정산 일정{funding.status === 'OPEN' && funding.close_at ? ` · D-${Math.max(0, Math.ceil((Date.parse(funding.close_at + '+09:00') - nowMs()) / 86_400_000))}` : ''}
-                </T>
-              </View>
-              <Ionicons name="chevron-forward" size={20} color={colors.labelAssistive} />
-            </Pressable>
-            {/* 청약·거래는 아래 버튼 하나로 (같은 기능 중복 제거) */}
-          </>
-        ) : null}
-
-        <SecH title={`회차 ${episodes.length}`} />
-        <View style={s.listCard}>
-          {episodes.map((ep, i) => (
-            <Pressable key={ep.id} onPress={() => router.push(`/episode/${ep.id}`)} style={[s.li, i === episodes.length - 1 && { borderBottomWidth: 0 }]}>
-              <T size={14} style={{ flex: 1 }} numberOfLines={1}>{ep.title === `${ep.no}화` ? ep.title : `${ep.no}화 · ${ep.title}`}</T>
-              {ep.is_paid && !ep.unlocked ? (
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                  <Ionicons name="lock-closed-outline" size={14} color={colors.highlight} />
-                  <T size={12} weight="600" color={colors.highlight}>{ep.price_coin}코인</T>
-                </View>
-              ) : (
-                <T size={12} color={colors.labelAlternative}>{ep.is_paid ? '구매함' : ep.paid_preview ? '무료 전환' : '무료'}</T>
-              )}
-            </Pressable>
-          ))}
-        </View>
-        <T size={12} color={colors.labelAssistive} style={{ marginTop: space(3) }}>1~3화는 파일럿이라 무료예요. 4화부터는 미리보기(회당 300원)이고, 공개 21일 뒤 무료로 풀려요.</T>
-      </Screen>
-      <CtaBar>
-        {primary()}
-      </CtaBar>
     </View>
   );
 }
 
-const s = StyleSheet.create({
-  stats: { flexDirection: 'row', marginTop: space(4), paddingVertical: space(3.5), borderRadius: radii.card, backgroundColor: colors.card },
-  opt: { flexDirection: 'row', alignItems: 'center', gap: space(3), padding: space(3.5), borderRadius: radii.card, borderWidth: 1.5, borderColor: colors.lineStrong, marginBottom: space(2) },
-  listCard: { borderRadius: radii.card, backgroundColor: colors.card, paddingHorizontal: space(4) },
-  li: { flexDirection: 'row', alignItems: 'center', gap: space(2), paddingVertical: space(3.5), borderBottomWidth: 1, borderBottomColor: colors.line },
+const st = StyleSheet.create({
+  bar: { position: 'absolute', left: 20, right: 20, bottom: 30, height: 56, borderRadius: 16, backgroundColor: color.elevatedNormal, borderWidth: 1, borderColor: color.lineAlternative,
+    flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, shadowColor: '#191F28', shadowOpacity: 0.12, shadowRadius: 16, shadowOffset: { width: 0, height: 6 }, elevation: 5 },
+  tag: { height: 24, paddingHorizontal: 10, borderRadius: 999, backgroundColor: color.highlightFill, justifyContent: 'center' },
 });

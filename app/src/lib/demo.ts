@@ -281,7 +281,13 @@ async function demoRequestInner(method: string, path: string, body?: unknown, qu
     return { channel: 'INTERNAL', broker: '키움증권', deeplink: 'kiwoom-mock://offering', token: `demo-${path.split('/')[2]}`, expires_at: new Date(Date.now() + 600000).toISOString(), linked: false };
   }
   if (path === '/market/orders') {
-    const b = (body ?? {}) as { funding_id: number; side: string; price: number; units: number };
+    const b = (body ?? {}) as { funding_id: number; side: string; price?: number; units: number; order_type?: string };
+    if (b.order_type === 'MARKET') {
+      // 시장가: 시연 데이터의 최우선 반대 호가에서 전량 체결된 것으로 보여 준다
+      const ob = F[`/market/securities/${b.funding_id}/orderbook`] as { asks: { price: number }[]; bids: { price: number }[] } | undefined;
+      const px = b.side === 'BUY' ? Math.min(...(ob?.asks ?? []).map((a) => a.price)) : Math.max(...(ob?.bids ?? []).map((x) => x.price));
+      return { id: Date.now() % 100000, ...b, price: Number.isFinite(px) ? px : 1000, remaining_units: 0, status: 'FILLED', created_at: new Date().toISOString() };
+    }
     return { id: Date.now() % 100000, ...b, remaining_units: b.units, status: 'OPEN', created_at: new Date().toISOString() };
   }
   return { ok: true };

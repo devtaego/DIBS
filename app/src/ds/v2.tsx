@@ -253,6 +253,16 @@ export function Dots({ n, i }: { n: number; i: number }) {
   );
 }
 
+/** 씨앗 n개 알약 (회차 가격) */
+export function SeedChip({ n }: { n: number }) {
+  return (
+    <View style={{ height: 26, paddingHorizontal: 10, borderRadius: 999, backgroundColor: color.fillNormal, flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+      <View style={{ width: 9, height: 13, borderRadius: 6, backgroundColor: '#7A5A48', transform: [{ rotate: '25deg' }] }} />
+      <Txt v="caption1" w="bold" c={color.labelNeutral}>씨앗 {n}</Txt>
+    </View>
+  );
+}
+
 export const wonText = (n: number | null | undefined) => `${Math.round(n ?? 0).toLocaleString('ko-KR')}원`;
 export const signed = (n: number, unit = '원') => `${n > 0 ? '+' : n < 0 ? '−' : ''}${Math.abs(Math.round(n)).toLocaleString('ko-KR')}${unit}`;
 export const pctText = (n: number | null | undefined, d = 2) => (n == null ? '0.00%' : `${n > 0 ? '+' : n < 0 ? '-' : ''}${Math.abs(n).toFixed(d)}%`);

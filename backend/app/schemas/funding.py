@@ -311,6 +311,10 @@ class FundingCardOut(FundingOut):
     cover_url: str | None
     progress: FundingProgress
     days_left: int | None = Field(description="모집 중일 때 마감까지 남은 일수 (D-day)")
+    creator_nickname: str = Field(default="", description="작가 이름 (펀딩 카드)")
+    work_type: str = Field(default="WEBTOON", description="WEBTOON | WEBNOVEL")
+    genre: str = Field(default="")
+    pitch: str = Field(default="", description="카드 한 줄 소개 (작품 소개 첫 문장)")
 
 
 class StudioFundingOut(FundingCardOut):

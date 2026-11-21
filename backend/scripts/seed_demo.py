@@ -252,6 +252,25 @@ def main() -> None:
                 call(r, "post", f"/fundings/{f['id']}/subscriptions", json={**SUB, "units": 400})
 
         UPCOMING = {"새벽 세시의 편의점 마법사": 4}
+        # 토큰증권 탭 시연: 이미 상장해 거래 중인 종목을 몇 개 더 (마지막 체결가가 서로 다르게, 가격제한폭 ±30% 안)
+        LISTED_MORE = {"오늘도 너에게 반했어": 1_210, "풍운행": 960, "이혼 도장 찍자마자 S급 각성": 1_280,
+                       "회귀했더니 내 딸이 재벌 회장": 1_060}
+
+        def list_now(wid: int, price: int, k: int) -> None:
+            f = make_funding(wid, 10000, [])
+            for r in readers[5:30]:  # 25명 × 500조각 = 12,500조각 (1인 한도 = 발행액 5%). reader1~5 계정은 건드리지 않는다
+                call(r, "post", "/wallet/deposit/charge", json={"amount": 500_000})
+                call(r, "post", f"/fundings/{f}/subscriptions", json={**SUB, "units": 500})
+            call("admin", "post", f"/admin/fundings/{f}/close", params={"force": True})
+            call("admin", "post", f"/admin/fundings/{f}/issuance", json={"broker_name": "제휴증권(모의)"})
+            for step, extra_ in [("FILED", {}), ("ISSUED", {"security_code": f"KRDIBS{f:07d}", "trustee": "모의신탁"}),
+                                 ("LISTING_SCHEDULED", {"listing_date": clock.now().date().isoformat()}), ("LISTED", {})]:
+                call("admin", "post", f"/admin/fundings/{f}/issuance/advance", json={"step": step, **extra_})
+            seller, buyer = readers[5 + k % 3], readers[9 + k % 3]
+            o = {"funding_id": f, "agree_risk_notice": True}
+            call(seller, "post", "/market/orders", json={**o, "side": "SELL", "price": price, "units": 40})
+            call(buyer, "post", "/market/orders", json={**o, "side": "BUY", "price": price, "units": 25})
+            call(buyer, "post", "/market/orders", json={**o, "side": "BUY", "price": price - 20, "units": 30})
         # 나머지 카탈로그: 펀딩 없이 작품만 (탐색·랭킹용). 찜 수는 서로 다르게
         done = {"악녀인데 남주들이 나를 숭배한다", "청월도", *(t for t, *_ in extra)}
         rest = [row for row in CATALOG if row[1] not in done]
@@ -259,6 +278,8 @@ def main() -> None:
             wid = make_work(title, genre, 3 + k % 5, wtype, COVERS.get(title), syn)
             for r in readers[: (k * 7) % 23]:
                 call(r, "put", f"/works/{wid}/dib")
+            if title in LISTED_MORE:
+                list_now(wid, LISTED_MORE[title], k)
             if title in UPCOMING:  # 공모 예정 (승인 완료, 모집 시작 전)
                 now = clock.now()
                 f = call("creator", "post", f"/works/{wid}/fundings", json={

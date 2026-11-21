@@ -164,7 +164,7 @@ export default function SubscribeScreen() {
           <AgreementRow strong checked={agreeRisk && agreeTerm && (fit || agreeUnfit)} onToggle={() => { const v = !(agreeRisk && agreeTerm && (fit || agreeUnfit)); setAgreeRisk(v); setAgreeTerm(v); setAgreeUnfit(v); }} label="모두 확인했어요" />
           <View style={{ height: 1, backgroundColor: color.lineAlternative }} />
           <AgreementRow required checked={agreeRisk} onToggle={() => setAgreeRisk(!agreeRisk)} label="원금 손실 가능성·예금자 보호 대상 아님·펀딩 성공이 수익을 보장하지 않는다는 점" />
-          <AgreementRow required checked={agreeTerm} onToggle={() => setAgreeTerm(!agreeTerm)} label="원금 상환이 없고 시즌 완결 후 12개월(최소 상장 후 24개월)이 지나면 권리가 작가에게 돌아간다는 점" />
+          <AgreementRow required checked={agreeTerm} onToggle={() => setAgreeTerm(!agreeTerm)} label="만기·원금 상환이 없고, 목표를 넘기면 상장 때 IP토큰(토큰증권)으로 바뀌며 분기 배당과 마켓 매도로만 돌려받는다는 점" />
           {fit ? null : (
             <AgreementRow required checked={agreeUnfit} onToggle={() => setAgreeUnfit(!agreeUnfit)} label={`부적합 확인: 내 투자성향(${riskLabel(me?.risk_level)})보다 위험한 상품(1등급 · 매우 높은 위험)임을 알고 투자해요`} />
           )}

@@ -4,6 +4,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 
 import { CtaBar } from '@/components/dibby';
+import { KiwoomSplash } from '@/components/KiwoomSplash';
 
 import { Button, Card, Check, ErrorBox, KV, Muted, Screen, Stepper, T } from '@/components/ui';
 import { api, ApiError, type Order, type OrderPreview } from '@/lib/api';
@@ -37,15 +38,26 @@ export default function OrderScreen() {
     api.get<{ last_price: number | null; unit_price: number }>(`/market/securities/${params.id}`).then((d) => setPrice(String(d.last_price ?? d.unit_price))).catch(() => setPrice('1000'));
   }, [params.id, params.price]);
   const [units, setUnits] = useState(1);
+  const [otype, setOtype] = useState<'LIMIT' | 'MARKET'>('LIMIT');
+  const [best, setBest] = useState<{ ask: number | null; bid: number | null }>({ ask: null, bid: null });
+  const [sending, setSending] = useState(false);
   const [agree, setAgree] = useState(false);
+  // 시장가: 최우선 반대 호가 한 단계에서 체결 → 예상 가격 = 매수는 최저 매도호가, 매도는 최고 매수호가
+  useEffect(() => {
+    api.get<{ asks: { price: number }[]; bids: { price: number }[] }>(`/market/securities/${params.id}/orderbook`)
+      .then((ob) => setBest({ ask: ob.asks.length ? Math.min(...ob.asks.map((a) => a.price)) : null, bid: ob.bids.length ? Math.max(...ob.bids.map((b) => b.price)) : null }))
+      .catch(() => {});
+  }, [params.id]);
+  const marketPx = side === 'BUY' ? best.ask : best.bid;
+  const effPrice = otype === 'MARKET' ? marketPx ?? 0 : Number(price);
   const [preview, setPreview] = useState<OrderPreview | null>(null);
   const [error, setError] = useState<ApiError | null>(null);
   const task = useDibbyTask();
 
   // 입력이 멈추고 300ms 뒤 서버 규칙으로 수수료·가능 여부 계산
   useEffect(() => {
-    const p = Number(price);
-    if (!p) return;
+    const p = effPrice;
+    if (!p) { setPreview(null); return; }
     const t = setTimeout(async () => {
       try {
         setPreview(await api.get<OrderPreview>(`/market/securities/${params.id}/order-preview`, { side, price: p, units }));
@@ -55,31 +67,37 @@ export default function OrderScreen() {
       }
     }, 300);
     return () => clearTimeout(t);
-  }, [side, price, units, params.id]);
+  }, [side, effPrice, units, params.id]);
 
-  const place = async () => {
+  // 06 키움증권으로 이동: 주문도 청약 결제처럼 키움 화면으로 넘어가는 연출 뒤에 보낸다 (모의 제휴)
+  const place = () => {
     if (!agree) {
       setError(new ApiError(0, 'CONSENT_REQUIRED', '위험 안내를 먼저 확인해 주세요'));
       return;
     }
+    setSending(true);
+  };
+  const send = async () => {
+    setSending(false);
     const buy = side === 'BUY';
     try {
       const o = await task.run(buy ? '주문을 보내고 있어요' : '매도 주문을 보내고 있어요', ['주문 가격을 확인하고 있어요', '호가에 주문을 올리고 있어요', '체결 결과를 받아오고 있어요'], () =>
-        api.post<Order>('/market/orders', { funding_id: Number(params.id), side, price: Number(price), units, agree_risk_notice: agree }),
+        api.post<Order>('/market/orders', { funding_id: Number(params.id), side, order_type: otype, ...(otype === 'LIMIT' ? { price: Number(price) } : {}), units, agree_risk_notice: agree }),
       );
       const filled = o.status === 'FILLED';
-      const msg = filled ? '바로 체결됐어요' : o.status === 'PARTIAL' ? `일부 체결, ${o.remaining_units}조각은 대기 중이에요` : '같은 가격의 상대 주문을 기다려요';
+      const msg = filled ? '바로 체결됐어요' : o.status === 'PARTIAL' ? `일부 체결, ${o.remaining_units}조각은 대기 중이에요`
+        : o.status === 'CANCELLED' ? `시장가로 ${units - o.remaining_units}조각 체결, 남은 수량은 취소했어요` : '같은 가격의 상대 주문을 기다려요';
       showDone({
         pose: filled ? (buy ? 'jump' : 'bow') : 'report',
         tag: buy ? 'MOCK BUY' : 'MOCK SELL',
         title: filled ? (buy ? '조각 챙겼어요!' : '매도 주문 완료') : '주문을 올렸어요',
-        sub: `${units}조각 · ${won(Number(price))}에 ${buy ? '매수' : '매도'} 주문했어요.\n${msg}`,
+        sub: `${units}조각 · ${won(o.price ?? effPrice)}에 ${buy ? '매수' : '매도'} 주문했어요.\n${msg}`,
         rows: [
           ['주문 상태', ORDER_STATUS[o.status]],
           ['주문 수량', `${units}조각`],
-          ['주문 금액', won(Number(price) * units)],
+          ['주문 금액', won((o.price ?? effPrice) * units)],
         ],
-        note: filled ? undefined : '미체결 주문은 자정에 자동 취소돼요.',
+        note: filled || o.status === 'CANCELLED' ? undefined : '미체결 주문은 자정에 자동 취소돼요.',
         aLabel: '종목으로',
         aHref: `/security/${params.id}`,
         bLabel: '내 자산 보기',
@@ -91,6 +109,7 @@ export default function OrderScreen() {
   };
 
   const buyColor = side === 'BUY' ? colors.rise : colors.fall;
+  if (sending) return <KiwoomSplash onDone={send} line2="주문을 키움증권으로" sub="키움증권에서 주문을 보내고 있어요" />;
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
     <Screen>
@@ -105,23 +124,36 @@ export default function OrderScreen() {
           );
         })}
       </View>
-      <T weight="700">가격 (지정가)</T>
-      <View style={s.priceRow}>
-        <Pressable accessibilityLabel="가격 내리기" onPress={() => setPrice(String(Math.max(100, Number(price) - 100)))} style={s.tick}>
+      <View style={[s.seg, { marginBottom: space(3) }]}>
+        {(['LIMIT', 'MARKET'] as const).map((k) => (
+          <Pressable key={k} onPress={() => setOtype(k)} accessibilityRole="button" accessibilityState={{ selected: otype === k }} style={[s.segItem, otype === k && { backgroundColor: colors.bg }]}>
+            <T size={14} weight="700" color={otype === k ? colors.labelStrong : colors.labelAlternative}>{k === 'LIMIT' ? '지정가' : '시장가'}</T>
+          </Pressable>
+        ))}
+      </View>
+      {otype === 'MARKET' ? (
+        <Card>
+          <KV k="예상 체결 가격" v={marketPx ? won(marketPx) : '상대 주문 없음'} />
+          <Muted size={12}>{side === 'BUY' ? '가장 싼 매도 주문' : '가장 비싼 매수 주문'} 가격에서 바로 체결하고, 그 가격에서 다 못 채운 수량은 취소돼요.</Muted>
+        </Card>
+      ) : null}
+      {otype === 'LIMIT' ? <T weight="700">가격 (지정가)</T> : null}
+      {otype === 'LIMIT' ? <View style={s.priceRow}>
+        <Pressable accessibilityLabel="가격 내리기" onPress={() => setPrice(String(Math.max(10, Number(price) - 10)))} style={s.tick}>
           <Ionicons name="remove" size={20} color={colors.labelStrong} />
         </Pressable>
         <TextInput
           value={price}
           onChangeText={(v) => setPrice(v.replace(/[^0-9]/g, ''))}
-          onBlur={() => setPrice((p) => String(Math.max(100, Math.round(Number(p || '0') / 100) * 100)))} // 호가 단위 100원
+          onBlur={() => setPrice((p) => String(Math.max(10, Math.round(Number(p || '0') / 10) * 10)))} // 호가 단위 10원
           keyboardType="number-pad"
           style={{ flex: 1, minWidth: 0, width: 0, textAlign: 'center', color: colors.text, fontSize: 22, fontWeight: '700' }}
         />
-        <Pressable accessibilityLabel="가격 올리기" onPress={() => setPrice(String(Number(price) + 100))} style={s.tick}>
+        <Pressable accessibilityLabel="가격 올리기" onPress={() => setPrice(String(Number(price) + 10))} style={s.tick}>
           <Ionicons name="add" size={20} color={colors.labelStrong} />
         </Pressable>
-      </View>
-      {preview?.price_band.min ? <Muted style={{ marginTop: space(1) }}>주문 가능 {won(preview.price_band.min)} ~ {won(preview.price_band.max)} · 100원 단위</Muted> : null}
+      </View> : null}
+      {otype === 'LIMIT' && preview?.price_band.min ? <Muted style={{ marginTop: space(1) }}>주문 가능 {won(preview.price_band.min)} ~ {won(preview.price_band.max)} · 10원 단위</Muted> : null}
 
       <T weight="700" style={{ marginTop: space(5) }}>수량</T>
       <Card style={{ alignItems: 'center', marginTop: space(2) }}>
@@ -147,7 +179,7 @@ export default function OrderScreen() {
       <Button
         title={`${preview ? won(preview.total) + ' ' : ''}${side === 'BUY' ? '사기' : '팔기'} 주문`}
         onPress={place}
-        disabled={!preview?.can_place || !me}
+        disabled={!preview?.can_place || !me || (otype === 'MARKET' && !marketPx)}
         style={{ flex: 1, backgroundColor: buyColor, borderColor: buyColor, opacity: agree ? 1 : 0.55 }}
       />
     </CtaBar>

@@ -42,6 +42,6 @@ def deadline_reminders(db: Session) -> dict:
             if uid in subs or _sent(db, uid, "DIBBED_DEADLINE_SOON", f.id):
                 continue
             notify(db, uid, "DIBBED_DEADLINE_SOON", f"찜한 「{work.title}」 청약 마감 {d}",
-                   "마감 전에 조각을 담아 보세요. 1조각 1만 원부터예요.", "funding", f.id)
+                   f"마감 전에 조각을 담아 보세요. 1조각 {f.unit_price:,}원부터예요.", "funding", f.id)
             sent += 1
     return {"sent": sent}

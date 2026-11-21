@@ -46,8 +46,11 @@ def card(db: Session, f: Funding, work: Work | None = None) -> dict:
     days_left = None
     if f.status == FundingStatus.OPEN and f.close_at:
         days_left = max(0, (f.close_at.date() - clock.now().date()).days)
+    creator = db.get(User, work.creator_id)
     return {**FundingOut.model_validate(f).model_dump(), "work_title": work.title, "cover_url": work.cover_url,
-            "progress": FundingProgress(**svc.funding_progress(db, f)), "days_left": days_left}
+            "progress": FundingProgress(**svc.funding_progress(db, f)), "days_left": days_left,
+            "creator_nickname": creator.nickname if creator else "", "work_type": str(work.type), "genre": work.genre or "",
+            "pitch": (work.synopsis or "").split("\n")[0][:80]}
 
 
 def detail(db: Session, f: Funding) -> FundingDetailOut:

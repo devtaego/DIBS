@@ -1,194 +1,310 @@
+import type React from 'react';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { Dibby } from '@/components/dibby';
 import { ErrorBox, Loading } from '@/components/ui';
-import {
-  Badge, Button, Callout, DScreen, IconButton, InvestSummary, KV, OfferingTable, OfferingTimeline, Panel, Section,
-  Tabs, TopAppBar, Txt, color, spacing,
-} from '@/ds';
-import { api, track, type Disclosure, type FundingDetail, type Indicators, type Serial, type Subscription, type WorkDetail } from '@/lib/api';
-import { ddayText, manwon, typeLabel } from '@/lib/cards';
-import { bps, dateText } from '@/lib/format';
-import { DNote } from '@/components/dibby';
+import { CoverImg, HeadBtn, Icon, PINK, Spark, Tag, Txt, color, wonText } from '@/ds';
+import { api, track, type Creator, type Disclosure, type Episode, type FundingDetail, type Indicators, type Serial, type Subscription, type WorkDetail } from '@/lib/api';
+import { dateText } from '@/lib/format';
+import { nowMs } from '@/lib/now';
+import { shareWork } from '@/lib/share';
 import { useApi } from '@/lib/useApi';
 
-type Tab = 'invest' | 'work' | 'serial' | 'disclosure';
-const SERIAL_LABEL: Record<Serial['state'], string> = {
-  ON_TRACK: '연재 정상', WARNING: '연재 지연', BREACH: '기한 초과', COMPLETED: '시즌 완결', EARLY_COMPLETED: '조기 완결', DISCONTINUED: '연재 중단',
-};
-const SPECIAL_LABEL: Record<string, string> = { DISCONTINUE: '연재 중단', EARLY_COMPLETION: '조기 완결', ESCROW_FORFEIT: '유보금', CLAWBACK: '작가 반환금' };
+// 04 펀딩 · 상세 (Screens – MVP v2): 소개 · 작품 · 작가 이야기 · 펀딩 계획
+type Tab = '소개' | '작품' | '작가 이야기' | '펀딩 계획';
+const TABS: Tab[] = ['소개', '작품', '작가 이야기', '펀딩 계획'];
+const SOFT = '#FFF6F9';
+const SOFT_LINE = '#F6D6E2';
 
-// V2 07 작품 상세 (투자 정보 · 작품 소개 · 연재 약정 · 공시)
 export default function FundingScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const [tab, setTab] = useState<Tab>('invest');
-  const { data, error, loading, reload } = useApi(
-    async () => {
-      const [f, ind, disc, ser] = await Promise.all([
-        api.get<FundingDetail>(`/fundings/${id}`),
-        api.get<Indicators>(`/fundings/${id}/indicators`),
-        api.get<Disclosure>(`/fundings/${id}/disclosure`),
-        api.get<Serial>(`/fundings/${id}/serial`),
-      ]);
-      const work = await api.get<WorkDetail>(`/works/${f.work_id}`);
-      let sub: Subscription | null = null;
-      try {
-        sub = await api.get<Subscription>(`/fundings/${id}/subscriptions/me`);
-      } catch {
-        /* 청약 없음 */
-      }
-      return { f, ind, disc, ser, work, sub };
-    },
-    [id],
-    30_000,
-  );
+  const [tab, setTab] = useState<Tab>('소개');
+  const [note, setNote] = useState('');
+  const { data, error, loading, reload } = useApi(async () => {
+    const [f, ind, disc, ser] = await Promise.all([
+      api.get<FundingDetail>(`/fundings/${id}`),
+      api.get<Indicators>(`/fundings/${id}/indicators`).catch(() => null),
+      api.get<Disclosure>(`/fundings/${id}/disclosure`).catch(() => null),
+      api.get<Serial>(`/fundings/${id}/serial`).catch(() => null),
+    ]);
+    const [work, eps] = await Promise.all([api.get<WorkDetail>(`/works/${f.work_id}`), api.get<Episode[]>(`/works/${f.work_id}/episodes`)]);
+    const creator = await api.get<Creator>(`/creators/${work.creator_id}`).catch(() => null);
+    const sub = await api.get<Subscription>(`/fundings/${id}/subscriptions/me`).catch(() => null);
+    return { f, ind, disc, ser, work, eps, creator, sub };
+  }, [id], 30_000);
   useEffect(() => track('FUNDING_VIEW', { funding_id: Number(id) }), [id]);
 
-  const header = <TopAppBar type="Sub" title="작품 상세" actions={[{ icon: 'home', label: '홈', onPress: () => router.replace('/') }]} />;
   if (!data) {
     return (
-      <DScreen header={header}>
+      <SafeAreaView style={{ flex: 1, backgroundColor: color.bgNormal }}>
         <Stack.Screen options={{ headerShown: false }} />
         {loading ? <Loading /> : <ErrorBox error={error} onRetry={reload} />}
-      </DScreen>
+      </SafeAreaView>
     );
   }
-  const { f, ind, disc, ser, work, sub } = data;
+  const { f, ind, disc, ser, work, eps, creator, sub } = data;
   const open = f.status === 'OPEN';
   const listed = f.status === 'LISTED' || f.status === 'SUSPENDED';
   const pct = Math.round(f.progress.achievement_pct);
-  const toggleDib = async () => {
-    if (work.is_dibbed) await api.del(`/works/${work.id}/dib`);
-    else await api.put(`/works/${work.id}/dib`);
-    reload();
-  };
+  const bar = Math.min(100, pct);
+  const left = f.days_left ?? (f.close_at ? Math.max(0, Math.ceil((Date.parse(`${f.close_at}+09:00`) - nowMs()) / 86_400_000)) : null);
+  const dday = open ? (left == null ? '모집 중' : left <= 0 ? '오늘 마감' : `D-${left}`) : listed ? '상장' : f.status === 'APPROVED' ? '오픈 예정' : '모집 마감';
+
+  const cta = listed
+    ? { label: 'IP토큰 시세 보기', go: () => router.push(`/security/${f.id}`) }
+    : sub?.status === 'ACTIVE'
+      ? { label: `${wonText(sub.units * f.unit_price)} 펀딩 중 · 금액 바꾸기`, go: () => router.push(`/subscribe/${f.id}`) }
+      : { label: open ? '펀딩하기' : '모집이 끝났어요', go: () => router.push(`/subscribe/${f.id}`) };
 
   return (
-    <DScreen
-      header={header}
-      onRefresh={reload}
-      footer={
-        <>
-          <IconButton icon={work.is_dibbed ? 'heartF' : 'heart'} label={work.is_dibbed ? '찜 해제' : '찜하기'} variant="Background" c={work.is_dibbed ? color.primaryNormal : color.labelStrong} onPress={toggleDib} />
-          <View style={{ flex: 1 }}>
-            {listed ? (
-              <Button label="조각 시세 보기" onPress={() => router.push(`/security/${f.id}`)} />
-            ) : (
-              <Button
-                label={sub?.status === 'ACTIVE' ? `${manwon(sub.units * f.unit_price)} 청약 중 · 금액 바꾸기` : `${f.unit_price.toLocaleString('ko-KR')}원부터 투자하기`}
-                disabled={!open}
-                onPress={() => router.push(`/subscribe/${f.id}`)}
-              />
-            )}
-          </View>
-        </>
-      }>
+    <View style={{ flex: 1, backgroundColor: color.bgNormal }}>
       <Stack.Screen options={{ headerShown: false }} />
-      <InvestSummary
-        id={f.work_id}
-        title={f.work_title}
-        by={`${typeLabel(work.type)} · ${work.genre} · 관심 ${work.dib_count.toLocaleString('ko-KR')}명`}
-        format={typeLabel(work.type)}
-        coverUrl={work.cover_url}
-        status={listed ? 'Trading' : open ? 'Recruiting' : 'Closed'}
-        statusText={listed ? '거래 중' : open ? (ddayText(f) ? `청약 중 · ${ddayText(f)}` : '청약 중') : '모집 마감'}
-        mainValue={`${pct.toLocaleString('ko-KR')}%`}
-        mainSub={`${manwon(f.progress.raised_amount)} / 목표 ${manwon(f.target_amount)}`}
-        progress={pct}
-        ride={open}
-      />
-
-      <Tabs value={tab} onChange={setTab} options={[{ key: 'invest', label: '투자 정보' }, { key: 'work', label: '작품 소개' }, { key: 'serial', label: '연재 약정' }, { key: 'disclosure', label: '공시' }]} />
-
-      {tab === 'invest' ? (
-        <>
-          <Section title="공모 조건" size="Medium">
-            <OfferingTable
-              rows={[
-                { k: '모집 금액', v: manwon(f.target_amount), strong: true },
-                { k: '1인 한도', v: `${f.per_user_cap_units.toLocaleString('ko-KR')}조각`, sub: manwon(f.per_user_cap_units * f.unit_price) },
-                { k: '상품 기간', v: `시즌 ${ind.season_months}개월 + ${ind.tail_months}개월`, sub: '완결 후 기간까지 정산을 받아요' },
-                { k: '내 몫', v: `작품 매출의 ${bps(f.terms.royalty_holder_bps)}`, sub: `투자금만큼 받은 뒤엔 ${bps(f.terms.royalty_holder_after_bps)}` },
-                { k: '정산', v: '분기마다', sub: '키움증권 계좌로 들어와요' },
-                { k: '신청이 몰리면', v: '나눠서 배정', sub: '남은 돈은 바로 환불' },
-                { k: '원금', v: '돌려주지 않아요', sub: '정산금으로 돌려받는 구조예요' },
-              ]}
-            />
-            <Callout title="투자금은 이렇게 돌아와요">
-              {`작품이 벌어들인 매출의 ${bps(f.terms.royalty_holder_bps)}를 조각 가진 분들이 나눠 받아요. 받은 정산금이 투자한 금액만큼 쌓이면 그때부터는 ${bps(f.terms.royalty_holder_after_bps)}만 받고, 나머지는 작가에게 돌아가요.`}
-            </Callout>
-          </Section>
-          <Section title="청약 일정" size="Medium">
-            <OfferingTimeline
-              steps={[
-                { label: '청약 시작', date: dateText(f.open_at) || '-', state: 'done' },
-                { label: '청약 마감', date: dateText(f.close_at) || '-', state: open ? 'now' : 'done' },
-                { label: '배정·환불', date: '마감 다음 날', state: open ? 'next' : listed ? 'done' : 'now' },
-                { label: '발행·상장', date: '배정 후 약 1주', state: listed ? 'done' : 'next' },
-                { label: '첫 분기 정산', date: '분기 말 다음 달 10일', state: 'next' },
-              ]}
-            />
-          </Section>
-        </>
-      ) : null}
-
-      {tab === 'work' ? (
-        <Section title="작품 소개" size="Medium">
-          <Txt v="body2" c={color.labelNormal}>{work.synopsis || '작품 소개가 아직 없어요.'}</Txt>
-          <Button label={`${work.episode_count}화 보러 가기`} tone="Assistive" size="Medium" onPress={() => router.push(`/work/${work.id}`)} />
-          {f.reward_tiers.length ? (
-            <View style={{ gap: spacing.gapM }}>
-              <Txt v="body1" w="bold" c={color.labelStrong}>함께 받는 리워드</Txt>
-              {f.reward_tiers.map((r) => <KV key={r.id} k={r.title} v={`${r.min_units}조각부터`} />)}
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 110 }} stickyHeaderIndices={[2]}>
+        <View style={{ height: 210 }}>
+          <CoverImg id={f.work_id} url={work.cover_url} title={f.work_title} w="100%" h={210} r={0} shadow={false} />
+          <LinearGradient colors={['rgba(10,8,14,0.5)', 'rgba(10,8,14,0)', 'rgba(10,8,14,0.35)']} locations={[0, 0.4, 1]} style={StyleSheet.absoluteFill} />
+          <SafeAreaView edges={['top']} style={{ position: 'absolute', left: 0, right: 0, top: 0 }}>
+            <View style={{ height: 52, flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 8, alignItems: 'center' }}>
+              <HeadBtn icon="back" label="뒤로" c={color.white} onPress={() => (router.canGoBack() ? router.back() : router.replace('/funding'))} />
+              <HeadBtn icon="share" label="공유" c={color.white} onPress={async () => { const m = await shareWork(work.id, work.title); if (m) { setNote(m); setTimeout(() => setNote(''), 1800); } }} />
             </View>
-          ) : null}
-        </Section>
-      ) : null}
-
-      {tab === 'serial' ? (
-        <Panel>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Txt v="body1" w="bold" c={color.labelStrong}>시즌 {ser.committed_episodes}화 · 한 달 {ser.monthly_quota}화</Txt>
-            <Badge label={SERIAL_LABEL[ser.state]} type={ser.state === 'ON_TRACK' || ser.state === 'COMPLETED' ? 'Recruiting' : 'Deadline'} />
+          </SafeAreaView>
+          <View style={{ position: 'absolute', left: 20, bottom: 14, flexDirection: 'row', gap: 6 }}>
+            <Tag label={work.type === 'WEBNOVEL' ? '웹소설' : '웹툰'} />
+            <Tag label={dday} tone="dark" />
           </View>
-          <KV k="연재 진행" v={`${ser.published}화 / 기한상 ${ser.expected}화`} vColor={ser.delay_episodes ? color.negative : undefined} />
-          <KV k="미리 알린 휴재" v={`${ser.hiatus_weeks_used}주 / ${ser.hiatus_limit_weeks}주`} />
-          {ser.creator_escrow_balance ? <KV k="유보 중인 작가 매출 몫" v={manwon(ser.creator_escrow_balance)} /> : null}
-          {ser.clawback_due ? <KV k="작가 반환 청구 (남은 금액)" v={manwon(ser.clawback_outstanding)} vColor={color.negative} /> : null}
-          {ser.special_distributions.map((d) => <KV key={d.id} k={`특별 분배 · ${SPECIAL_LABEL[d.kind] ?? d.kind}`} v={`${manwon(d.amount)}${d.status === 'PAID' ? '' : ' (지급 중)'}`} />)}
-          <Callout>
-            {`작가 제작비는 상장 40% · ${Math.ceil(ser.committed_episodes / 2)}화 30% · ${ser.committed_episodes}화 30%로 나눠 지급해요. ${ser.rules.delay_breach_episodes}화가 밀리면 남은 제작비를 보유자에게 나누고, 작가 귀책이면 받은 제작비의 ${bps(ser.rules.clawback_bps)}를 돌려받아요.`}
-          </Callout>
-        </Panel>
-      ) : null}
+        </View>
 
-      {tab === 'disclosure' ? (
-        <>
-          <Panel>
-            <Txt v="body1" w="bold" c={color.labelStrong}>투자금 100원은 이렇게 쓰여요</Txt>
-            <KV k="작가 제작비" v={`${disc.cost_per_100.creator}원`} />
-            <KV k="발행 실비 (신고·법률·회계)" v={`${disc.cost_per_100.issuance_cost}원`} />
-            <KV k="DIBS" v={`${disc.cost_per_100.dibs}원`} />
-            <Txt v="caption1" c={color.labelAlternative}>{disc.settlement_basis}</Txt>
-          </Panel>
-          {disc.reconciliation.map((r) => (
-            <Panel key={r.period}>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Txt v="body1" w="bold" c={color.labelStrong}>{r.period} 정산 대사</Txt>
-                <Badge label={r.matched ? '일치' : '불일치'} type={r.matched ? 'Recruiting' : 'Deadline'} />
+        <View style={{ paddingHorizontal: 24, paddingTop: 16, gap: 8 }}>
+          {creator ? <Txt v="caption1" w="medium" c={color.labelAlternative}>{creator.nickname}</Txt> : null}
+          <Txt v="headline1" w="bold" c={color.labelStrong}>{f.work_title}</Txt>
+          <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 8 }}>
+            <Txt v="heading1" w="bold" c={PINK} tabular>{pct}%</Txt>
+            <Txt v="body2" w="bold" c={color.labelStrong} tabular>{wonText(f.progress.raised_amount)}</Txt>
+            <View style={{ flex: 1 }} />
+            <Txt v="caption1" w="medium" c={color.labelAlternative}>{f.progress.participants.toLocaleString('ko-KR')}명 펀딩</Txt>
+          </View>
+          <View style={{ marginTop: 30 }}>
+            <View pointerEvents="none" style={{ position: 'absolute', bottom: 4, left: `${bar}%`, marginLeft: -24 }}><Dibby pose="run" size={40} /></View>
+            <View style={{ height: 6, borderRadius: 999, backgroundColor: color.fillNormal, overflow: 'hidden' }}>
+              <View style={{ width: `${bar}%`, height: '100%', borderRadius: 999, backgroundColor: PINK }} />
+            </View>
+          </View>
+          <Txt v="caption1" c={color.labelAssistive}>목표 {wonText(f.target_amount)} · 1조각 {f.unit_price.toLocaleString('ko-KR')}원</Txt>
+        </View>
+
+        <View style={{ backgroundColor: color.bgNormal }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 16, paddingHorizontal: 20, height: 46, borderTopWidth: 1, borderBottomWidth: 1, borderColor: color.lineAlternative }} accessibilityRole="tablist">
+            {TABS.map((t, i) => (
+              <View key={t} style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }}>
+                {i ? <View style={{ width: 1, height: 12, backgroundColor: color.lineNeutral }} /> : null}
+                <Pressable onPress={() => setTab(t)} accessibilityRole="tab" accessibilityState={{ selected: t === tab }} style={{ flex: 1, height: 44, alignItems: 'center', justifyContent: 'center' }}>
+                  <Txt v="label1" w="bold" c={t === tab ? color.labelStrong : color.labelAssistive}>{t}</Txt>
+                </Pressable>
               </View>
-              <KV k="유료 결제 (원천)" v={manwon(r.unlock_gross)} />
-              <KV k="신탁 계좌 입금" v={manwon(r.trust_inflow)} />
-              <KV k="신탁을 거치지 않은 결제" v={`${r.leaked_unlocks}건`} vColor={r.leaked_unlocks ? color.negative : undefined} />
-              <Txt v="caption2" c={color.labelAssistive}>원장 해시 {r.ledger_hash.slice(0, 16)}… ({r.records}건)</Txt>
-            </Panel>
-          ))}
-          {disc.verification.map((v) => <Txt key={v} v="caption1" c={color.labelAlternative}>· {v}</Txt>)}
-        </>
-      ) : null}
+            ))}
+          </View>
+        </View>
 
-      <DNote title="잠깐, 꼭 확인해 주세요" text="원금 손실이 날 수 있고 예금자 보호 대상이 아니에요. 만기에는 마지막 정산 후 권리가 작가에게 돌아가요." style={{ marginTop: 0 }} />
-    </DScreen>
+        {tab === '소개' ? (
+          <View style={{ paddingHorizontal: 20, paddingTop: 18 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 12 }}>
+              <View style={{ height: 22, paddingHorizontal: 8, borderRadius: 999, backgroundColor: '#FDEBF1', justifyContent: 'center' }}><Txt v="caption1" w="bold" c={PINK}>상장 전</Txt></View>
+              <Txt v="body1" w="bold" c={color.labelStrong}>미리보기 반응 지표</Txt>
+            </View>
+            <Metric title="1화 → 3화 연독률" value={ind?.pilot_read_through != null ? `${Math.round(ind.pilot_read_through * 100)}%` : '-'}
+              desc="1화를 끝까지 본 독자 중 공개된 마지막 무료 회차까지 본 비율이에요.">
+              {ind?.pilot_read_through != null ? (
+                <View style={{ height: 8, marginTop: 10, marginBottom: 6, borderRadius: 999, backgroundColor: color.fillNormal, overflow: 'hidden' }}>
+                  <View style={{ width: `${Math.round(ind.pilot_read_through * 100)}%`, height: '100%', borderRadius: 999, backgroundColor: PINK }} />
+                </View>
+              ) : null}
+            </Metric>
+            <Metric title="주간 독자 증가율" value={work.reader_change_1w != null ? `${work.reader_change_1w >= 0 ? '+' : ''}${Math.round(work.reader_change_1w * 100)}%` : '-'}
+              vc={(work.reader_change_1w ?? 0) >= 0 ? color.rise : color.fall} desc="직전 7일 대비 최근 7일 동안 회차를 본 순독자 수의 변화율이에요.">
+              {work.reader_change_1w != null ? <View style={{ marginTop: 8 }}><Spark values={[1, 1 + work.reader_change_1w]} up={work.reader_change_1w >= 0} w={300} h={40} area /></View> : null}
+            </Metric>
+            {ind ? (
+              <Metric title="관심 등록" value={`${ind.dibs_total.toLocaleString('ko-KR')}명`} desc={`최근 7일 ${ind.dibs_7d.toLocaleString('ko-KR')}명이 새로 찜했어요. 최근 4주 열람자 ${ind.pilot_readers_4w.toLocaleString('ko-KR')}명.`} />
+            ) : null}
+            <Txt v="caption2" w="medium" c={color.labelAssistive} style={{ marginTop: 10, marginHorizontal: 2 }}>상장 후에는 종목 상세에서 배당·거래 지표로 이어서 볼 수 있어요.</Txt>
+          </View>
+        ) : null}
+
+        {tab === '작품' ? (
+          <View style={{ paddingHorizontal: 20, paddingTop: 18, gap: 10 }}>
+            <Txt v="body2" c={color.labelNeutral}>{work.synopsis}</Txt>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginTop: 6 }}>
+              <Txt v="label1" w="bold" c={color.labelStrong}>미리보기 {Math.min(3, eps.length)}화</Txt>
+              <Txt v="caption1" w="medium" c={color.labelAssistive}>무료 공개</Txt>
+            </View>
+            {eps.slice(0, 3).map((ep, i) => (
+              <Pressable key={ep.id} onPress={() => router.push(`/episode/${ep.id}`)} accessibilityRole="button"
+                style={{ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 8, borderRadius: 14, backgroundColor: color.elevatedAlternative }}>
+                <CoverImg id={work.id} url={work.cover_url} w={76} h={54} r={10} shadow={false} />
+                <View style={{ flex: 1 }}>
+                  <Txt v="caption1" w="bold" c={PINK}>{ep.no}화</Txt>
+                  <Txt v="label1" w="semibold" c={color.labelStrong} lines={1}>{ep.title === `${ep.no}화` ? `${work.title} ${i + 1}화` : ep.title}</Txt>
+                </View>
+                <View style={{ height: 28, paddingHorizontal: 12, borderRadius: 999, backgroundColor: color.white, borderWidth: 1, borderColor: color.lineNormal, justifyContent: 'center' }}>
+                  <Txt v="caption1" w="bold" c={color.labelStrong}>보기</Txt>
+                </View>
+              </Pressable>
+            ))}
+            <View style={{ padding: 12, paddingHorizontal: 14, borderRadius: 14, backgroundColor: SOFT, borderWidth: 1, borderColor: SOFT_LINE, flexDirection: 'row', gap: 10 }}>
+              <Icon name="lock" size={18} c={PINK} />
+              <Txt v="caption1" w="medium" c="#8C2550" style={{ flex: 1 }}>
+                <Txt v="caption1" w="bold" c="#8C2550">4화부터는 펀딩 성공 후 연재돼요.</Txt> 작품이 IP토큰으로 상장되면 펀딩한 금액만큼 조각을 받고, 상장 뒤 미리보기는 씨앗으로 먼저 볼 수 있어요.
+              </Txt>
+            </View>
+            {f.reward_tiers.length ? (
+              <View style={{ gap: 6, marginTop: 6 }}>
+                <Txt v="label1" w="bold" c={color.labelStrong}>함께 받는 리워드</Txt>
+                {f.reward_tiers.map((r) => (
+                  <View key={r.id} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6 }}>
+                    <Txt v="label2" c={color.labelNeutral} style={{ flex: 1 }}>{r.title}</Txt>
+                    <Txt v="label2" w="semibold" c={color.labelStrong}>{r.min_units.toLocaleString('ko-KR')}조각부터</Txt>
+                  </View>
+                ))}
+              </View>
+            ) : null}
+          </View>
+        ) : null}
+
+        {tab === '작가 이야기' ? (
+          <View style={{ paddingTop: 18 }}>
+            <View style={{ marginHorizontal: 20, padding: 18, paddingBottom: 16, borderRadius: 20, backgroundColor: SOFT, borderWidth: 1, borderColor: SOFT_LINE }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+                <View style={{ width: 38, height: 38, borderRadius: 999, backgroundColor: '#FBD9E3', alignItems: 'center', justifyContent: 'center' }}>
+                  <Txt v="label1" w="bold" c={PINK}>{(creator?.nickname ?? '작').slice(0, 1)}</Txt>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Txt v="label1" w="bold" c={color.labelStrong}>{creator?.nickname ?? '작가'} 작가의 편지</Txt>
+                  <Txt v="caption1" w="medium" c={color.labelAssistive}>작품 {creator?.works.length ?? 1}개 연재</Txt>
+                </View>
+              </View>
+              <Txt v="label2" c={color.labelNeutral} style={{ lineHeight: 21 }}>{creator?.bio || '작가 소개가 아직 없어요.'}</Txt>
+              {f.use_of_funds ? <Txt v="label2" c={color.labelNeutral} style={{ marginTop: 8, lineHeight: 21 }}>모인 돈은 {f.use_of_funds}에 쓸 계획이에요.</Txt> : null}
+            </View>
+            {ser ? (
+              <View style={{ marginHorizontal: 20, marginTop: 12, padding: 14, borderRadius: 16, backgroundColor: '#FFF9EC', flexDirection: 'row', gap: 12, alignItems: 'center' }}>
+                <Dibby pose="careful" size={40} />
+                <Txt v="label2" w="medium" c="#6B4A12" style={{ flex: 1 }}>
+                  시즌 {ser.committed_episodes}화를 한 달 {ser.monthly_quota}화씩 연재하기로 약속했어요. 연재가 석 달치 밀리면 남은 제작비와 유보금이 투자자에게 돌아가요.
+                </Txt>
+              </View>
+            ) : null}
+            {creator && creator.works.length > 1 ? (
+              <View style={{ paddingHorizontal: 20, paddingTop: 18 }}>
+                <Txt v="label1" w="bold" c={color.labelStrong} style={{ marginBottom: 10 }}>{creator.nickname}의 다른 작품</Txt>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10 }}>
+                  {creator.works.filter((w) => w.id !== work.id).slice(0, 8).map((w) => (
+                    <Pressable key={w.id} onPress={() => router.push(`/work/${w.id}`)} style={{ width: 96 }}>
+                      <CoverImg id={w.id} url={w.cover_url} title={w.title} w={96} h={144} r={10} />
+                      <Txt v="caption1" w="semibold" c={color.labelStrong} lines={1} style={{ marginTop: 6 }}>{w.title}</Txt>
+                    </Pressable>
+                  ))}
+                </ScrollView>
+              </View>
+            ) : null}
+          </View>
+        ) : null}
+
+        {tab === '펀딩 계획' ? (
+          <View style={{ paddingTop: 18 }}>
+            <View style={{ flexDirection: 'row', gap: 6, paddingHorizontal: 24 }}>
+              {[
+                [`${ser?.committed_episodes ?? 40}화`, '연재 약정'],
+                [`${(ind?.dibs_total ?? work.dib_count).toLocaleString('ko-KR')}`, '관심 등록'],
+                [`${f.per_user_cap_units.toLocaleString('ko-KR')}조각`, '1인 한도'],
+                [`${f.progress.participants}명`, '참여'],
+              ].map(([v, k]) => (
+                <View key={k} style={{ flex: 1, paddingVertical: 10, paddingHorizontal: 4, borderRadius: 12, backgroundColor: color.elevatedAlternative, alignItems: 'center' }}>
+                  <Txt v="body1" w="bold" c={color.labelStrong}>{v}</Txt>
+                  <Txt v="caption2" w="medium" c={color.labelAlternative}>{k}</Txt>
+                </View>
+              ))}
+            </View>
+            <View style={{ marginHorizontal: 20, marginTop: 12, paddingVertical: 16, paddingHorizontal: 18, borderRadius: 18, backgroundColor: '#FCE9F0', borderWidth: 1, borderColor: '#F3D3E0', overflow: 'hidden' }}>
+              <View style={{ position: 'absolute', right: 10, top: 6 }}><Dibby pose="dibs" size={46} /></View>
+              <Txt v="caption1" w="bold" c={PINK}>10,000원 펀딩하면</Txt>
+              <Txt v="heading2" w="bold" c="#2A1620" style={{ marginVertical: 2 }}>상장되면 IP토큰 {Math.floor(10000 / f.unit_price)}조각</Txt>
+              <Txt v="caption1" w="medium" c="#9C3F66">분기마다 작품 매출의 {(f.terms.royalty_holder_bps / 100).toFixed(0)}%를 조각 수만큼 나눠 받아요 · 수익은 보장되지 않아요</Txt>
+            </View>
+            <View style={{ paddingHorizontal: 24, paddingTop: 18 }}>
+              {[
+                [`펀딩 마감 · ${dateText(f.close_at) || '-'}`, '목표에 못 미치면 묶인 금액을 모두 돌려드려요'],
+                ['배정 · 발행', '신청이 몰리면 20%는 똑같이(추첨), 80%는 신청 수량대로 나눠요'],
+                ['IP토큰 상장', `키움증권 계좌로 조각이 들어오고 마켓에서 사고팔 수 있어요`],
+                ['분기마다 배당금', `매출의 ${(f.terms.royalty_holder_bps / 100).toFixed(0)}%를 조각 보유자가 나눠요 (세금 15.4% 뗀 뒤 지급)`],
+              ].map(([t, d], i, a) => (
+                <View key={t} style={{ flexDirection: 'row', gap: 12, paddingBottom: 12 }}>
+                  {i < a.length - 1 ? <View style={{ position: 'absolute', left: 13, top: 28, bottom: -4, width: 2, backgroundColor: '#F3C7D6' }} /> : null}
+                  <View style={{ width: 28, height: 28, borderRadius: 999, backgroundColor: i === 0 ? PINK : '#FFF3F7', borderWidth: i === 0 ? 0 : 1.5, borderColor: '#F3C7D6', alignItems: 'center', justifyContent: 'center' }}>
+                    <Txt v="label2" w="bold" c={i === 0 ? color.white : PINK}>{i + 1}</Txt>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Txt v="label1" w="bold" c={color.labelStrong} style={{ marginTop: 3 }}>{t}</Txt>
+                    <Txt v="caption1" c={color.labelAlternative}>{d}</Txt>
+                  </View>
+                </View>
+              ))}
+            </View>
+            {disc ? (
+              <View style={{ paddingHorizontal: 24, paddingTop: 4, gap: 8 }}>
+                <Txt v="label1" w="bold" c={color.labelStrong}>모인 돈은 이렇게 써요</Txt>
+                <View style={{ flexDirection: 'row', height: 8, borderRadius: 999, overflow: 'hidden', gap: 2 }}>
+                  <View style={{ flex: disc.cost_per_100.creator, backgroundColor: PINK }} />
+                  <View style={{ flex: disc.cost_per_100.issuance_cost, backgroundColor: '#EF6F9A' }} />
+                  <View style={{ flex: disc.cost_per_100.reserve ?? 0, backgroundColor: '#F3C7D6' }} />
+                  <View style={{ flex: disc.cost_per_100.dibs, backgroundColor: color.fillStrong }} />
+                </View>
+                <Txt v="caption1" w="medium" c={color.labelAlternative}>
+                  작가 {disc.cost_per_100.creator}% · 발행 실비 {disc.cost_per_100.issuance_cost}% · 유보금 {disc.cost_per_100.reserve ?? 0}% · DIBS 운영비 {disc.cost_per_100.dibs}%
+                </Txt>
+                <Txt v="caption1" c={color.labelAssistive}>
+                  작가 몫은 신탁에 두고 상장 40% · 약정 절반 30% · 완결 30%로 나눠 줘요.{disc.creator_token ? ` 작가에게 전체의 ${disc.creator_token.bps / 100}% 조각을 주고 ${disc.creator_token.lockup_months}개월 동안 팔 수 없어요.` : ''}
+                </Txt>
+              </View>
+            ) : null}
+            <View style={{ marginHorizontal: 20, marginTop: 16, padding: 14, borderRadius: 14, borderWidth: 1, borderColor: color.cautionary, flexDirection: 'row', gap: 8, alignItems: 'center' }}>
+              <Icon name="info" size={20} c={color.cautionary} />
+              <Txt v="label2" w="bold" c={color.labelStrong} style={{ flex: 1 }}>원금 손실 가능 · 예금자보호 대상 아니에요</Txt>
+            </View>
+          </View>
+        ) : null}
+      </ScrollView>
+
+      <SafeAreaView edges={['bottom']} style={{ position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: color.bgNormal, borderTopWidth: 1, borderTopColor: color.lineAlternative }}>
+        <View style={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: 12 }}>
+          <Pressable onPress={open || listed || sub ? cta.go : undefined} accessibilityRole="button" accessibilityState={{ disabled: !(open || listed) }}
+            style={({ pressed }) => ({ height: 52, borderRadius: 999, backgroundColor: open || listed ? '#F6A9BF' : color.interactionDisable, alignItems: 'center', justifyContent: 'center', opacity: pressed ? 0.85 : 1 })}>
+            <Txt v="body1" w="bold" c={open || listed ? '#5B1A33' : color.labelDisable}>{cta.label}</Txt>
+          </Pressable>
+        </View>
+      </SafeAreaView>
+      {note ? (
+        <View pointerEvents="none" style={{ position: 'absolute', bottom: 100, left: 0, right: 0, alignItems: 'center' }}>
+          <View style={{ backgroundColor: 'rgba(25,31,40,0.88)', paddingHorizontal: 16, paddingVertical: 10, borderRadius: 999 }}><Txt v="label2" w="semibold" c={color.white}>{note}</Txt></View>
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
+function Metric({ title, value, desc, vc = PINK, children }: { title: string; value: string; desc: string; vc?: string; children?: React.ReactNode }) {
+  return (
+    <View style={{ padding: 16, borderRadius: 18, backgroundColor: color.elevatedAlternative, marginBottom: 10 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' }}>
+        <Txt v="label1" w="bold" c={color.labelStrong}>{title}</Txt>
+        <Txt v="heading1" w="bold" c={vc} tabular>{value}</Txt>
+      </View>
+      {children}
+      <Txt v="caption1" w="medium" c={color.labelAlternative} style={{ marginTop: 10, lineHeight: 18 }}>{desc}</Txt>
+    </View>
   );
 }

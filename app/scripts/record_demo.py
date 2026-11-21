@@ -40,13 +40,13 @@ def main():
             fx[key(path, q)] = data
         return data
 
-    for p in ["/me", "/wallet", "/wallet/history", "/me/holdings", "/me/subscriptions", "/me/dividends", "/me/notifications",
+    for p in ["/me", "/wallet", "/wallet/coin/packages", "/wallet/coin/lots", "/me/attendance", "/notices", "/policies", "/wallet/history", "/me/holdings", "/me/subscriptions", "/me/dividends", "/me/notifications",
               "/config/public", "/health", "/me/limits", "/me/dibs"]:
         get(p)
     get("/me/orders", {"open_only": True})
     get("/me/orders")
     get("/shorts/feed", {"limit": 50})
-    for q in [{"limit": 100}, {"sort": "dibs", "limit": 60}, {"sort": "latest", "limit": 60}, {"sort": "dibs", "limit": 40}, {"sort": "latest", "limit": 40}]:
+    for q in [{"limit": 100}, {"sort": "dibs", "limit": 100}, {"sort": "dibs", "limit": 60}, {"sort": "latest", "limit": 60}, {"sort": "dibs", "limit": 40}, {"sort": "latest", "limit": 40}]:
         get("/works", q)
     get("/fundings", {"status": "OPEN"})
     get("/fundings")
@@ -69,6 +69,7 @@ def main():
         get(f"/market/securities/{sid}/orderbook")
         get(f"/market/securities/{sid}/trades", {"limit": 10})
         get(f"/market/securities/{sid}/dividends")
+        get(f"/market/securities/{sid}/chart")
         for d in [14, 30]:
             get(f"/market/securities/{sid}/chart", {"days": d})
         for side in ["BUY", "SELL"]:

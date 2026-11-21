@@ -82,7 +82,7 @@ export default function AdminPanel() {
       await api.post('/admin/revenues', { funding_id: f.id, period, source: 'AD', gross: 300_000, note: '시연용 광고 매출' });
       const r = await api.post<{ id: number; holder_pool: number; per_unit_gross: number; phase: string }>(`/admin/fundings/${f.id}/dividends`, { period }, { force: true });
       await api.post(`/admin/dividends/${r.id}/pay`, {}, { force: true });
-      return `${period} 투자자 몫 ${won(r.holder_pool)} (주당 ${r.per_unit_gross}원, ${r.phase === 'AFTER_RECOUP' ? '회수 후 35%' : '회수 전 45%'})을 지급했어요`;
+      return `${period} 투자자 몫 ${won(r.holder_pool)} (주당 ${r.per_unit_gross}원)을 지급했어요`;
     });
 
   const milestone = (f: FundingDetail) =>

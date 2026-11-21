@@ -11,6 +11,7 @@ pytestmark = pytest.mark.usefixtures("v5_policy")
 def wallet(api, who):
     w = api.ok(who, "get", "/wallet")
     w.pop("seeds", None)  # 씨앗 개수(표기용)는 coin ÷ 100이라 비교에서 뺀다
+    w.pop("coin_debt", None)
     return w
 
 

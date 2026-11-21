@@ -125,7 +125,7 @@ def breakeven(funding_id: int, price_coin: int = Query(default=300, gt=0), month
 
 
 @router.get("/works/{work_id}/funding-gate", response_model=FundingGateOut,
-            summary="펀딩 개설 조건·목표 금액 상한 (파일럿 4주 유료 구매자 기준)")
+            summary="펀딩 개설 조건·목표 금액 상한 (파일럿 4주 열람자 × 가정 결제율 15%)")
 def funding_gate(work_id: int, target_amount: int = Query(default=10_000_000, gt=0), db: Session = Depends(get_db)):
     content_svc.get_work(db, work_id)
     return FundingGateOut(work_id=work_id, target_amount=target_amount,

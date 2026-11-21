@@ -97,6 +97,12 @@ def apply_funding(db: Session, creator: User, work: Work, data: dict, tiers: lis
                                                 Funding.completed_at.is_(None)))
     if exists:
         raise Conflict("FUNDING_ALREADY_ACTIVE", "이 작품은 이미 진행 중인 펀딩이 있어요")
+    last_fail = db.scalar(select(func.max(Funding.failed_at)).where(Funding.work_id == work.id,
+                                                                    Funding.status == FundingStatus.FAILED))
+    if last_fail is not None:
+        until = last_fail + timedelta(days=settings.funding_retry_cooldown_days)
+        if clock.now() < until:
+            raise Conflict("RETRY_COOLDOWN", f"펀딩이 목표에 못 미친 작품은 {until:%m월 %d일}부터 다시 신청할 수 있어요")
     if len(tiers) > MAX_REWARD_TIERS:
         raise DomainError("TOO_MANY_TIERS", f"리워드 티어는 최대 {MAX_REWARD_TIERS}개예요")
 
@@ -323,7 +329,7 @@ def close_funding(db: Session, f: Funding, force: bool = False) -> CloseResult:
                    "묶여 있던 예치금을 모두 돌려드렸어요.", "funding", f.id)
         if legs_by_user:
             ledger.post(db, "FUNDING_FAILED_RELEASE", legs_by_user, f.mode, "funding", f.id)
-        f.status = FundingStatus.FAILED
+        f.status, f.failed_at = FundingStatus.FAILED, clock.now()
         return CloseResult(f.status, total, f.target_units)
 
     params = dict(f.allocation_params or {})

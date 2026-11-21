@@ -1107,14 +1107,7 @@
             "description": "Bad Request"
           },
           "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            },
-            "description": "Unauthorized"
+            "description": "LOGIN_REQUIRED: 게스트는 1화까지"
           },
           "403": {
             "content": {
@@ -3986,7 +3979,7 @@
         "tags": [
           "wallet"
         ],
-        "summary": "PG 충전분 결제 취소 (7일 안, 미사용)",
+        "summary": "PG 충전분 환불 (7일 안 미사용은 결제 취소, 그 밖에는 남은 씨앗 1,000원 이상 계좌 환불)",
         "operationId": "refund_lot_wallet_coin_lots__lot_id__refund_post",
         "parameters": [
           {
@@ -5339,7 +5332,7 @@
         "tags": [
           "fundings"
         ],
-        "summary": "펀딩 개설 조건·목표 금액 상한 (파일럿 4주 유료 구매자 기준)",
+        "summary": "펀딩 개설 조건·목표 금액 상한 (파일럿 4주 열람자 × 가정 결제율 15%)",
         "operationId": "funding_gate_works__work_id__funding_gate_get",
         "parameters": [
           {
@@ -12383,6 +12376,112 @@
         }
       }
     },
+    "/admin/coin/lots/{lot_id}/iap-refund": {
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "인앱 환불 반영 (스토어 환불 알림 대체). 묶음 회수, 모자라면 다음 충전 때 상계",
+        "operationId": "iap_refund_admin_coin_lots__lot_id__iap_refund_post",
+        "parameters": [
+          {
+            "name": "lot_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Lot Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/admin/jobs/serial-check": {
       "post": {
         "tags": [
@@ -16275,6 +16374,18 @@
             ],
             "title": "Package Id"
           },
+          "parent_lot_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Lot Id",
+            "description": "묶음 보너스면 함께 산 유료 묶음 id"
+          },
           "created_at": {
             "type": "string",
             "format": "date-time",
@@ -17756,7 +17867,17 @@
           "pilot_paying_fans_4w": {
             "type": "integer",
             "title": "Pilot Paying Fans 4W",
-            "description": "최근 4주 유료 미리보기 구매자"
+            "description": "최근 4주 유료 미리보기 구매자 (상장 전에는 0)"
+          },
+          "expected_paying_fans": {
+            "type": "integer",
+            "title": "Expected Paying Fans",
+            "description": "월 유료 팬 추정 (상한·시나리오 기준)"
+          },
+          "fans_basis": {
+            "type": "string",
+            "title": "Fans Basis",
+            "description": "READERS_X_PAY_RATE = 파일럿 4주 열람자 × 가정 결제율 15% (상장 전 유료 미리보기 없음) | PAID_PILOT = 실제 유료 구매자"
           },
           "paying_fans_needed": {
             "type": "integer",
@@ -17774,7 +17895,7 @@
           "target_cap": {
             "type": "integer",
             "title": "Target Cap",
-            "description": "유료 팬 × 1명당 상품 기간 투자자 몫(세후) × 70%"
+            "description": "월 유료 팬 추정 × 1명당 상품 기간 투자자 몫(세후) × 70%"
           },
           "within_cap": {
             "type": "boolean",
@@ -17791,6 +17912,8 @@
           "target_amount",
           "pilot_readers_4w",
           "pilot_paying_fans_4w",
+          "expected_paying_fans",
+          "fans_basis",
           "paying_fans_needed",
           "gate_threshold",
           "passes_gate",
@@ -17799,7 +17922,7 @@
           "enforced"
         ],
         "title": "FundingGateOut",
-        "description": "펀딩 개설 조건과 목표 금액 상한 (v5.0: 유료 팬 기준)."
+        "description": "펀딩 개설 조건과 목표 금액 상한 (v2.2: 상장 전 유료 미리보기가 없어 열람자 × 결제율로 추정)."
       },
       "FundingIndicatorsOut": {
         "properties": {
@@ -17836,7 +17959,17 @@
           "pilot_paying_fans_4w": {
             "type": "integer",
             "title": "Pilot Paying Fans 4W",
-            "description": "최근 4주 유료 미리보기 구매자 = 월 유료 팬"
+            "description": "최근 4주 유료 미리보기 구매자 (상장 전에는 0)"
+          },
+          "expected_paying_fans": {
+            "type": "integer",
+            "title": "Expected Paying Fans",
+            "description": "월 유료 팬 추정 (상한·시나리오 기준)"
+          },
+          "fans_basis": {
+            "type": "string",
+            "title": "Fans Basis",
+            "description": "READERS_X_PAY_RATE = 파일럿 4주 열람자 × 가정 결제율 15% (상장 전 유료 미리보기 없음) | PAID_PILOT = 실제 유료 구매자"
           },
           "paying_fans_needed": {
             "type": "integer",
@@ -17894,6 +18027,8 @@
           "pilot_readers_4w",
           "pilot_read_through",
           "pilot_paying_fans_4w",
+          "expected_paying_fans",
+          "fans_basis",
           "paying_fans_needed",
           "gate_threshold",
           "passes_gate",
@@ -21795,6 +21930,12 @@
             "type": "integer",
             "title": "Deposit Locked",
             "description": "청약·주문·출금 대기로 묶인 예치금"
+          },
+          "coin_debt": {
+            "type": "integer",
+            "title": "Coin Debt",
+            "description": "인앱 환불로 생긴 씨앗 부족분(원). 다음 충전 때 먼저 상계",
+            "default": 0
           }
         },
         "type": "object",

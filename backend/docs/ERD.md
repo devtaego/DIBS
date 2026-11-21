@@ -145,6 +145,7 @@ erDiagram
         datetime expires_at
         string status
         string package_id
+        integer parent_lot_id FK
         integer journal_id FK
         datetime created_at
     }
@@ -254,6 +255,7 @@ erDiagram
         integer exclusive_months
         datetime exclusive_until
         integer external_share_bps
+        datetime failed_at
         datetime completed_at
         datetime terminated_at
         string termination_reason
@@ -483,6 +485,7 @@ erDiagram
         string broker_name
         string broker_account_masked
         datetime account_changed_at
+        bigint coin_debt
         date birth_date
         datetime created_at
         datetime updated_at
@@ -513,6 +516,7 @@ erDiagram
         datetime updated_at
     }
     accounts ||--o{ postings : "account_id"
+    coin_lots ||--o{ coin_lots : "parent_lot_id"
     dividend_runs ||--o{ dividend_payments : "run_id"
     episodes ||--o{ content_events : "episode_id"
     episodes ||--o{ episode_unlocks : "episode_id"

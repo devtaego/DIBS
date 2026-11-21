@@ -49,7 +49,7 @@ def seed_pilot_events(work_id: int, readers: int, finish_1: float, finish_3: flo
     db.close()
 
 def seed_paying_fans(work_id: int, fans: int) -> None:
-    """최근 4주 유료 미리보기 구매자 (4화 300원). 시연용이라 분개 1건을 공유하고 계정만 따로 만든다."""
+    """상장 작품의 최근 4주 유료 미리보기 구매자 (4화 300원). 시연용이라 분개 1건을 공유하고 계정만 따로 만든다."""
     rnd = random.Random(work_id * 7)
     now = clock.now()
     db = SessionLocal()
@@ -186,13 +186,11 @@ def main() -> None:
         # 작품 A: 모집 중 842%
         a = make_work("악녀인데 남주들이 나를 숭배한다", "로맨스 판타지", 14, cover=COVERS.get("악녀인데 남주들이 나를 숭배한다"),
                       synopsis="소설 속 악녀로 눈을 떴는데, 원작 남주들이 하나같이 나를 숭배한다.")
-        seed_pilot_events(a, 32_000, 0.85, 0.55)
+        seed_pilot_events(a, 44_000, 0.85, 0.55)
         for r in readers[:3]:
             call(r, "put", f"/works/{a}/dib")
         call("creator", "patch", "/me", json={"bio": "로맨스 판타지를 그리는 신인 작가"})
-        for ep in call("creator", "get", f"/works/{a}/episodes")[3:]:  # 4화부터 유료 미리보기
-            call("admin", "patch", f"/admin/episodes/{ep['id']}/pricing", json={"is_paid": True})
-        seed_paying_fans(a, 5_200)  # 유료 팬 5,200명 → 목표 금액 상한 1,500만 원
+        # 상장 전 공개 회차는 무료 (유료 미리보기는 상장 후). 상한은 열람자 44,000 × 결제율 15% = 6,600명 기준 1,500만 원
         fa = make_funding(a, 15000, [{"title": "에필로그 크레딧 등재", "min_units": 10},
                                      {"title": "한정판 양장본 + 넘버링 카드", "min_units": 300, "limited_qty": 50,
                                      "requires_shipping": True}])
@@ -201,10 +199,7 @@ def main() -> None:
 
         # 작품 B: 상장 + 거래
         b = make_work("청월도", "무협", 8, cover=COVERS.get("청월도"), synopsis="달빛이 푸른 밤, 멸문한 가문의 막내가 검을 든다.")
-        seed_pilot_events(b, 20_000, 0.8, 0.5)
-        for ep in call("creator", "get", f"/works/{b}/episodes")[3:]:
-            call("admin", "patch", f"/admin/episodes/{ep['id']}/pricing", json={"is_paid": True})
-        seed_paying_fans(b, 3_500)  # 유료 팬 3,500명 → 상한 1,000만 원
+        seed_pilot_events(b, 30_000, 0.8, 0.5)
         for r in readers[3:6]:
             call(r, "put", f"/works/{b}/dib")  # 모집 전 찜 → 초기 독자 우선 배정
         fb = make_funding(b, 10000, [])
@@ -215,6 +210,9 @@ def main() -> None:
         for step, extra in [("FILED", {}), ("ISSUED", {"security_code": "KRDIBS0000002", "trustee": "모의신탁"}),
                             ("LISTING_SCHEDULED", {"listing_date": clock.now().date().isoformat()}), ("LISTED", {})]:
             call("admin", "post", f"/admin/fundings/{fb}/issuance/advance", json={"step": step, **extra})
+        for ep in call("creator", "get", f"/works/{b}/episodes")[3:]:  # 상장 후 4화부터 유료 미리보기
+            call("admin", "patch", f"/admin/episodes/{ep['id']}/pricing", json={"is_paid": True})
+        seed_paying_fans(b, 3_500)  # 상장 후 4주 유료 구매자 (시연용 일괄 생성)
         order = {"funding_id": fb, "agree_risk_notice": True}
         call("reader1", "post", "/market/orders", json={**order, "side": "SELL", "price": 1_150, "units": 100})
         call("reader2", "post", "/market/orders", json={**order, "side": "BUY", "price": 1_150, "units": 60})
@@ -240,9 +238,7 @@ def main() -> None:
         ]
         for i, (title, genre, wtype, target, subscribers, days, syn) in enumerate(extra):
             wid = make_work(title, genre, 10, wtype, COVERS.get(title), syn)
-            for ep in call("creator", "get", f"/works/{wid}/episodes")[3:]:
-                call("admin", "patch", f"/admin/episodes/{ep['id']}/pricing", json={"is_paid": True})
-            seed_paying_fans(wid, 3_600 + i * 400)
+            seed_pilot_events(wid, target * 3 + i * 500, 0.8, 0.5)  # 열람자 × 15% → 목표 금액 상한 안쪽
             for r in readers[6 + i: 9 + i] + (["reader1"] if days <= 2 else []):  # reader1: 마감 임박 찜 알림 시연
                 call(r, "put", f"/works/{wid}/dib")
             now = clock.now()

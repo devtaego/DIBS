@@ -42,7 +42,7 @@ def coin_lots(db: Session = Depends(get_db), user: User = Depends(current_user))
     return coins.lots_of(db, user)
 
 
-@router.post("/coin/lots/{lot_id}/refund", response_model=CoinLotOut, summary="PG 충전분 결제 취소 (7일 안, 미사용)")
+@router.post("/coin/lots/{lot_id}/refund", response_model=CoinLotOut, summary="PG 충전분 환불 (7일 안 미사용은 결제 취소, 그 밖에는 남은 씨앗 1,000원 이상 계좌 환불)")
 def refund_lot(lot_id: int, db: Session = Depends(get_db), user: User = Depends(current_user)):
     return coins.refund_lot(db, user, lot_id)
 

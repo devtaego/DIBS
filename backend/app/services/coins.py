@@ -35,11 +35,22 @@ def _expiry(source: str):
 
 
 def credit(db: Session, user_id: int, source: str, amount: int, journal: Journal | None,
-           paid_amount: int = 0, package_id: str | None = None) -> CoinLot:
+           paid_amount: int = 0, package_id: str | None = None, parent_lot_id: int | None = None) -> CoinLot:
     lot = CoinLot(user_id=user_id, source=source, amount=amount, remaining=amount, paid_amount=paid_amount,
-                  expires_at=_expiry(source), package_id=package_id, journal_id=journal.id if journal else None)
+                  expires_at=_expiry(source), package_id=package_id, journal_id=journal.id if journal else None,
+                  parent_lot_id=parent_lot_id)
     db.add(lot)
     db.flush()
+    user = db.get(User, user_id)
+    if user is not None and (user.coin_debt or 0) > 0:  # 인앱 환불 부족분을 새로 들어온 씨앗에서 먼저 상계
+        off = min(user.coin_debt, amount)
+        coin = ledger.get_account(db, AccountKind.COIN, COIN_MODE, user_id)
+        ledger.post(db, "COIN_DEBT_OFFSET", [Leg(coin, -off), Leg(ledger.sys(db, AccountKind.SYS_PG, COIN_MODE), off)],
+                    COIN_MODE, "user", user_id, memo="인앱 환불 부족분 상계")
+        lot.remaining -= off
+        user.coin_debt -= off
+        if lot.remaining == 0:
+            lot.status = "USED"
     return lot
 
 
@@ -85,26 +96,81 @@ def buy_package(db: Session, user: User, package_id: str, channel: str) -> dict:
         jb = ledger.post(db, "COIN_BONUS", [Leg(ledger.sys(db, AccountKind.SYS_PROMOTION, COIN_MODE), -pkg["bonus_coin"]),
                                             Leg(coin, pkg["bonus_coin"])], COIN_MODE, "user", user.id,
                          memo=f"묶음 보너스 씨앗 {pkg['bonus_seeds']}개")
-        lots.append(credit(db, user.id, "BONUS", pkg["bonus_coin"], jb, package_id=package_id))
+        lots.append(credit(db, user.id, "BONUS", pkg["bonus_coin"], jb, package_id=package_id, parent_lot_id=lots[0].id))
     return {"package": pkg, "channel": channel, "paid_amount": paid, "lots": lots}
 
 
+def _revoke_bonus_children(db: Session, lot: CoinLot) -> int:
+    """환불한 유료 묶음과 함께 받은 묶음 보너스 중 남은 양을 회수한다."""
+    coin = ledger.get_account(db, AccountKind.COIN, COIN_MODE, lot.user_id)
+    total = 0
+    for b in db.scalars(select(CoinLot).where(CoinLot.parent_lot_id == lot.id, CoinLot.status == "ACTIVE")):
+        amt = min(b.remaining, ledger.balance(db, coin))
+        if amt > 0:
+            ledger.post(db, "COIN_BONUS_REVOKE", [Leg(coin, -amt), Leg(ledger.sys(db, AccountKind.SYS_PROMOTION, COIN_MODE), amt)],
+                        COIN_MODE, "coin_lot", b.id, memo="환불한 묶음의 보너스 씨앗 회수")
+            total += amt
+        b.remaining, b.status = 0, "REFUNDED"
+    return total
+
+
+def _bonus_untouched(db: Session, lot: CoinLot) -> bool:
+    return all(b.remaining == b.amount for b in db.scalars(select(CoinLot).where(CoinLot.parent_lot_id == lot.id)))
+
+
 def refund_lot(db: Session, user: User, lot_id: int) -> CoinLot:
-    """PG 충전분 결제 취소: 결제 후 7일 안이고 한 번도 쓰지 않았을 때만."""
+    """PG 충전분 환불 (기획서 3-4-5).
+
+    - 결제 후 7일 안이고 한 번도 안 썼으면(묶음 보너스 포함) 결제 취소: 결제 금액 전액
+    - 그 밖에는 남은 씨앗만큼 본인 계좌로 환불(수수료 없음). 남은 금액이 1,000원 미만이면 환불 불가
+    - 어느 쪽이든 함께 받은 묶음 보너스의 남은 양은 회수한다
+    """
     lot = db.get(CoinLot, lot_id)
     if lot is None or lot.user_id != user.id:
         raise NotFound("COIN_LOT_NOT_FOUND", "충전 내역을 찾을 수 없어요")
     if lot.source != "PG":
-        raise Conflict("NOT_REFUNDABLE", "카드·계좌 결제(PG)로 충전한 씨앗만 여기서 취소할 수 있어요")
-    if lot.status != "ACTIVE" or lot.remaining != lot.amount:
-        raise Conflict("NOT_REFUNDABLE", "이미 쓴 씨앗이 있어 결제 취소할 수 없어요")
-    if clock.now() > lot.created_at + timedelta(days=settings.pg_refund_days):
-        raise Conflict("NOT_REFUNDABLE", f"결제 후 {settings.pg_refund_days}일이 지나 취소할 수 없어요")
+        raise Conflict("NOT_REFUNDABLE", "카드·계좌 결제(PG)로 충전한 씨앗만 환불할 수 있어요. 인앱결제는 스토어에서 환불해요")
+    if lot.status != "ACTIVE" or lot.remaining <= 0:
+        raise Conflict("NOT_REFUNDABLE", "환불할 씨앗이 남아 있지 않아요")
     coin = ledger.get_account(db, AccountKind.COIN, COIN_MODE, user.id)
-    ledger.post(db, "COIN_REFUND", [Leg(coin, -lot.amount), Leg(ledger.sys(db, AccountKind.SYS_PG, COIN_MODE), lot.amount)],
-                COIN_MODE, "coin_lot", lot.id, memo="씨앗 결제 취소")
+    full_cancel = (lot.remaining == lot.amount and _bonus_untouched(db, lot)
+                   and clock.now() <= lot.created_at + timedelta(days=settings.pg_refund_days))
+    if not full_cancel and lot.remaining < settings.coin_refund_min:
+        raise Conflict("REFUND_TOO_SMALL", f"남은 금액이 {settings.coin_refund_min:,}원 미만이라 환불할 수 없어요")
+    amt = min(lot.remaining, ledger.balance(db, coin))
+    _revoke_bonus_children(db, lot)
+    ledger.post(db, "COIN_REFUND" if full_cancel else "COIN_REFUND_REMAINING",
+                [Leg(coin, -amt), Leg(ledger.sys(db, AccountKind.SYS_PG, COIN_MODE), amt)],
+                COIN_MODE, "coin_lot", lot.id, memo="씨앗 결제 취소" if full_cancel else "남은 씨앗 계좌 환불")
     lot.remaining, lot.status = 0, "REFUNDED"
     return lot
+
+
+def iap_refund(db: Session, lot_id: int) -> dict:
+    """스토어 환불 알림(App Store Server Notification · Google RTDN) 처리. 묶음 전체를 회수한다.
+    이미 써서 잔액이 모자라면 부족분을 user.coin_debt 로 두고 다음 충전 때 상계한다."""
+    lot = db.get(CoinLot, lot_id)
+    if lot is None:
+        raise NotFound("COIN_LOT_NOT_FOUND", "충전 내역을 찾을 수 없어요")
+    if lot.source != "IAP":
+        raise Conflict("NOT_IAP", "인앱결제 묶음만 스토어 환불 처리할 수 있어요")
+    if lot.status == "REFUNDED":
+        raise Conflict("ALREADY_REFUNDED", "이미 환불 처리한 묶음이에요")
+    user = db.get(User, lot.user_id)
+    coin = ledger.get_account(db, AccountKind.COIN, COIN_MODE, user.id)
+    _revoke_bonus_children(db, lot)
+    own = lot.remaining
+    lot.remaining, lot.status = 0, "REFUNDED"
+    used = lot.amount - own
+    other = min(used, max(0, ledger.balance(db, coin) - own))
+    consume(db, user.id, other)
+    take = own + other
+    if take:
+        ledger.post(db, "COIN_IAP_REFUND", [Leg(coin, -take), Leg(ledger.sys(db, AccountKind.SYS_PG, COIN_MODE), take)],
+                    COIN_MODE, "coin_lot", lot.id, memo="인앱 환불 회수")
+    debt = used - other
+    user.coin_debt = (user.coin_debt or 0) + debt
+    return {"lot_id": lot.id, "reclaimed": take, "debt_added": debt, "coin_debt": user.coin_debt}
 
 
 def expire_bonus(db: Session) -> dict:

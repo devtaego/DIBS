@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.core.db import get_db
 from app.core.errors import Conflict, DomainError, NotFound
 from app.core.security import creator_only, current_user, optional_user
@@ -165,9 +166,12 @@ def _episode(db: Session, episode_id: int, user: User | None) -> Episode:
 
 
 @router.get("/episodes/{episode_id}", response_model=EpisodeContentOut, summary="회차 열람",
-            responses={402: {"description": "PAYMENT_REQUIRED: 유료 회차 미구매"}})
+            responses={402: {"description": "PAYMENT_REQUIRED: 유료 회차 미구매"},
+                       401: {"description": "LOGIN_REQUIRED: 게스트는 1화까지"}})
 def read_episode(episode_id: int, db: Session = Depends(get_db), user: User | None = Depends(optional_user)):
     e = _episode(db, episode_id, user)
+    if user is None and e.no > settings.guest_free_episodes:
+        raise DomainError("LOGIN_REQUIRED", "로그인하면 이어서 볼 수 있어요", 401)
     if not svc.can_read(db, e, user):
         raise DomainError("PAYMENT_REQUIRED", f"이어서 보려면 {e.price_coin}코인이 필요해요", 402)
     return e

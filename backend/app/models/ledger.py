@@ -81,5 +81,6 @@ class CoinLot(Base):
     expires_at: Mapped[datetime] = mapped_column(DateTime)
     status: Mapped[str] = mapped_column(String(20), default="ACTIVE")  # ACTIVE | USED | EXPIRED | REFUNDED
     package_id: Mapped[str | None] = mapped_column(String(30))
+    parent_lot_id: Mapped[int | None] = mapped_column(ForeignKey("coin_lots.id"))  # 묶음 보너스 → 함께 산 유료 묶음
     journal_id: Mapped[int | None] = mapped_column(ForeignKey("journals.id"))
     created_at: Mapped[datetime] = mapped_column(DateTime, default=clock.now)

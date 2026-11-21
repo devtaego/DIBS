@@ -102,6 +102,8 @@ def set_episode_pricing(db: Session, ep: Episode, is_paid: bool, price_coin: int
     발행 전·후 모두 적용된다 (발행 전 순매출은 작가 70 / DIBS 30, 상장 후는 배당 재원)."""
     if is_paid and ep.no <= settings.pilot_free_episodes:
         raise Conflict("PILOT_FREE", f"파일럿 {settings.pilot_free_episodes}화까지는 무료예요")
+    if is_paid and not settings.paid_preview_before_listing and not is_listed(db, ep.work_id):
+        raise Conflict("NOT_LISTED_YET", "유료 미리보기는 상장 후에 열 수 있어요. 상장 전 공개 회차는 무료예요")
     price = (price_coin or settings.default_preview_price_coin) if is_paid else 0
     ep.paid_preview, ep.price_coin = is_paid, price
     # 정식 공개 시각(무료 전환)은 작가가 예약한 값을 쓰고, 없으면 공개 21일 뒤 (기획서 3-2)

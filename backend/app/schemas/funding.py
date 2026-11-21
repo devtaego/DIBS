@@ -115,7 +115,9 @@ class FundingIndicatorsOut(BaseModel):
     dibs_7d: int = Field(description="최근 7일 찜 (찜 속도)")
     pilot_readers_4w: int = Field(description="최근 4주 파일럿 열람자 (참고)")
     pilot_read_through: float | None = Field(description="파일럿 연독률 (마지막 무료 회차 완독 ÷ 1화 완독)")
-    pilot_paying_fans_4w: int = Field(description="최근 4주 유료 미리보기 구매자 = 월 유료 팬")
+    pilot_paying_fans_4w: int = Field(description="최근 4주 유료 미리보기 구매자 (상장 전에는 0)")
+    expected_paying_fans: int = Field(description="월 유료 팬 추정 (상한·시나리오 기준)")
+    fans_basis: str = Field(description="READERS_X_PAY_RATE = 파일럿 4주 열람자 × 가정 결제율 15% (상장 전 유료 미리보기 없음) | PAID_PILOT = 실제 유료 구매자")
     paying_fans_needed: int = Field(description="이 목표 금액에 필요한 월 유료 팬")
     gate_threshold: int
     passes_gate: bool
@@ -129,16 +131,18 @@ class FundingIndicatorsOut(BaseModel):
 
 
 class FundingGateOut(BaseModel):
-    """펀딩 개설 조건과 목표 금액 상한 (v5.0: 유료 팬 기준)."""
+    """펀딩 개설 조건과 목표 금액 상한 (v2.2: 상장 전 유료 미리보기가 없어 열람자 × 결제율로 추정)."""
 
     work_id: int
     target_amount: int
     pilot_readers_4w: int = Field(description="참고: 최근 4주 파일럿 열람자")
-    pilot_paying_fans_4w: int = Field(description="최근 4주 유료 미리보기 구매자")
+    pilot_paying_fans_4w: int = Field(description="최근 4주 유료 미리보기 구매자 (상장 전에는 0)")
+    expected_paying_fans: int = Field(description="월 유료 팬 추정 (상한·시나리오 기준)")
+    fans_basis: str = Field(description="READERS_X_PAY_RATE = 파일럿 4주 열람자 × 가정 결제율 15% (상장 전 유료 미리보기 없음) | PAID_PILOT = 실제 유료 구매자")
     paying_fans_needed: int
     gate_threshold: int = Field(description="필요 유료 팬의 100%")
     passes_gate: bool
-    target_cap: int = Field(description="유료 팬 × 1명당 상품 기간 투자자 몫(세후) × 70%")
+    target_cap: int = Field(description="월 유료 팬 추정 × 1명당 상품 기간 투자자 몫(세후) × 70%")
     within_cap: bool
     enforced: bool
 

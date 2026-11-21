@@ -97,7 +97,9 @@ def test_holding_cap_10_percent_and_market_order(api, published_work, now):
     api.err("c", "post", "/market/orders", "INVALID_ORDER", json={**ORDER, "funding_id": fid, "side": "BUY", "units": 1})
 
 
-def test_seed_packages_lots_refund_and_expiry(api, published_work, now):
+def test_seed_packages_lots_refund_and_expiry(api, published_work, now, monkeypatch):
+    from app.core.config import settings
+
     wid = published_work["id"]
     api.login("r")
     pk = {p["id"]: p for p in api.ok(None, "get", "/wallet/coin/packages")}
@@ -109,6 +111,9 @@ def test_seed_packages_lots_refund_and_expiry(api, published_work, now):
 
     # 4화(유료 미리보기 300원 = 씨앗 3개)를 열면 보너스 씨앗부터 쓴다
     ep4 = api.ok(None, "get", f"/works/{wid}/episodes")[3]
+    # 상장 전에는 유료 미리보기를 열 수 없다 (공개 회차는 무료). 씨앗 차감 확인을 위해 이 테스트에서만 허용
+    api.err("admin", "patch", f"/admin/episodes/{ep4['id']}/pricing", "NOT_LISTED_YET", json={"is_paid": True})
+    monkeypatch.setattr(settings, "paid_preview_before_listing", True)
     ep4 = api.ok("admin", "patch", f"/admin/episodes/{ep4['id']}/pricing", json={"is_paid": True, "price_coin": 300})
     assert ep4["price_seeds"] == 3
     api.ok("r", "post", f"/episodes/{ep4['id']}/unlock")
@@ -120,14 +125,15 @@ def test_seed_packages_lots_refund_and_expiry(api, published_work, now):
     assert api.ok("r", "post", f"/wallet/coin/lots/{pg['id']}/refund")["status"] == "REFUNDED"
     api.err("r", "post", f"/wallet/coin/lots/{lots['IAP']['id']}/refund", "NOT_REFUNDABLE")
     pg2 = api.ok("r", "post", "/wallet/coin/packages/buy", json={"package_id": "seed10", "channel": "PG"})["lots"][0]
+    # 7일이 지나면 결제 취소 대신 남은 씨앗을 계좌로 환불 (1,000원 이상)
     clock.set_now(now + timedelta(days=8))
-    api.err("r", "post", f"/wallet/coin/lots/{pg2['id']}/refund", "NOT_REFUNDABLE")
+    assert api.ok("r", "post", f"/wallet/coin/lots/{pg2['id']}/refund")["status"] == "REFUNDED"
 
     # 보너스 씨앗은 90일 뒤 만료
     clock.set_now(now + timedelta(days=91))
     job = api.ok("admin", "post", "/admin/jobs/expire-coins")
     assert job == {"expired_lots": 1, "expired_coin": 200}
-    assert api.ok("r", "get", "/wallet")["coin"] == 5_000 + 1_000  # 인앱 5,000 + PG 1,000 (유료분은 5년)
+    assert api.ok("r", "get", "/wallet")["coin"] == 5_000  # 인앱 5,000 (유료분은 5년)
 
 
 def test_member_level_age_rating_and_underage(api, published_work, now):
@@ -228,3 +234,82 @@ def test_secondary_ip_revenue_split_like_primary(api, published_work, now):
     run = api.ok("admin", "post", f"/admin/fundings/{fid}/dividends", params={"force": True}, json={"period": "2027Q2"})
     assert (run["net_revenue"], run["holder_pool"], run["creator_amount"], run["platform_amount"]) == (
         4_000_000, 1_200_000, 2_400_000, 400_000)
+
+
+def test_paid_preview_opens_only_after_listing(api, published_work, now):
+    """상장 전 공개 회차는 무료. 유료 미리보기는 상장 후에만 열 수 있다."""
+    wid = published_work["id"]
+    ep4 = api.ok(None, "get", f"/works/{wid}/episodes")[3]
+    api.err("admin", "patch", f"/admin/episodes/{ep4['id']}/pricing", "NOT_LISTED_YET", json={"is_paid": True})
+    # 무료로 되돌리는 건 언제든 된다
+    api.ok("admin", "patch", f"/admin/episodes/{ep4['id']}/pricing", json={"is_paid": False})
+    api.login("inv")
+    api.ok("inv", "post", "/wallet/deposit/charge", json={"amount": 1_000_000})
+    listed(api, wid, now, {"inv": 1000})
+    ep = api.ok("admin", "patch", f"/admin/episodes/{ep4['id']}/pricing", json={"is_paid": True, "price_coin": 300})
+    assert ep["is_paid"] is True
+
+
+def test_funding_gate_uses_readers_times_pay_rate_before_listing(api, published_work, now):
+    """상장 전에는 유료 구매자가 없으므로 월 유료 팬 = 파일럿 4주 열람자 × 15%."""
+    wid = published_work["id"]
+    ep1 = api.ok(None, "get", f"/works/{wid}/episodes")[0]
+    api.ok(None, "post", "/events", json={"events": [
+        {"event_type": "VIEW_START", "work_id": wid, "episode_id": ep1["id"], "anon_id": f"a{i}",
+         "occurred_at": now.isoformat()} for i in range(20)]})
+    g = api.ok(None, "get", f"/works/{wid}/funding-gate")
+    assert g["fans_basis"] == "READERS_X_PAY_RATE"
+    assert g["pilot_readers_4w"] == 20 and g["pilot_paying_fans_4w"] == 0
+    assert g["expected_paying_fans"] == 3  # 20 × 15%
+
+
+def test_pg_refund_revokes_bonus_and_min_amount(api, now):
+    api.login("p")
+    r = api.ok("p", "post", "/wallet/coin/packages/buy", json={"package_id": "seed55", "channel": "PG"})
+    pg = next(l for l in r["lots"] if l["source"] == "PG")
+    # 7일 안, 미사용 → 결제 취소. 함께 받은 보너스 씨앗 5개도 회수
+    assert api.ok("p", "post", f"/wallet/coin/lots/{pg['id']}/refund")["status"] == "REFUNDED"
+    assert api.ok("p", "get", "/wallet")["coin"] == 0
+    lots = {l["source"]: l for l in api.ok("p", "get", "/wallet/coin/lots")}
+    assert lots["BONUS"]["status"] == "REFUNDED" and lots["BONUS"]["parent_lot_id"] == pg["id"]
+
+
+def test_iap_refund_reclaims_and_offsets_next_charge(api, published_work, now, monkeypatch):
+    from app.core.config import settings
+
+    monkeypatch.setattr(settings, "paid_preview_before_listing", True)
+    wid = published_work["id"]
+    api.login("q")
+    r = api.ok("q", "post", "/wallet/coin/packages/buy", json={"package_id": "seed10", "channel": "IAP"})
+    iap = r["lots"][0]
+    ep4 = api.ok(None, "get", f"/works/{wid}/episodes")[3]
+    api.ok("admin", "patch", f"/admin/episodes/{ep4['id']}/pricing", json={"is_paid": True, "price_coin": 300})
+    api.ok("q", "post", f"/episodes/{ep4['id']}/unlock")  # 인앱 씨앗 3개 사용 → 700원 남음
+    out = api.ok("admin", "post", f"/admin/coin/lots/{iap['id']}/iap-refund")
+    assert out == {"lot_id": iap["id"], "reclaimed": 700, "debt_added": 300, "coin_debt": 300}
+    assert api.ok("q", "get", "/wallet")["coin_debt"] == 300
+    api.err("admin", "post", f"/admin/coin/lots/{iap['id']}/iap-refund", "ALREADY_REFUNDED")
+    # 다음 충전 1,000원 중 300원을 먼저 상계
+    w = api.ok("q", "post", "/wallet/coin/packages/buy", json={"package_id": "seed10", "channel": "PG"})["wallet"]
+    assert w["coin"] == 700 and w["coin_debt"] == 0
+
+
+def test_guest_reads_only_first_episode(api, published_work):
+    eps = api.ok(None, "get", f"/works/{published_work['id']}/episodes")
+    api.ok(None, "get", f"/episodes/{eps[0]['id']}")
+    api.err(None, "get", f"/episodes/{eps[1]['id']}", "LOGIN_REQUIRED")
+    api.login("g")
+    api.ok("g", "get", f"/episodes/{eps[1]['id']}")
+
+
+def test_failed_funding_retry_cooldown_30_days(api, published_work, now):
+    wid = published_work["id"]
+    f = open_funding(api, wid, now, target_units=1000)
+    assert api.ok("admin", "post", f"/admin/fundings/{f['id']}/close", params={"force": True})["status"] == "FAILED"
+    body = {"target_units": 1000, "open_at": (now + timedelta(days=1)).isoformat(),
+            "close_at": (now + timedelta(days=8)).isoformat(), "use_of_funds": "작화 60%, 마케팅 40%", "reward_tiers": []}
+    api.err("creator", "post", f"/works/{wid}/fundings", "RETRY_COOLDOWN", json=body)
+    clock.set_now(now + timedelta(days=31))
+    later = now + timedelta(days=31)
+    api.ok("creator", "post", f"/works/{wid}/fundings", json={**body, "open_at": later.isoformat(),
+                                                             "close_at": (later + timedelta(days=7)).isoformat()})

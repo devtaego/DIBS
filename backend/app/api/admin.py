@@ -243,6 +243,12 @@ def expire_coins(db: Session = Depends(get_db)):
     return coins.expire_bonus(db)
 
 
+@router.post("/coin/lots/{lot_id}/iap-refund",
+             summary="인앱 환불 반영 (스토어 환불 알림 대체). 묶음 회수, 모자라면 다음 충전 때 상계")
+def iap_refund(lot_id: int, db: Session = Depends(get_db)):
+    return coins.iap_refund(db, lot_id)
+
+
 @router.post("/jobs/serial-check", summary="매일: 상장 작품 연재 지연 판정")
 def serial_check_all(db: Session = Depends(get_db)):
     return serial.check_all(db)

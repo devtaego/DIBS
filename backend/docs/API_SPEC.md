@@ -83,7 +83,7 @@
 | `GET` | `/wallet/coin/packages` | 씨앗 묶음 목록 (10 · 30 · 55개) | 회원 |  | CoinPackageOut[] |
 | `POST` | `/wallet/coin/packages/buy` | 씨앗 묶음 구매 (IAP·PG 모의) | 회원 | BuyPackageIn | BuyPackageOut |
 | `GET` | `/wallet/coin/lots` | 씨앗 충전 내역 (출처·남은 양·유효기간) | 회원 |  | CoinLotOut[] |
-| `POST` | `/wallet/coin/lots/{lot_id}/refund` | PG 충전분 결제 취소 (7일 안, 미사용) | 회원 |  | CoinLotOut |
+| `POST` | `/wallet/coin/lots/{lot_id}/refund` | PG 충전분 환불 (7일 안 미사용은 결제 취소, 그 밖에는 남은 씨앗 1,000원 이상 계좌 환불) | 회원 |  | CoinLotOut |
 | `POST` | `/wallet/deposit/charge` | 예치금 입금 (모의 모드: 모의 예치금 지급) | 회원 | AmountIn | WalletOut |
 | `POST` | `/wallet/deposit/to-coin` | 예치금 → 코인 전환 (실거래 모드만) | 회원 | AmountIn | WalletOut |
 | `POST` | `/wallet/deposit/withdrawals` | 예치금 출금 요청 (운영자 승인) | 회원 | AmountIn | WithdrawalOut |
@@ -100,7 +100,7 @@
 | `GET` | `/fundings/{funding_id}/limits` | 내 남은 투자 한도 | 회원 |  | LimitsOut |
 | `POST` | `/fundings/{funding_id}/subscriptions` | 조각 청약 (예치금 묶임) | 회원 | SubscribeIn | SubscriptionOut |
 | `GET` | `/fundings/{funding_id}/breakeven` | 손익분기 독자 규모 (청약 전 공시) | 공개 |  | BreakevenOut |
-| `GET` | `/works/{work_id}/funding-gate` | 펀딩 개설 조건·목표 금액 상한 (파일럿 4주 유료 구매자 기준) | 공개 |  | FundingGateOut |
+| `GET` | `/works/{work_id}/funding-gate` | 펀딩 개설 조건·목표 금액 상한 (파일럿 4주 열람자 × 가정 결제율 15%) | 공개 |  | FundingGateOut |
 | `GET` | `/fundings/{funding_id}/indicators` | 투자 지표 카드 (찜 속도·연독률·유료 팬·시나리오별 배수와 회수 기간) | 회원 |  | FundingIndicatorsOut |
 | `GET` | `/fundings/{funding_id}/disclosure` | 공시: 투자금 쓰임·매출 배분·상품 기간·분기별 정산 대사와 원장 해시 | 회원 |  | DisclosureOut |
 | `GET` | `/fundings/{funding_id}/buyback-quote` | 종료 규칙 상태와 작가 매입가 (상장 후) | 공개 |  | TerminationOut |
@@ -204,6 +204,7 @@
 | `POST` | `/admin/fundings/{funding_id}/clawback` | 귀책 중단 반환금 수납 → 보유자 분배 | 운영자 | ClawbackIn |  |
 | `POST` | `/admin/jobs/deadline-reminders` | 매일: 청약 마감 임박 알림 (청약자·찜한 회원) | 운영자 |  |  |
 | `POST` | `/admin/jobs/expire-coins` | 매일: 유효기간이 지난 씨앗 만료 (보너스 90일 · 유료 5년) | 운영자 |  |  |
+| `POST` | `/admin/coin/lots/{lot_id}/iap-refund` | 인앱 환불 반영 (스토어 환불 알림 대체). 묶음 회수, 모자라면 다음 충전 때 상계 | 운영자 |  |  |
 | `POST` | `/admin/jobs/serial-check` | 매일: 상장 작품 연재 지연 판정 | 운영자 |  |  |
 | `POST` | `/admin/fundings/{funding_id}/terminate` | 권리 종료 (완결 후 12개월 또는 저매출 2분기 연속, 원금 상환 없음) | 운영자 |  | FundingOut |
 | `GET` | `/admin/fundings/{funding_id}/payouts` | 작가 지급 일정 | 운영자 |  | PayoutOut[] |
@@ -232,6 +233,7 @@
 | `ALREADY_ATTENDED` | 오늘은 이미 출석했어요. 내일 또 만나요! |
 | `ALREADY_COMPLETED` | 이미 완결 처리된 작품이에요 |
 | `ALREADY_DISCONTINUED` | 연재 중단된 작품이에요 |
+| `ALREADY_REFUNDED` | 이미 환불 처리한 묶음이에요 |
 | `ALREADY_REPORTED` | 이미 신고한 글이에요 |
 | `ALREADY_SUBSCRIBED` | 이미 청약했어요. 수량 변경을 이용해 주세요 |
 | `ANNUAL_LIMIT_EXCEEDED` | 연간 투자 한도({annual:,}원)를 넘어요 |
@@ -296,6 +298,7 @@
 | `KYC_REQUIRED` | 본인인증 후 청약할 수 있어요 |
 | `LISTED_AFTER_RECORD_DATE` | 기준일 이후 상장된 종목이에요 |
 | `LIVE_DISABLED` | 실거래는 인가 후 열려요. 지금은 모의투자만 가능해요 |
+| `LOGIN_REQUIRED` | 로그인하면 이어서 볼 수 있어요 |
 | `MARKET_MAINTENANCE` | {settings.maintenance_start}~{settings.maintenance_end} 점검 중이에요 |
 | `MAX_UNITS_EXCEEDED` | 1인 최대 {cap}조각까지 청약할 수 있어요 |
 | `MOCK_DEPOSIT_TO_COIN` | 모의 예치금은 코인으로 바꿀 수 없어요 |
@@ -305,8 +308,10 @@
 | `NOT_AUTHOR` | 내가 쓴 글만 지울 수 있어요 |
 | `NOT_ENOUGH_POINTS` | 키움 포인트가 모자라요 |
 | `NOT_FOUND` | 없는 경로예요 |
+| `NOT_IAP` | 인앱결제 묶음만 스토어 환불 처리할 수 있어요 |
 | `NOT_LISTED` | 상장 후에 확인할 수 있어요 |
-| `NOT_REFUNDABLE` | 카드·계좌 결제(PG)로 충전한 씨앗만 여기서 취소할 수 있어요 |
+| `NOT_LISTED_YET` | 유료 미리보기는 상장 후에 열 수 있어요. 상장 전 공개 회차는 무료예요 |
+| `NOT_REFUNDABLE` | 카드·계좌 결제(PG)로 충전한 씨앗만 환불할 수 있어요. 인앱결제는 스토어에서 환불해요 |
 | `NOT_TRADABLE` | 거래할 수 없는 종목이에요 (미상장 또는 거래 정지) |
 | `NOT_WORK_OWNER` | 내 작품만 관리할 수 있어요 |
 | `NO_CLAWBACK` | 반환 청구액이 없어요 |
@@ -327,6 +332,8 @@
 | `POST_NOT_FOUND` | 글을 찾을 수 없어요 |
 | `PRICE_OUT_OF_BAND` | 주문 가능 가격은 {lo:,}~{hi:,}원이에요 |
 | `PRICE_TICK` | 가격은 {PRICE_TICK:,}원 단위로 주문해요 |
+| `REFUND_TOO_SMALL` | 남은 금액이 {settings.coin_refund_min:,}원 미만이라 환불할 수 없어요 |
+| `RETRY_COOLDOWN` | 펀딩이 목표에 못 미친 작품은 {until:%m월 %d일}부터 다시 신청할 수 있어요 |
 | `RIGHTS_NOT_DECLARED` | 작품 공개 권한을 확인해 주세요 |
 | `RISK_NOTICE_REQUIRED` | 투자 위험 고지에 동의해 주세요 |
 | `RISK_PROFILE_REQUIRED` | 키움 투자성향 확인 후 청약할 수 있어요 |

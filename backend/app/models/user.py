@@ -1,6 +1,6 @@
 from datetime import date, datetime
 
-from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import BigInteger, Boolean, Date, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core import clock
@@ -29,6 +29,7 @@ class User(TimestampMixin, Base):
     broker_name: Mapped[str | None] = mapped_column(String(50))
     broker_account_masked: Mapped[str | None] = mapped_column(String(30))
     account_changed_at: Mapped[datetime | None] = mapped_column(DateTime)  # 계좌 변경 시각 (24시간 출금 금지)
+    coin_debt: Mapped[int] = mapped_column(BigInteger, default=0)  # 인앱 환불로 생긴 씨앗 부족분 (다음 충전 때 상계)
     birth_date: Mapped[date | None] = mapped_column(Date)  # 본인인증 결과의 생년월일 (만 나이 확인용)
 
     def age(self, today: date) -> int | None:

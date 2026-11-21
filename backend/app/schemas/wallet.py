@@ -12,6 +12,7 @@ class WalletOut(BaseModel):
     seeds: int = Field(default=0, description="화면 표기용 씨앗 개수 = coin ÷ 100 (씨앗 1개 = 100원)")
     deposit_available: int
     deposit_locked: int = Field(description="청약·주문·출금 대기로 묶인 예치금")
+    coin_debt: int = Field(default=0, description="인앱 환불로 생긴 씨앗 부족분(원). 다음 충전 때 먼저 상계")
 
 
 class AmountIn(BaseModel):
@@ -67,6 +68,7 @@ class CoinLotOut(BaseModel):
     expires_at: datetime
     status: str
     package_id: str | None
+    parent_lot_id: int | None = Field(default=None, description="묶음 보너스면 함께 산 유료 묶음 id")
     created_at: datetime
 
 

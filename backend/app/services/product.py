@@ -116,14 +116,25 @@ def pilot_paying_fans(db: Session, work_id: int, days: int = 28) -> int:
         EpisodeUnlock.work_id == work_id, EpisodeUnlock.unlocked_at >= since)) or 0)
 
 
+def expected_paying_fans(db: Session, work_id: int) -> tuple[int, str]:
+    """월 유료 팬 추정. v2.2: 상장 전에는 유료 미리보기가 없으므로 파일럿 열람자 × 가정 결제율(15%)로 잡는다.
+    상장 전 유료 미리보기를 켠 설정(v5)이면 실제 구매자를 쓴다."""
+    if settings.paid_preview_before_listing:
+        return pilot_paying_fans(db, work_id), "PAID_PILOT"
+    readers = pilot_readers(db, work_id)
+    return readers * settings.assumed_pay_rate_bps // BPS, "READERS_X_PAY_RATE"
+
+
 def funding_gate(db: Session, work_id: int, target_amount: int) -> dict:
-    fans = pilot_paying_fans(db, work_id)
+    fans, basis = expected_paying_fans(db, work_id)
     need = paying_fans_needed(target_amount)
     threshold = math.ceil(need * settings.gate_ratio_bps / BPS)
     cap = target_cap(fans)
     return {
         "pilot_readers_4w": pilot_readers(db, work_id),
-        "pilot_paying_fans_4w": fans,
+        "pilot_paying_fans_4w": pilot_paying_fans(db, work_id),
+        "expected_paying_fans": fans,
+        "fans_basis": basis,
         "paying_fans_needed": need,
         "gate_threshold": threshold,
         "passes_gate": fans >= threshold,
@@ -179,7 +190,7 @@ def indicators(db: Session, f: Funding) -> dict:
     dibs_7d = int(db.scalar(select(func.count()).where(Dib.work_id == f.work_id,
                                                        Dib.created_at >= now - timedelta(days=7))) or 0)
     gate = funding_gate(db, f.work_id, f.target_amount)
-    fans = gate["pilot_paying_fans_4w"]
+    fans = gate["expected_paying_fans"]
     scenarios = {}
     for name, ratio in SCENARIOS.items():
         r = simulate(f.target_amount, fans * ratio, f.royalty_holder_bps, f.royalty_holder_after_bps)
@@ -193,7 +204,9 @@ def indicators(db: Session, f: Funding) -> dict:
         "dibs_7d": dibs_7d,
         "pilot_readers_4w": gate["pilot_readers_4w"],
         "pilot_read_through": round(last / first, 3) if first else None,
-        "pilot_paying_fans_4w": fans,
+        "pilot_paying_fans_4w": gate["pilot_paying_fans_4w"],
+        "expected_paying_fans": fans,
+        "fans_basis": gate["fans_basis"],
         "paying_fans_needed": gate["paying_fans_needed"],
         "gate_threshold": gate["gate_threshold"],
         "passes_gate": gate["passes_gate"],

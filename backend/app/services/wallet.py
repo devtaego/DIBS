@@ -39,6 +39,7 @@ def summary(db: Session, user: User) -> dict:
         "seeds": coin_bal // settings.seed_unit_won,  # 화면 표기: 씨앗 1개 = 100원
         "deposit_available": ledger.balance(db, acc.deposit),
         "deposit_locked": ledger.balance(db, acc.locked),
+        "coin_debt": user.coin_debt or 0,
     }
 
 

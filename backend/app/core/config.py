@@ -32,6 +32,7 @@ class Settings(BaseModel):
     default_unit_price: int = 1_000
     min_funding_days: int = 7
     max_funding_days: int = 60
+    funding_retry_cooldown_days: int = 30  # 목표 미달 후 재신청 대기 (취소는 대기 없음)
     min_target_amount: int = 10_000_000  # v5.0: 작품당 1,000만 원 이상 (월 공모 회차로 발행 실비를 나눔)
     max_target_amount: int = 500_000_000  # 작품당 상한 (실제 상한은 데이터 기반 목표 금액 상한)
     # 1인 청약 한도 (v4.0, 금융위 예시): 3,000만 원과 발행액 5% 중 작은 금액
@@ -69,10 +70,14 @@ class Settings(BaseModel):
 
     # 발행 전 콘텐츠 (v4.0)
     pilot_free_episodes: int = 3  # 파일럿 1~3화 무료
+    guest_free_episodes: int = 1  # 게스트(비로그인)는 1화까지 (기획서 2-1)
+    # v2.3: 상장 전에는 공개 회차를 무료로만 보여 주고, 유료 미리보기는 상장 후에만 연다 (기획서 3-2 · 화면 펀딩 계획)
+    paid_preview_before_listing: bool = False
     # 씨앗(화면 표기) = 코인 100원. 장부는 원 단위 정수 그대로 두고 응답에 씨앗 개수를 함께 준다 (1화 300원 = 씨앗 3개)
     seed_unit_won: int = 100
     bonus_coin_expiry_days: int = 90  # 보너스 씨앗(출석·묶음 보너스·이벤트) 유효기간
     paid_coin_expiry_days: int = 365 * 5  # 유료 충전분은 5년 (상사채권 소멸시효)
+    coin_refund_min: int = 1_000  # PG 남은 씨앗 환불 최소 금액
     pg_refund_days: int = 7  # PG 충전분: 7일 안에 한 번도 안 썼으면 결제 취소
     iap_markup_bps: int = 1000  # 인앱결제 가격 = 지급 금액 × 110% (스토어 수수료 보전, 기획서 3-4-3)
     # 씨앗 묶음 (화면 08 씨앗 구매): 10개 1,000원 / 30개 3,000원 / 55개 5,000원(보너스 5개)

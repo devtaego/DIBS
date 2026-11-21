@@ -76,6 +76,7 @@ class Funding(TimestampMixin, Base):
     exclusive_months: Mapped[int] = mapped_column(Integer, default=lambda: settings.exclusive_months)
     exclusive_until: Mapped[datetime | None] = mapped_column(DateTime)  # 상장 시 계산
     external_share_bps: Mapped[int] = mapped_column(Integer, default=lambda: settings.external_share_bps)
+    failed_at: Mapped[datetime | None] = mapped_column(DateTime)  # 목표 미달 마감 (재신청 대기 기준)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime)  # 연재 완결 확정
     terminated_at: Mapped[datetime | None] = mapped_column(DateTime)
     termination_reason: Mapped[str | None] = mapped_column(String(50))  # COMPLETED_TERM | LOW_REVENUE | BUYBACK

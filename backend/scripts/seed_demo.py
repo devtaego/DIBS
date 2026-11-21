@@ -201,7 +201,7 @@ def main() -> None:
         b = make_work("청월도", "무협", 8, cover=COVERS.get("청월도"), synopsis="달빛이 푸른 밤, 멸문한 가문의 막내가 검을 든다.")
         seed_pilot_events(b, 30_000, 0.8, 0.5)
         for r in readers[3:6]:
-            call(r, "put", f"/works/{b}/dib")  # 모집 전 찜 → 초기 독자 우선 배정
+            call(r, "put", f"/works/{b}/dib")  # 모집 전 찜 (알림용, 배정 우선권은 없음)
         fb = make_funding(b, 10000, [])
         for r in readers[:25]:  # 25명 × 500 = 12,500조각 (125%), 1인 한도 500조각 = 50만 원
             call(r, "post", f"/fundings/{fb}/subscriptions", json={**SUB, "units": 500})

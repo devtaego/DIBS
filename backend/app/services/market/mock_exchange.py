@@ -1,10 +1,11 @@
 """내부 모의 상대매매 엔진.
 
 규칙 (기획안 v2.0 STEP 5)
-1. 지정가 주문만, 같은 가격끼리만 체결 (가격 우선이 아니라 '가격 일치' + 시간 우선)
+1. 지정가 + 시장가(v2.3). 지정가는 같은 가격끼리만 체결 ('가격 일치' + 시간 우선), 호가 단위 10원
+   시장가는 최우선 반대 호가 한 단계에서 체결하고 남은 수량은 취소
 2. 가격제한폭: 기준가(전일 종가) ±30%. 상장일 기준가 = 공모가
 3. 24시간 거래, 매일 04:00~04:30 점검, 미체결 주문은 자정에 자동 취소
-4. 수수료: 매수·매도 0.015% (v4.0). 거래소·증권사 몫이며 DIBS 수입이 아니다 (발행·유통 분리)
+4. 수수료: 매수·매도 0.015%, 원 미만 버림. 거래소·증권사 몫이며 DIBS 수입이 아니다 (발행·유통 분리)
 5. 자기 주문끼리는 체결하지 않음 (자전거래 방지)
 6. 매수는 투자성향 확인 후 가능 (v3.0)
 """
@@ -164,7 +165,7 @@ class InternalMockExchange(MarketGateway):
             Leg(b_acc.locked, -(gross + buy_fee)),
             Leg(s_acc.deposit, gross - sell_fee),
             Leg(ledger.sys(db, AccountKind.SYS_PLATFORM_REVENUE if settings.trade_fee_to_platform
-                           else AccountKind.SYS_BROKER_FEE, f.mode), buy_fee + sell_fee),  # v2.3: Dibs 수입
+                           else AccountKind.SYS_BROKER_FEE, f.mode), buy_fee + sell_fee),  # 기본: 거래소·증권사 몫
         ]
         if buy.remaining_units == 0 and buy.locked_amount > 0:  # 수수료 절사 차액 반환
             legs += [Leg(b_acc.locked, -buy.locked_amount), Leg(b_acc.deposit, buy.locked_amount)]

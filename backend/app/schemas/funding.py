@@ -62,14 +62,17 @@ class FundingTermsOut(ORM):
     creator_bps: int
     issuance_cost_bps: int
     platform_fee_bps: int
-    royalty_platform_bps: int = Field(description="회수 전 DIBS 몫 (기본 25%)")
-    royalty_creator_bps: int = Field(description="회수 전 작가 몫 (기본 30%)")
-    royalty_holder_bps: int = Field(description="회수 전 투자자 몫 (기본 45%)")
-    royalty_platform_after_bps: int = Field(description="회수 후 DIBS 몫 (기본 25%)")
-    royalty_creator_after_bps: int = Field(description="회수 후 작가 몫 (기본 40%)")
-    royalty_holder_after_bps: int = Field(description="회수 후 투자자 몫 (기본 35%)")
+    reserve_bps: int = Field(default=0, description="최소 유보금 (기본 5%, 신탁 보관)")
+    creator_token_bps: int = Field(default=0, description="창작자 토큰 (발행량의 5%)")
+    creator_lockup_months: int = Field(default=0, description="창작자 토큰 보호예수 (상장 후 12개월)")
+    royalty_platform_bps: int = Field(description="순매출 중 DIBS 몫 (기본 10%)")
+    royalty_creator_bps: int = Field(description="순매출 중 작가 몫 (기본 60%)")
+    royalty_holder_bps: int = Field(description="순매출 중 투자자 몫 (기본 30%)")
+    royalty_platform_after_bps: int = Field(description="회수 후 DIBS 몫 (v2.3 기본: 회수 전과 같음)")
+    royalty_creator_after_bps: int = Field(description="회수 후 작가 몫 (v2.3 기본: 회수 전과 같음)")
+    royalty_holder_after_bps: int = Field(description="회수 후 투자자 몫 (v2.3 기본: 회수 전과 같음)")
     allocation_strategy: str
-    allocation_params: dict = Field(description="equal_ratio_bps(균등 20%), early_reader_bps(초기 독자 우선 10%)")
+    allocation_params: dict = Field(description="equal_ratio_bps(균등 20%), early_reader_bps(v2.3 기본 0: 찜 우선권 없음)")
     exclusive_months: int = Field(description="상장 후 DIBS 선공개 독점 기간(개월)")
     exclusive_until: datetime | None
     buyback_enabled: bool = Field(default=False, description="작가 매입 옵션 선택 여부")

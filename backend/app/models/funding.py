@@ -62,7 +62,7 @@ class Funding(TimestampMixin, Base):
     # 회수 판정: 원천징수 후 누적 분배금이 발행액에 닿은 분기. 다음 분기부터 '회수 후' 비율
     recouped_period: Mapped[str | None] = mapped_column(String(7))
 
-    # 배정 방식 (v4.0: 균등 20 / 비례 80, 균등분 중 발행량 10%는 초기 독자 우선)
+    # 배정 방식 (v2.3: 균등 20 / 비례 80, 균등분이 참여자보다 적으면 공개 추첨으로 1조각씩)
     allocation_strategy: Mapped[str] = mapped_column(String(50), default=lambda: settings.default_allocation_strategy)
     allocation_params: Mapped[dict] = mapped_column(
         JSON, default=lambda: {"equal_ratio_bps": settings.default_equal_ratio_bps,

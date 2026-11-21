@@ -96,11 +96,11 @@ def test_holding_cap_10_percent_and_market_order(api, published_work, now):
             json={**ORDER, "funding_id": fid, "side": "BUY", "order_type": "MARKET", "units": 1})
     api.err("c", "post", "/market/orders", "INVALID_ORDER", json={**ORDER, "funding_id": fid, "side": "BUY", "units": 1})
 
-    # 거래 수수료는 Dibs 수입 (기획서 1-3): 10만 원 체결 → 매수·매도 각 15원
-    before = balances(api)[("SYS_PLATFORM_REVENUE", "MOCK")]
+    # 거래 수수료는 거래소·증권사 몫 (발행·유통 분리): 10만 원 체결 → 매수·매도 각 15원
+    before = balances(api).get(("SYS_BROKER_FEE", "MOCK"), 0)
     api.ok("a", "post", "/market/orders", json={**ORDER, "funding_id": fid, "side": "SELL", "price": 1_000, "units": 100})
     api.ok("c", "post", "/market/orders", json={**ORDER, "funding_id": fid, "side": "BUY", "price": 1_000, "units": 100})
-    assert balances(api)[("SYS_PLATFORM_REVENUE", "MOCK")] - before == 30
+    assert balances(api)[("SYS_BROKER_FEE", "MOCK")] - before == 30
 
 
 def test_seed_packages_lots_refund_and_expiry(api, published_work, now, monkeypatch):
@@ -319,3 +319,16 @@ def test_failed_funding_retry_cooldown_30_days(api, published_work, now):
     later = now + timedelta(days=31)
     api.ok("creator", "post", f"/works/{wid}/fundings", json={**body, "open_at": later.isoformat(),
                                                              "close_at": (later + timedelta(days=7)).isoformat()})
+
+
+def test_dib_gives_no_allocation_priority(api, published_work, now):
+    """찜은 관심 등록일 뿐 배정 우선권이 없다 (기획서 3-3). 균등 20%는 전부 공개 추첨."""
+    f = api.ok("creator", "post", f"/works/{published_work['id']}/fundings", json={
+        "target_units": 1000, "open_at": now.isoformat(), "close_at": (now + timedelta(days=7)).isoformat(),
+        "use_of_funds": "작화 60%, 마케팅 40%", "reward_tiers": []})
+    api.ok("admin", "post", f"/admin/fundings/{f['id']}/review", json={"approve": True})
+    api.ok("admin", "post", f"/admin/fundings/{f['id']}/open")
+    t = api.ok(None, "get", f"/fundings/{f['id']}")["terms"]
+    assert t["allocation_strategy"] == "EQUAL_THEN_PRO_RATA"
+    assert t["allocation_params"] == {"equal_ratio_bps": 2000, "early_reader_bps": 0}
+    assert (t["reserve_bps"], t["creator_token_bps"], t["creator_lockup_months"]) == (500, 500, 12)

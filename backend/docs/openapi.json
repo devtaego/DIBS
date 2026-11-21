@@ -18265,35 +18265,53 @@
             "type": "integer",
             "title": "Platform Fee Bps"
           },
+          "reserve_bps": {
+            "type": "integer",
+            "title": "Reserve Bps",
+            "description": "최소 유보금 (기본 5%, 신탁 보관)",
+            "default": 0
+          },
+          "creator_token_bps": {
+            "type": "integer",
+            "title": "Creator Token Bps",
+            "description": "창작자 토큰 (발행량의 5%)",
+            "default": 0
+          },
+          "creator_lockup_months": {
+            "type": "integer",
+            "title": "Creator Lockup Months",
+            "description": "창작자 토큰 보호예수 (상장 후 12개월)",
+            "default": 0
+          },
           "royalty_platform_bps": {
             "type": "integer",
             "title": "Royalty Platform Bps",
-            "description": "회수 전 DIBS 몫 (기본 25%)"
+            "description": "순매출 중 DIBS 몫 (기본 10%)"
           },
           "royalty_creator_bps": {
             "type": "integer",
             "title": "Royalty Creator Bps",
-            "description": "회수 전 작가 몫 (기본 30%)"
+            "description": "순매출 중 작가 몫 (기본 60%)"
           },
           "royalty_holder_bps": {
             "type": "integer",
             "title": "Royalty Holder Bps",
-            "description": "회수 전 투자자 몫 (기본 45%)"
+            "description": "순매출 중 투자자 몫 (기본 30%)"
           },
           "royalty_platform_after_bps": {
             "type": "integer",
             "title": "Royalty Platform After Bps",
-            "description": "회수 후 DIBS 몫 (기본 25%)"
+            "description": "회수 후 DIBS 몫 (v2.3 기본: 회수 전과 같음)"
           },
           "royalty_creator_after_bps": {
             "type": "integer",
             "title": "Royalty Creator After Bps",
-            "description": "회수 후 작가 몫 (기본 40%)"
+            "description": "회수 후 작가 몫 (v2.3 기본: 회수 전과 같음)"
           },
           "royalty_holder_after_bps": {
             "type": "integer",
             "title": "Royalty Holder After Bps",
-            "description": "회수 후 투자자 몫 (기본 35%)"
+            "description": "회수 후 투자자 몫 (v2.3 기본: 회수 전과 같음)"
           },
           "allocation_strategy": {
             "type": "string",
@@ -18303,7 +18321,7 @@
             "additionalProperties": true,
             "type": "object",
             "title": "Allocation Params",
-            "description": "equal_ratio_bps(균등 20%), early_reader_bps(초기 독자 우선 10%)"
+            "description": "equal_ratio_bps(균등 20%), early_reader_bps(v2.3 기본 0: 찜 우선권 없음)"
           },
           "exclusive_months": {
             "type": "integer",

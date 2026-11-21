@@ -187,7 +187,7 @@ def grant_coupon(db: Session, link: BrokerLink) -> int:
     from app.services import coins
     coins.credit(db, link.user_id, "BONUS", amt, j)
     link.coupon_coin = amt
-    notify(db, link.user_id, "PARTNER_COUPON", f"{settings.broker_name} 계좌 개설 쿠폰 {amt:,}코인이 들어왔어요",
+    notify(db, link.user_id, "PARTNER_COUPON", f"{settings.broker_name} 계좌 개설 쿠폰 씨앗 {amt // settings.seed_unit_won:,}개가 들어왔어요",
            "유료 회차를 볼 때 쓸 수 있어요.", "broker_link", link.id)
     return amt
 

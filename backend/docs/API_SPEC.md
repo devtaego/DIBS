@@ -44,7 +44,7 @@
 | `GET` | `/works/{work_id}/episodes` | 회차 목록 | 선택 |  | EpisodeListItem[] |
 | `POST` | `/works/{work_id}/episodes` | 회차 등록 | 창작자 | EpisodeIn | EpisodeOut |
 | `GET` | `/episodes/{episode_id}` | 회차 열람 | 선택 |  | EpisodeContentOut |
-| `POST` | `/episodes/{episode_id}/unlock` | 유료 회차 구매 (코인) | 회원 |  | EpisodeContentOut |
+| `POST` | `/episodes/{episode_id}/unlock` | 유료 회차 구매 (씨앗) | 회원 |  | EpisodeContentOut |
 | `POST` | `/works/{work_id}/shorts` | 숏츠 등록 | 창작자 | ShortIn | ShortOut |
 | `GET` | `/works/{work_id}/shorts` | 작품의 숏츠 목록 | 선택 |  | ShortOut[] |
 | `GET` | `/shorts/feed` | 숏츠 피드 (펀딩 바로가기 포함) | 공개 |  | ShortFeedItem[] |
@@ -81,18 +81,18 @@
 |---|---|---|---|---|---|
 | `POST` | `/events` | 이용 이벤트 배치 수집 | 선택 | EventBatchIn | EventBatchOut |
 
-## wallet — 콘텐츠용 코인 / 투자용 예치금 (분리 관리)
+## wallet — 콘텐츠용 씨앗 / 투자용 예치금 (분리 관리)
 
 | 메서드 | 경로 | 설명 | 권한 | 요청 | 응답 |
 |---|---|---|---|---|---|
-| `GET` | `/wallet` | 지갑 잔액 (코인 / 예치금) | 회원 |  | WalletOut |
-| `POST` | `/wallet/coin/charge` | 코인 충전 (PG 모의) | 회원 | AmountIn | WalletOut |
+| `GET` | `/wallet` | 지갑 잔액 (씨앗 / 예치금) | 회원 |  | WalletOut |
+| `POST` | `/wallet/coin/charge` | 씨앗 충전 (PG 모의) | 회원 | AmountIn | WalletOut |
 | `GET` | `/wallet/coin/packages` | 씨앗 묶음 목록 (10 · 30 · 55개) | 회원 |  | CoinPackageOut[] |
 | `POST` | `/wallet/coin/packages/buy` | 씨앗 묶음 구매 (IAP·PG 모의) | 회원 | BuyPackageIn | BuyPackageOut |
 | `GET` | `/wallet/coin/lots` | 씨앗 충전 내역 (출처·남은 양·유효기간) | 회원 |  | CoinLotOut[] |
 | `POST` | `/wallet/coin/lots/{lot_id}/refund` | PG 충전분 환불 (7일 안 미사용은 결제 취소, 그 밖에는 남은 씨앗 1,000원 이상 계좌 환불) | 회원 |  | CoinLotOut |
 | `POST` | `/wallet/deposit/charge` | 예치금 입금 (모의 모드: 모의 예치금 지급) | 회원 | AmountIn | WalletOut |
-| `POST` | `/wallet/deposit/to-coin` | 예치금 → 코인 전환 (실거래 모드만) | 회원 | AmountIn | WalletOut |
+| `POST` | `/wallet/deposit/to-coin` | 예치금 → 씨앗 전환 (실거래 모드만) | 회원 | AmountIn | WalletOut |
 | `POST` | `/wallet/deposit/withdrawals` | 예치금 출금 요청 (운영자 승인) | 회원 | AmountIn | WithdrawalOut |
 | `GET` | `/wallet/deposit/withdrawals` | 내 출금 요청 내역 | 회원 |  | WithdrawalOut[] |
 | `GET` | `/wallet/history` | 입출금·거래 원장 내역 | 회원 |  | LedgerLineOut[] |
@@ -150,7 +150,7 @@
 | `GET` | `/me/attendance` | 출석 현황 (최근 7일, 연속 출석) | 회원 |  |  |
 | `POST` | `/me/attendance` | 오늘 출석 → 디비 발자국 10P (7일째 +100P, 1P = 1원어치 보너스 씨앗) | 회원 |  |  |
 | `GET` | `/me/partner-points` | 제휴 증권사(키움 모의) 포인트 잔액 | 회원 |  |  |
-| `POST` | `/me/partner-points/convert` | 키움 포인트 → 열람 코인 (한 방향만) | 회원 | PointsIn |  |
+| `POST` | `/me/partner-points/convert` | 키움 포인트 → 씨앗 (한 방향만) | 회원 | PointsIn |  |
 
 ## studio — 크리에이터 스튜디오(웹): 내 작품·펀딩·리워드 배송·정산
 
@@ -217,7 +217,7 @@
 | `GET` | `/admin/fundings/{funding_id}/payouts` | 작가 지급 일정 | 운영자 |  | PayoutOut[] |
 | `POST` | `/admin/fundings/{funding_id}/payouts/{seq}/pay` | 마일스톤 지급 실행 | 운영자 |  | PayoutOut |
 | `POST` | `/admin/revenues` | 매출 입력 (광고·굿즈 등) | 운영자 | RevenueIn | RevenueOut |
-| `POST` | `/admin/fundings/{funding_id}/revenues/aggregate` | 유료 회차 코인 매출 자동 집계 | 운영자 | PeriodIn | RevenueOut |
+| `POST` | `/admin/fundings/{funding_id}/revenues/aggregate` | 유료 회차 씨앗 매출 자동 집계 | 운영자 | PeriodIn | RevenueOut |
 | `GET` | `/admin/fundings/{funding_id}/revenues` | 매출 내역 | 운영자 |  | RevenueOut[] |
 | `POST` | `/admin/fundings/{funding_id}/dividends` | 분기 배당 계산 (기준일 보유 수량 스냅샷) | 운영자 | PeriodIn | DividendRunOut |
 | `POST` | `/admin/dividends/{run_id}/pay` | 배당 지급 (원천징수 후 예치금 입금) | 운영자 |  | DividendRunOut |
@@ -253,7 +253,7 @@
 | `BUFFER_SHORT` | 공모 전 비축분이 {need}화(약정 회차의 25%) 이상이어야 해요 |
 | `BUYBACK_NOT_ENABLED` | 이 펀딩은 작가 매입 옵션을 선택하지 않았어요 |
 | `COIN_LOT_NOT_FOUND` | 충전 내역을 찾을 수 없어요 |
-| `COIN_TO_DEPOSIT_FORBIDDEN` | 코인은 예치금으로 바꿀 수 없어요 |
+| `COIN_TO_DEPOSIT_FORBIDDEN` | 씨앗은 예치금으로 바꿀 수 없어요 |
 | `CREATOR_LOCKUP` | 창작자 토큰은 {h.locked_until:%Y-%m-%d}부터 팔 수 있어요 |
 | `CREATOR_NOT_FOUND` | 작가를 찾을 수 없어요 |
 | `CREATOR_ONLY` | 작가 게시판 글은 작가만 쓸 수 있어요. 답글로 참여해 주세요 |
@@ -311,7 +311,7 @@
 | `LOGIN_REQUIRED` | 로그인하면 이어서 볼 수 있어요 |
 | `MARKET_MAINTENANCE` | {settings.maintenance_start}~{settings.maintenance_end} 점검 중이에요 |
 | `MAX_UNITS_EXCEEDED` | 1인 최대 {cap}조각까지 청약할 수 있어요 |
-| `MOCK_DEPOSIT_TO_COIN` | 모의 예치금은 코인으로 바꿀 수 없어요 |
+| `MOCK_DEPOSIT_TO_COIN` | 모의 예치금으로는 씨앗을 살 수 없어요 |
 | `NESTED_REPLY` | 답글에는 답글을 달 수 없어요 |
 | `NOTICE_NOT_FOUND` | 공지를 찾을 수 없어요 |
 | `NOTIFICATION_NOT_FOUND` | 알림을 찾을 수 없어요 |
@@ -337,7 +337,7 @@
 | `OTP_MISMATCH` | 인증번호가 맞지 않아요 ({otp.attempts}/{settings.otp_max_attempts}) |
 | `OTP_TOO_SOON` | 30초 뒤에 다시 받을 수 있어요 |
 | `PACKAGE_NOT_FOUND` | 씨앗 묶음을 찾을 수 없어요 |
-| `PAYMENT_REQUIRED` | 이어서 보려면 {e.price_coin}코인이 필요해요 |
+| `PAYMENT_REQUIRED` | 이어서 보려면 씨앗 {seeds}개가 필요해요 |
 | `PAYOUT_ALREADY_DONE` | 이미 처리된 지급이에요 |
 | `PAYOUT_NOT_FOUND` | 지급 일정을 찾을 수 없어요 |
 | `PERIOD_CLOSED` | 이미 배당을 계산한 분기예요 |

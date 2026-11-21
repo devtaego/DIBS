@@ -148,7 +148,7 @@ def read_notification(notification_id: int, db: Session = Depends(get_db), user:
 
 # ── 열람 리워드 (코인 전용: 예치금·청약·매매에는 쓸 수 없음) ──
 class PointsIn(BaseModel):
-    points: int = Field(gt=0, description="바꿀 포인트 (100P 단위, 1P = 1코인)")
+    points: int = Field(gt=0, description="바꿀 포인트 (100P 단위, 100P = 씨앗 1개)")
 
 
 @router.get("/attendance", summary="출석 현황 (최근 7일, 연속 출석)")
@@ -168,7 +168,7 @@ def get_partner_points(db: Session = Depends(get_db), user: User = Depends(curre
     return rewards.partner_points(db, user)
 
 
-@router.post("/partner-points/convert", summary="키움 포인트 → 열람 코인 (한 방향만)")
+@router.post("/partner-points/convert", summary="키움 포인트 → 씨앗 (한 방향만)")
 def convert_partner_points(body: PointsIn, db: Session = Depends(get_db), user: User = Depends(current_user)):
     out = rewards.convert_points(db, user, body.points)
     db.commit()

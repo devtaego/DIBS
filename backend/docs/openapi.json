@@ -1848,7 +1848,7 @@
         "tags": [
           "works"
         ],
-        "summary": "유료 회차 구매 (코인)",
+        "summary": "유료 회차 구매 (씨앗)",
         "operationId": "unlock_episode_episodes__episode_id__unlock_post",
         "parameters": [
           {
@@ -4172,7 +4172,7 @@
         "tags": [
           "wallet"
         ],
-        "summary": "지갑 잔액 (코인 / 예치금)",
+        "summary": "지갑 잔액 (씨앗 / 예치금)",
         "operationId": "get_wallet_wallet_get",
         "parameters": [
           {
@@ -4271,7 +4271,7 @@
         "tags": [
           "wallet"
         ],
-        "summary": "코인 충전 (PG 모의)",
+        "summary": "씨앗 충전 (PG 모의)",
         "operationId": "charge_coin_wallet_coin_charge_post",
         "parameters": [
           {
@@ -4884,7 +4884,7 @@
         "tags": [
           "wallet"
         ],
-        "summary": "예치금 → 코인 전환 (실거래 모드만)",
+        "summary": "예치금 → 씨앗 전환 (실거래 모드만)",
         "operationId": "deposit_to_coin_wallet_deposit_to_coin_post",
         "parameters": [
           {
@@ -9478,7 +9478,7 @@
         "tags": [
           "me"
         ],
-        "summary": "키움 포인트 → 열람 코인 (한 방향만)",
+        "summary": "키움 포인트 → 씨앗 (한 방향만)",
         "operationId": "convert_partner_points_me_partner_points_convert_post",
         "parameters": [
           {
@@ -13730,7 +13730,7 @@
         "tags": [
           "admin"
         ],
-        "summary": "유료 회차 코인 매출 자동 집계",
+        "summary": "유료 회차 씨앗 매출 자동 집계",
         "operationId": "aggregate_admin_fundings__funding_id__revenues_aggregate_post",
         "parameters": [
           {
@@ -17115,7 +17115,7 @@
           "coin": {
             "type": "integer",
             "title": "Coin",
-            "description": "지급 코인(원 단위, 보너스 제외)"
+            "description": "지급 씨앗(원 단위, 보너스 제외)"
           },
           "bonus_coin": {
             "type": "integer",
@@ -17871,6 +17871,19 @@
             "examples": [
               "예치금이 부족해요"
             ]
+          },
+          "data": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data",
+            "description": "화면에서 쓸 숫자 등 추가 정보 (예: PAYMENT_REQUIRED → price_coin, price_seeds)"
           }
         },
         "type": "object",
@@ -20442,7 +20455,7 @@
             "type": "integer",
             "exclusiveMinimum": 0.0,
             "title": "Points",
-            "description": "바꿀 포인트 (100P 단위, 1P = 1코인)"
+            "description": "바꿀 포인트 (100P 단위, 100P = 씨앗 1개)"
           }
         },
         "type": "object",
@@ -22807,7 +22820,7 @@
           "coin": {
             "type": "integer",
             "title": "Coin",
-            "description": "콘텐츠용 코인, 원 단위 (예치금으로 환전 불가)"
+            "description": "콘텐츠용 씨앗 잔액, 원 단위 (씨앗 1개 = 100원, 예치금으로 환전 불가)"
           },
           "seeds": {
             "type": "integer",
@@ -23511,7 +23524,7 @@
     },
     {
       "name": "wallet",
-      "description": "콘텐츠용 코인 / 투자용 예치금 (분리 관리)"
+      "description": "콘텐츠용 씨앗 / 투자용 예치금 (분리 관리)"
     },
     {
       "name": "fundings",

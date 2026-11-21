@@ -18,7 +18,7 @@ type EpisodeContent = { id: number; work_id: number; no: number; title: string; 
 export default function EpisodeScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const [ep, setEp] = useState<EpisodeContent | null>(null);
-  const [locked, setLocked] = useState<{ message: string } | null>(null);
+  const [locked, setLocked] = useState<{ message: string; price: number } | null>(null);
   const [busy, setBusy] = useState(false);
 
   const load = async () => {
@@ -29,7 +29,8 @@ export default function EpisodeScreen() {
       track('VIEW_START', { work_id: e.work_id, episode_id: e.id });
     } catch (e) {
       const err = e as ApiError;
-      if (err.code === 'PAYMENT_REQUIRED') setLocked({ message: err.message });
+      // 가격은 서버가 data로 준 숫자를 쓴다 (문구는 바뀔 수 있어서 파싱하지 않음). 옛 서버라 data가 없으면 회차 정보의 가격으로
+      if (err.code === 'PAYMENT_REQUIRED') setLocked({ message: err.message, price: Number(err.data?.price_coin ?? ep?.price_coin ?? 300) });
       else Alert.alert('열 수 없어요', err.message);
     }
   };
@@ -47,7 +48,7 @@ export default function EpisodeScreen() {
     api.get<{ balance: number }>('/me/partner-points').then(setPts).catch(() => {});
   }, [locked]);
   const unlockWithPoints = async () => {
-    const price = Number(locked?.message.match(/(\d[\d,]*)코인/)?.[1]?.replace(/,/g, '') ?? 300);
+    const price = locked?.price ?? 300;
     setBusy(true);
     try {
       await api.post('/me/partner-points/convert', { points: Math.ceil(price / 100) * 100 });
@@ -75,7 +76,7 @@ export default function EpisodeScreen() {
   };
 
   if (locked) {
-    const price = Number(locked.message.match(/(\d[\d,]*)코인/)?.[1]?.replace(/,/g, '') ?? 300);
+    const price = locked.price;
     const need = Math.ceil(price / 100) * 100; // 키움 포인트는 100P 단위
     const seedPrice = Math.round(price / 100);
     const mySeeds = coin == null ? null : Math.floor(coin / 100);
@@ -106,7 +107,7 @@ export default function EpisodeScreen() {
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
     <Screen>
       <T size={20} weight="700">{ep.title === `${ep.no}화` ? ep.title : `${ep.no}화 · ${ep.title}`}</T>
-      <Muted>{ep.is_paid ? `유료 미리보기 (${ep.price_coin}원 · 공개 21일 뒤 무료)` : '무료 회차'}</Muted>
+      <Muted>{ep.is_paid ? `유료 미리보기 (씨앗 ${Math.ceil(ep.price_coin / 100)}개 · 공개 21일 뒤 무료)` : '무료 회차'}</Muted>
       {/@\d+\.jpg$/.test(ep.content_url) ? (
         // 세로 스크롤 웹툰: 'episodes/pmb-1@22.jpg' → pmb-1-01.jpg … pmb-1-22.jpg (각 720x1800) 를 이어 붙여 보여 준다
         <View style={{ marginTop: space(3), marginHorizontal: -space(5), backgroundColor: '#0E0F1F' }}>

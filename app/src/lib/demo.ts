@@ -149,7 +149,10 @@ async function demoRequestInner(method: string, path: string, body?: unknown, qu
       // 유료 회차: 열기 전에는 결제 필요, 연 뒤에는 회차 정보로 보여 준다
       const meta = episodeMeta(Number(epm[1]));
       if (!meta) throw Object.assign(new Error('회차를 찾을 수 없어요'), { status: 404, code: 'NOT_FOUND' });
-      if (!unlocked.has(meta.id)) throw Object.assign(new Error(`이어서 보려면 ${meta.price_coin}코인이 필요해요`), { status: 402, code: 'PAYMENT_REQUIRED' });
+      if (!unlocked.has(meta.id)) {
+        const seeds = Math.ceil(meta.price_coin / 100);
+        throw Object.assign(new Error(`이어서 보려면 씨앗 ${seeds}개가 필요해요`), { status: 402, code: 'PAYMENT_REQUIRED', data: { episode_id: meta.id, price_coin: meta.price_coin, price_seeds: seeds } });
+      }
       return { ...meta, content_url: `https://cdn.example/${meta.work_id}/${meta.no}` };
     }
     const op = path.match(/^\/market\/securities\/(\d+)\/order-preview$/);
@@ -192,7 +195,7 @@ async function demoRequestInner(method: string, path: string, body?: unknown, qu
   if (un) {
     const meta = episodeMeta(Number(un[1]));
     const price = meta?.price_coin ?? 300;
-    if (wallet().coin < price) throw Object.assign(new Error(`코인이 ${price - wallet().coin}개 모자라요`), { status: 409, code: 'INSUFFICIENT_BALANCE' });
+    if (wallet().coin < price) throw Object.assign(new Error(`씨앗이 ${Math.ceil((price - wallet().coin) / 100)}개 모자라요`), { status: 409, code: 'INSUFFICIENT_BALANCE' });
     addCoin(-price);
     line('EPISODE_UNLOCK', 'COIN', -price, ['episode', Number(un[1])]);
     unlocked.add(Number(un[1]));

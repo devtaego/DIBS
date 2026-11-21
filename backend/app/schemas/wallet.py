@@ -8,7 +8,7 @@ from app.schemas.common import ORM
 
 class WalletOut(BaseModel):
     mode: Mode
-    coin: int = Field(description="콘텐츠용 코인, 원 단위 (예치금으로 환전 불가)")
+    coin: int = Field(description="콘텐츠용 씨앗 잔액, 원 단위 (씨앗 1개 = 100원, 예치금으로 환전 불가)")
     seeds: int = Field(default=0, description="화면 표기용 씨앗 개수 = coin ÷ 100 (씨앗 1개 = 100원)")
     deposit_available: int
     deposit_locked: int = Field(description="청약·주문·출금 대기로 묶인 예치금")
@@ -46,7 +46,7 @@ class CoinPackageOut(BaseModel):
     seeds: int
     bonus_seeds: int
     total_seeds: int
-    coin: int = Field(description="지급 코인(원 단위, 보너스 제외)")
+    coin: int = Field(description="지급 씨앗(원 단위, 보너스 제외)")
     bonus_coin: int
     price: int = Field(description="PG·예치금 결제 금액")
     iap_price: int = Field(description="인앱결제 금액 (스토어 수수료 보전 10% 포함)")

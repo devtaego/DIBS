@@ -173,11 +173,13 @@ def read_episode(episode_id: int, db: Session = Depends(get_db), user: User | No
     if user is None and e.no > settings.guest_free_episodes:
         raise DomainError("LOGIN_REQUIRED", "로그인하면 이어서 볼 수 있어요", 401)
     if not svc.can_read(db, e, user):
-        raise DomainError("PAYMENT_REQUIRED", f"이어서 보려면 {e.price_coin}코인이 필요해요", 402)
+        seeds = -(-e.price_coin // settings.seed_unit_won)  # 올림
+        raise DomainError("PAYMENT_REQUIRED", f"이어서 보려면 씨앗 {seeds}개가 필요해요", 402,
+                          data={"episode_id": e.id, "price_coin": e.price_coin, "price_seeds": seeds})
     return e
 
 
-@router.post("/episodes/{episode_id}/unlock", response_model=EpisodeContentOut, summary="유료 회차 구매 (코인)")
+@router.post("/episodes/{episode_id}/unlock", response_model=EpisodeContentOut, summary="유료 회차 구매 (씨앗)")
 def unlock_episode(episode_id: int, db: Session = Depends(get_db), user: User = Depends(current_user)):
     e = _episode(db, episode_id, user)
     svc.unlock_episode(db, user, e)

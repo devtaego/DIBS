@@ -246,7 +246,9 @@ def test_pilot_free_and_preview_free_after_21_days(api, published_work, now):
     assert (ep4["is_paid"], ep4["price_coin"]) == (True, 300)
     assert ep4["free_unlock_at"].startswith("2027-03-23")
     api.login("r")
-    api.err("r", "get", f"/episodes/{ep4['id']}", "PAYMENT_REQUIRED")
+    locked = api.err("r", "get", f"/episodes/{ep4['id']}", "PAYMENT_REQUIRED").json()["error"]
+    assert locked["data"] == {"episode_id": ep4["id"], "price_coin": 300, "price_seeds": 3}  # 화면은 문구 대신 이 숫자를 쓴다
+    assert "씨앗 3개" in locked["message"]
     api.ok("r", "post", "/wallet/coin/charge", json={"amount": 1_000})
     api.ok("r", "post", f"/episodes/{ep4['id']}/unlock")
     s = api.ok("admin", "get", f"/admin/works/{wid}/pre-issuance-settlement",

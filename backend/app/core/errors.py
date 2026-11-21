@@ -8,10 +8,11 @@ class DomainError(Exception):
 
     status_code = 400
 
-    def __init__(self, code: str, message: str, status_code: int | None = None):
+    def __init__(self, code: str, message: str, status_code: int | None = None, data: dict | None = None):
         super().__init__(message)
         self.code = code
         self.message = message
+        self.data = data  # 화면이 문구를 파싱하지 않고 쓰는 숫자 등 (예: 회차 가격)
         if status_code is not None:
             self.status_code = status_code
 
@@ -38,7 +39,7 @@ def register_error_handlers(app: FastAPI) -> None:
     async def _domain_error(_: Request, exc: DomainError):
         return JSONResponse(
             status_code=exc.status_code,
-            content={"error": {"code": exc.code, "message": exc.message}},
+            content={"error": {"code": exc.code, "message": exc.message, **({"data": exc.data} if exc.data else {})}},
         )
 
     @app.exception_handler(RequestValidationError)

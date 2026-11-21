@@ -15,12 +15,12 @@ from app.services import wallet as svc
 router = APIRouter(prefix="/wallet", tags=["wallet"])
 
 
-@router.get("", response_model=WalletOut, summary="지갑 잔액 (코인 / 예치금)")
+@router.get("", response_model=WalletOut, summary="지갑 잔액 (씨앗 / 예치금)")
 def get_wallet(db: Session = Depends(get_db), user: User = Depends(current_user)):
     return svc.summary(db, user)
 
 
-@router.post("/coin/charge", response_model=WalletOut, summary="코인 충전 (PG 모의)")
+@router.post("/coin/charge", response_model=WalletOut, summary="씨앗 충전 (PG 모의)")
 def charge_coin(body: AmountIn, db: Session = Depends(get_db), user: User = Depends(current_user)):
     svc.charge_coin(db, user, body.amount)
     return svc.summary(db, user)
@@ -53,7 +53,7 @@ def charge_deposit(body: AmountIn, db: Session = Depends(get_db), user: User = D
     return svc.summary(db, user)
 
 
-@router.post("/deposit/to-coin", response_model=WalletOut, summary="예치금 → 코인 전환 (실거래 모드만)")
+@router.post("/deposit/to-coin", response_model=WalletOut, summary="예치금 → 씨앗 전환 (실거래 모드만)")
 def deposit_to_coin(body: AmountIn, db: Session = Depends(get_db), user: User = Depends(current_user)):
     svc.deposit_to_coin(db, user, body.amount)
     return svc.summary(db, user)

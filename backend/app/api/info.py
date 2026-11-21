@@ -16,7 +16,7 @@ router = APIRouter(tags=["info"])
 POLICIES: dict[str, dict] = {
     "terms": {
         "title": "서비스 이용약관", "version": "2026-11-19", "required_for": ["SIGNUP"],
-        "body": "DIBS 콘텐츠·펀딩 서비스 이용 조건. 콘텐츠용 코인은 투자용 예치금으로 바꿀 수 없습니다.",
+        "body": "DIBS 콘텐츠·펀딩 서비스 이용 조건. 콘텐츠용 씨앗은 투자용 예치금으로 바꿀 수 없습니다.",
     },
     "privacy": {
         "title": "개인정보 처리방침", "version": "2026-11-19", "required_for": ["SIGNUP"],

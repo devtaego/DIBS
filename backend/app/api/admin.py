@@ -283,7 +283,7 @@ def add_revenue(body: RevenueIn, db: Session = Depends(get_db)):
 
 
 @router.post("/fundings/{funding_id}/revenues/aggregate", response_model=RevenueOut,
-             summary="유료 회차 코인 매출 자동 집계")
+             summary="유료 회차 씨앗 매출 자동 집계")
 def aggregate(funding_id: int, body: PeriodIn, db: Session = Depends(get_db)):
     return div_svc.aggregate_paid_episode_revenue(db, svc.get_funding(db, funding_id), body.period)
 

@@ -57,7 +57,7 @@ export default function MockKiwoomScreen() {
           ['청약 수량', `${units.toLocaleString('ko-KR')}조각`],
           ['청약 금액', won(units * f.unit_price)],
           ['배정 발표', f.close_at ? `${dateText(f.close_at)} 마감 후` : '마감 후'],
-          ...(coupon ? ([['계좌 개설 쿠폰', `${coupon.toLocaleString('ko-KR')}코인`]] as [string, string][]) : []),
+          ...(coupon ? ([['계좌 개설 쿠폰', `씨앗 ${Math.floor(coupon / 100).toLocaleString('ko-KR')}개`]] as [string, string][]) : []),
         ],
         note: '청약 대금과 분배금은 키움 계좌로 오가요. DIBS는 계좌번호를 받지 않고, 키움이 준 가명 연결 식별자만 저장해요.',
         aLabel: 'DIBS로 돌아가기',

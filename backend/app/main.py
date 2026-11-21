@@ -15,7 +15,7 @@ TAGS = [
     {"name": "community", "description": "댓글·작가 게시판·팬아트·주주 게시판·신고·차단"},
     {"name": "info", "description": "작가 프로필·공지(종목 공시)·약관"},
     {"name": "events", "description": "이용 데이터 수집 (찜·연독률·전환 분석 원천)"},
-    {"name": "wallet", "description": "콘텐츠용 코인 / 투자용 예치금 (분리 관리)"},
+    {"name": "wallet", "description": "콘텐츠용 씨앗 / 투자용 예치금 (분리 관리)"},
     {"name": "fundings", "description": "펀딩 = 조각 청약 (STEP 2~3)"},
     {"name": "market", "description": "상장 종목 지정가 상대매매 (STEP 5, 모의)"},
     {"name": "me", "description": "내 증권·청약·배당·알림"},

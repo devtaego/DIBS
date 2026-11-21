@@ -12,6 +12,7 @@ class ORM(BaseModel):
 class ErrorBody(BaseModel):
     code: str = Field(examples=["INSUFFICIENT_BALANCE"])
     message: str = Field(examples=["예치금이 부족해요"])
+    data: dict | None = Field(default=None, description="화면에서 쓸 숫자 등 추가 정보 (예: PAYMENT_REQUIRED → price_coin, price_seeds)")
 
 
 class ErrorResponse(BaseModel):

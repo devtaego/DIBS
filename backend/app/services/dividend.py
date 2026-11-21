@@ -89,7 +89,7 @@ def aggregate_paid_episode_revenue(db: Session, f: Funding, period: str) -> Reve
         db.delete(old)
     db.flush()
     return add_revenue(db, f, period, RevenueSource.PAID_EPISODE, gross, gross * settings.inapp_fee_bps // 10000,
-                       note="유료 회차 코인 매출 자동 집계 (인앱결제 수수료 공제)")
+                       note="유료 회차 씨앗 매출 자동 집계 (인앱결제 수수료 공제)")
 
 
 def holdings_at(db: Session, f: Funding, cutoff: datetime) -> dict[int, int]:

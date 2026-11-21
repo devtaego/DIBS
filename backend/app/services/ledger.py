@@ -53,7 +53,7 @@ def post(
     coin_out = any(l.account.kind == AccountKind.COIN and l.amount < 0 for l in legs)
     deposit_in = any(l.account.kind in (AccountKind.DEPOSIT, AccountKind.DEPOSIT_LOCKED) and l.amount > 0 for l in legs)
     if coin_out and deposit_in:
-        raise DomainError("COIN_TO_DEPOSIT_FORBIDDEN", "코인은 예치금으로 바꿀 수 없어요")
+        raise DomainError("COIN_TO_DEPOSIT_FORBIDDEN", "씨앗은 예치금으로 바꿀 수 없어요")
 
     journal = Journal(kind=kind, mode=mode, ref_type=ref_type, ref_id=ref_id, memo=memo)
     db.add(journal)
@@ -66,7 +66,7 @@ def post(
     for leg in legs:
         if leg.account.kind in USER_ACCOUNT_KINDS and leg.amount < 0 and balance(db, leg.account) < 0:
             raise InsufficientBalance(
-                "코인이 부족해요" if leg.account.kind == AccountKind.COIN else "예치금이 부족해요"
+                "씨앗이 부족해요" if leg.account.kind == AccountKind.COIN else "예치금이 부족해요"
             )
     return journal
 

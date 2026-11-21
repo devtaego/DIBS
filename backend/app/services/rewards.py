@@ -10,6 +10,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.core import clock
+from app.core.config import settings
 from app.core.errors import DomainError
 from app.models import Journal, User
 from app.models.enums import AccountKind
@@ -81,7 +82,7 @@ def convert_points(db: Session, user: User, points: int) -> dict:
         raise DomainError("NOT_ENOUGH_POINTS", "키움 포인트가 모자라요")
     coin = ledger.get_account(db, AccountKind.COIN, COIN_MODE, user.id)
     j = ledger.post(db, "PARTNER_POINT", [Leg(ledger.sys(db, AccountKind.SYS_PARTNER_POINT, COIN_MODE), -points), Leg(coin, points)],
-                    COIN_MODE, "user", user.id, memo=f"키움 포인트 {points:,}P → 코인")
+                    COIN_MODE, "user", user.id, memo=f"키움 포인트 {points:,}P → 씨앗")
     coins.credit(db, user.id, "BONUS", points, j)
-    notify(db, user.id, "PARTNER_POINT", f"키움 포인트 {points:,}P를 {points:,}코인으로 바꿨어요", "유료 회차를 볼 때 쓸 수 있어요.", "user", user.id)
+    notify(db, user.id, "PARTNER_POINT", f"키움 포인트 {points:,}P를 씨앗 {points // settings.seed_unit_won:,}개로 바꿨어요", "유료 회차를 볼 때 쓸 수 있어요.", "user", user.id)
     return partner_points(db, user)

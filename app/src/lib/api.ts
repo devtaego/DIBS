@@ -46,7 +46,8 @@ export async function setToken(t: string | null) {
 export const getBaseUrl = () => baseUrl;
 
 export class ApiError extends Error {
-  constructor(public status: number, public code: string, message: string) {
+  // data: 서버가 문구와 별도로 주는 숫자 등 (예: PAYMENT_REQUIRED → { price_coin, price_seeds }). 화면은 문구를 파싱하지 말고 이걸 쓴다
+  constructor(public status: number, public code: string, message: string, public data?: Record<string, unknown>) {
     super(message);
   }
 }
@@ -58,8 +59,8 @@ async function request<T>(method: string, path: string, body?: unknown, query?: 
     try {
       return (await demoRequest(method, path, body, query)) as T;
     } catch (e) {
-      const x = e as { status?: number; code?: string; message: string };
-      throw new ApiError(x.status ?? 400, x.code ?? 'DEMO', x.message);
+      const x = e as { status?: number; code?: string; message: string; data?: Record<string, unknown> };
+      throw new ApiError(x.status ?? 400, x.code ?? 'DEMO', x.message, x.data);
     }
   }
   const qs = query
@@ -86,7 +87,7 @@ async function request<T>(method: string, path: string, body?: unknown, query?: 
   const data = text ? JSON.parse(text) : null;
   if (!res.ok) {
     const err = data?.error;
-    throw new ApiError(res.status, err?.code ?? 'HTTP_' + res.status, err?.message ?? '요청을 처리하지 못했어요');
+    throw new ApiError(res.status, err?.code ?? 'HTTP_' + res.status, err?.message ?? '요청을 처리하지 못했어요', err?.data);
   }
   return data as T;
 }

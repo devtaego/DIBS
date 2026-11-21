@@ -37,9 +37,9 @@ export default function Account() {
       </View>
       <Panel>
         <KV k="키움 포인트" v={`${(pts?.balance ?? 0).toLocaleString('ko-KR')}P`} strong />
-        <Txt v="caption1" c={color.labelAlternative}>1P = 1코인으로 바꿔서 유료 회차를 볼 수 있어요. 코인은 투자에 쓸 수 없어요.</Txt>
-        <Button label="1,000P → 1,000코인으로 바꾸기" size="Small" variant="Outlined" tone="Assistive" disabled={!pts || pts.balance < 1000}
-          onPress={async () => { try { setPts(await api.post('/me/partner-points/convert', { points: 1000 })); setNote('1,000코인이 들어왔어요'); } catch (e) { setNote((e as ApiError).message); } }} />
+        <Txt v="caption1" c={color.labelAlternative}>100P를 씨앗 1개로 바꿔서 유료 회차를 볼 수 있어요. 씨앗은 투자에 쓸 수 없어요.</Txt>
+        <Button label="1,000P → 씨앗 10개로 바꾸기" size="Small" variant="Outlined" tone="Assistive" disabled={!pts || pts.balance < 1000}
+          onPress={async () => { try { setPts(await api.post('/me/partner-points/convert', { points: 1000 })); setNote('씨앗 10개가 들어왔어요'); } catch (e) { setNote((e as ApiError).message); } }} />
         {note ? <Txt v="caption1" c={color.primaryNormal}>{note}</Txt> : null}
       </Panel>
       {link.linked ? (

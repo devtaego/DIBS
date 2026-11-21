@@ -132,7 +132,7 @@ export default function AdminPanel() {
             {f.status === 'ALLOCATED' ? <Button title="발행 4단계 → 상장" onPress={() => list(f)} loading={busy === `list${f.id}`} /> : null}
             {f.status === 'LISTED' ? (
               <>
-                <Button title="마지막 회차 유료 지정 (500코인)" kind="ghost" onPress={() => paidEpisode(f)} loading={busy === `paid${f.id}`} />
+                <Button title="마지막 회차 유료 지정 (씨앗 5개)" kind="ghost" onPress={() => paidEpisode(f)} loading={busy === `paid${f.id}`} />
                 <Button title="이번 분기 배당 계산·지급" onPress={() => dividend(f)} loading={busy === `div${f.id}`} />
                 <Button title="다음 마일스톤 작가 지급" kind="ghost" onPress={() => milestone(f)} loading={busy === `ms${f.id}`} />
                 <Row style={{ gap: space(2) }}>

@@ -47,7 +47,7 @@ def charge_coin(db: Session, user: User, amount: int) -> Journal:
     _amount(amount)
     coin = ledger.get_account(db, AccountKind.COIN, COIN_MODE, user.id)
     j = ledger.post(db, "COIN_CHARGE", [Leg(ledger.sys(db, AccountKind.SYS_PG, COIN_MODE), -amount), Leg(coin, amount)],
-                    COIN_MODE, "user", user.id, memo="코인 충전")
+                    COIN_MODE, "user", user.id, memo="씨앗 충전")
     coins.credit(db, user.id, "PG", amount, j, paid_amount=amount)
     return j
 
@@ -64,7 +64,7 @@ def charge_deposit(db: Session, user: User, amount: int) -> Journal:
 def deposit_to_coin(db: Session, user: User, amount: int) -> Journal:
     _amount(amount)
     if current_mode() != Mode.LIVE:
-        raise Conflict("MOCK_DEPOSIT_TO_COIN", "모의 예치금은 코인으로 바꿀 수 없어요")
+        raise Conflict("MOCK_DEPOSIT_TO_COIN", "모의 예치금으로는 씨앗을 살 수 없어요")
     acc = ledger.user_accounts(db, user.id, Mode.LIVE)
     j = ledger.post(db, "DEPOSIT_TO_COIN", [Leg(acc.deposit, -amount), Leg(acc.coin, amount)], Mode.LIVE, "user", user.id)
     coins.credit(db, user.id, "CONVERTED", amount, j, paid_amount=amount)

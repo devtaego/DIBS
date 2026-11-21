@@ -96,7 +96,7 @@ export default function SubscribeScreen() {
         <Stack.Screen options={{ headerShown: false }} />
         <PageTitle title={`청약은 ${brokerName} 앱에서 해요`} sub={f.work_title} />
         <Callout title="DIBS는 계좌번호를 받지 않아요">
-          {`계좌 개설·투자성향 확인·청약 대금은 ${brokerName}가 처리해요.${cfg.partner_coupon_coin ? ` 처음 계좌를 열면 ${cfg.partner_coupon_coin.toLocaleString('ko-KR')}코인을 드려요.` : ''}`}
+          {`계좌 개설·투자성향 확인·청약 대금은 ${brokerName}가 처리해요.${cfg.partner_coupon_coin ? ` 처음 계좌를 열면 씨앗 ${Math.floor(cfg.partner_coupon_coin / 100).toLocaleString('ko-KR')}개를 드려요.` : ''}`}
         </Callout>
         <DNote title="잠깐, 꼭 확인해 주세요" text={`위험 등급 ${f.risk_grade}. 원금을 잃을 수 있고 예금자 보호 대상이 아니에요.`} style={{ marginTop: 0 }} />
         <ErrorBox error={error} />

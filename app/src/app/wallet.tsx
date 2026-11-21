@@ -1,4 +1,4 @@
-// 지갑: 예치금(키움증권 연결 계좌)과 코인(웹툰 열람 전용)을 나눠 보여 주고, 충전·출금은 키움 화면으로.
+// 지갑: 예치금(키움증권 연결 계좌)과 씨앗(웹툰 열람 전용)을 나눠 보여 주고, 충전·출금은 키움 화면으로.
 import { Stack, router } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, View } from 'react-native';
@@ -10,13 +10,15 @@ import { useKiwoomLink } from '@/lib/prefs';
 import { useApi } from '@/lib/useApi';
 
 const KIND: Record<string, string> = {
-  COIN_CHARGE: '코인 충전', EPISODE_UNLOCK: '회차 열람', DEPOSIT_IN: '예치금 충전', SUBSCRIPTION_LOCK: '청약 증거금',
+  COIN_CHARGE: '씨앗 충전', EPISODE_UNLOCK: '회차 열람', DEPOSIT_IN: '예치금 충전', SUBSCRIPTION_LOCK: '청약 증거금',
   SUBSCRIPTION_UNLOCK: '청약 변경 환급', FUNDING_ALLOCATION: '배정 · 환불', FUNDING_FAILED_RELEASE: '펀딩 미성립 환불',
   ISSUE_FAILED_REFUND: '발행 실패 환불', TRADE: '조각 체결', ORDER_LOCK: '주문', ORDER_UNLOCK: '주문 취소',
   DIVIDEND_PAYOUT: '분기 정산금', DISCONTINUE_DISTRIBUTION: '연재 중단 분배', WITHDRAWAL_LOCK: '출금 신청', WITHDRAWAL_OUT: '출금',
-  WITHDRAWAL_CANCEL: '출금 취소', ATTENDANCE: '출석 코인', PARTNER_POINT: '키움 포인트 전환', PARTNER_COUPON: '키움 계좌 개설 쿠폰',
+  WITHDRAWAL_CANCEL: '출금 취소', ATTENDANCE: '디비 발자국', PARTNER_POINT: '키움 포인트 전환', PARTNER_COUPON: '키움 계좌 개설 쿠폰',
 };
 const won = (n: number) => `${n.toLocaleString('ko-KR')}원`;
+// 씨앗 장부는 원 단위(씨앗 1개 = 100원)라 화면에서는 개수로 바꿔 보여 준다. 발자국 10P = 씨앗 0.1개
+const seedText = (won: number) => `씨앗 ${(won / 100).toLocaleString('ko-KR', { maximumFractionDigits: 2 })}개`;
 
 export default function WalletScreen() {
   const [tab, setTab] = useState<'deposit' | 'coin'>('deposit');
@@ -66,10 +68,10 @@ export default function WalletScreen() {
             <View key={`${l.journal_id}-${l.account}-${i}`} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.insetM, borderBottomWidth: 1, borderBottomColor: color.lineAlternative }}>
               <View style={{ flex: 1, gap: 2 }}>
                 <Txt v="body2" w="medium" c={color.labelStrong}>{KIND[l.kind] ?? l.kind}</Txt>
-                <Txt v="caption1" c={color.labelAssistive}>{`${l.created_at.slice(5, 10).replace('-', '.')} ${l.created_at.slice(11, 16)}${l.memo && !['예치금 입금', '코인 충전', '출석 체크'].includes(l.memo) ? ` · ${l.memo}` : ''}`}</Txt>
+                <Txt v="caption1" c={color.labelAssistive}>{`${l.created_at.slice(5, 10).replace('-', '.')} ${l.created_at.slice(11, 16)}${l.memo && !['예치금 입금', '코인 충전', '씨앗 충전', '출석 체크'].includes(l.memo) ? ` · ${l.memo}` : ''}`}</Txt>
               </View>
               <Txt v="body2" w="bold" c={l.amount > 0 ? color.primaryNormal : color.labelStrong} tabular>
-                {`${l.amount > 0 ? '+' : '−'}${Math.abs(l.amount).toLocaleString('ko-KR')}${l.account === 'COIN' ? '코인' : '원'}`}
+                {`${l.amount > 0 ? '+' : '−'}${l.account === 'COIN' ? seedText(Math.abs(l.amount)) : won(Math.abs(l.amount))}`}
               </Txt>
             </View>
           ))}

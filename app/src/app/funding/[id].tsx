@@ -124,7 +124,7 @@ export default function FundingScreen() {
                 </View>
               ) : null}
             </Metric>
-            <Metric title="주간 독자 증가율" value={work.reader_change_1w != null ? `${work.reader_change_1w >= 0 ? '+' : ''}${Math.round(work.reader_change_1w * 100)}%` : '-'}
+            <Metric title="주간 독자 증가율" value={work.reader_change_1w != null ? `${work.reader_change_1w > 0 ? '+' : ''}${(Math.round(work.reader_change_1w * 1000) / 10).toFixed(1)}%` : '-'}
               vc={(work.reader_change_1w ?? 0) >= 0 ? color.rise : color.fall} desc="직전 7일 대비 최근 7일 동안 회차를 본 순독자 수의 변화율이에요.">
               {work.reader_change_1w != null ? <View style={{ marginTop: 8 }}><Spark values={[1, 1 + work.reader_change_1w]} up={work.reader_change_1w >= 0} w={300} h={40} area /></View> : null}
             </Metric>

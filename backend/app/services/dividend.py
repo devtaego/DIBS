@@ -52,13 +52,15 @@ def add_revenue(db: Session, f: Funding, period: str, source: RevenueSource, gro
     if gross < 0 or deductions < 0 or deductions > gross:
         raise DomainError("INVALID_REVENUE", "매출과 공제액을 확인해 주세요")
     if source == RevenueSource.EXTERNAL_SERIAL:
-        # gross = 외부 플랫폼 정산서상 작가 몫. 그중 external_share_bps 만 배당 재원
+        # gross = 외부 플랫폼 정산금. 그중 external_share_bps 만 배당 재원 (v2.3 기본 100%, v5는 작가 몫의 20%)
         _, end = parse_period(period)
         if not f.exclusive_until or end < f.exclusive_until.date():
             raise Conflict("EXCLUSIVE_PERIOD", "선공개 독점 기간에는 외부 연재 수익을 넣을 수 없어요")
         if not evidence_url:
             raise DomainError("EVIDENCE_REQUIRED", "외부 플랫폼 정산서(증빙)를 첨부해 주세요")
-        deductions = gross - gross * f.external_share_bps // 10000
+        deductions += gross - gross * f.external_share_bps // 10000
+        if deductions > gross:
+            raise DomainError("INVALID_REVENUE", "공제액이 매출보다 커요")
     if source == RevenueSource.SECONDARY_IP and not evidence_url:
         raise DomainError("EVIDENCE_REQUIRED", "2차·해외 IP 계약서와 정산서(증빙)를 첨부해 주세요")
     if db.scalar(select(DividendRun.id).where(DividendRun.funding_id == f.id, DividendRun.period == period)):

@@ -96,6 +96,12 @@ def test_holding_cap_10_percent_and_market_order(api, published_work, now):
             json={**ORDER, "funding_id": fid, "side": "BUY", "order_type": "MARKET", "units": 1})
     api.err("c", "post", "/market/orders", "INVALID_ORDER", json={**ORDER, "funding_id": fid, "side": "BUY", "units": 1})
 
+    # 거래 수수료는 Dibs 수입 (기획서 1-3): 10만 원 체결 → 매수·매도 각 15원
+    before = balances(api)[("SYS_PLATFORM_REVENUE", "MOCK")]
+    api.ok("a", "post", "/market/orders", json={**ORDER, "funding_id": fid, "side": "SELL", "price": 1_000, "units": 100})
+    api.ok("c", "post", "/market/orders", json={**ORDER, "funding_id": fid, "side": "BUY", "price": 1_000, "units": 100})
+    assert balances(api)[("SYS_PLATFORM_REVENUE", "MOCK")] - before == 30
+
 
 def test_seed_packages_lots_refund_and_expiry(api, published_work, now, monkeypatch):
     from app.core.config import settings

@@ -39,7 +39,7 @@ V5_POLICY = {
     "creator_token_bps": 0, "royalty_platform_bps": 2500, "royalty_creator_bps": 3000, "royalty_holder_bps": 4500,
     "royalty_platform_after_bps": 2500, "royalty_creator_after_bps": 4000, "royalty_holder_after_bps": 3500,
     "creator_escrow_bps": 5000, "fixed_term_enabled": True, "max_holding_bps": 10000,
-    "paid_preview_before_listing": True,
+    "paid_preview_before_listing": True, "trade_fee_to_platform": False, "external_share_bps": 2000,
 }
 
 

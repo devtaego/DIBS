@@ -163,7 +163,8 @@ class InternalMockExchange(MarketGateway):
         legs = [
             Leg(b_acc.locked, -(gross + buy_fee)),
             Leg(s_acc.deposit, gross - sell_fee),
-            Leg(ledger.sys(db, AccountKind.SYS_BROKER_FEE, f.mode), buy_fee + sell_fee),  # 거래소·증권사 몫
+            Leg(ledger.sys(db, AccountKind.SYS_PLATFORM_REVENUE if settings.trade_fee_to_platform
+                           else AccountKind.SYS_BROKER_FEE, f.mode), buy_fee + sell_fee),  # v2.3: Dibs 수입
         ]
         if buy.remaining_units == 0 and buy.locked_amount > 0:  # 수수료 절사 차액 반환
             legs += [Leg(b_acc.locked, -buy.locked_amount), Leg(b_acc.deposit, buy.locked_amount)]

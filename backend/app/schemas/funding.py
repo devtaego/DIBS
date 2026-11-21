@@ -73,7 +73,7 @@ class FundingTermsOut(ORM):
     exclusive_months: int = Field(description="상장 후 DIBS 선공개 독점 기간(개월)")
     exclusive_until: datetime | None
     buyback_enabled: bool = Field(default=False, description="작가 매입 옵션 선택 여부")
-    external_share_bps: int = Field(description="독점 종료 후 외부 연재·영상화 수익 중 작가 몫에서 순매출에 넣는 비율")
+    external_share_bps: int = Field(description="독점 종료 후 외부 플랫폼 연재 정산금 중 순매출에 넣는 비율 (v2.3 기본 10000 = 전액)")
 
 
 class RecoupOut(BaseModel):

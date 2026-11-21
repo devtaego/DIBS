@@ -152,7 +152,7 @@ class RevenueSource(StrEnum):
     PAID_EPISODE = "PAID_EPISODE"
     AD = "AD"
     GOODS = "GOODS"
-    EXTERNAL_SERIAL = "EXTERNAL_SERIAL"  # 독점 종료 후 외부 연재·영상화 수익 중 작가 몫 × 20%
+    EXTERNAL_SERIAL = "EXTERNAL_SERIAL"  # 독점 종료 후 외부 플랫폼 연재 정산금 (v2.3: 전액, 실비 공제 후 60/30/10)
     # v2.3: 2차·해외 IP (판권·출판·캐릭터 라이선스·해외 연재). Dibs가 에이전시로 받은 금액에서 실비만 빼고
     # 1차 매출과 같은 비율(작가 60 / 투자자 30 / Dibs 10)로 나눈다. Dibs 에이전시 몫은 이 10%뿐
     SECONDARY_IP = "SECONDARY_IP"

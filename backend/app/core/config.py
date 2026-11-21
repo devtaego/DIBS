@@ -56,7 +56,9 @@ class Settings(BaseModel):
     # v2.2: 고정 운용 기간·예정 만기 없이 발행 → 기간 만료·저매출 종료 판정을 끈다 (작가 매입·운영자 상장폐지만 남음)
     fixed_term_enabled: bool = False
     exclusive_months: int = 12  # 상장 후 DIBS 선공개 독점 기간
-    external_share_bps: int = 2000  # 독점 종료 후 외부 연재·영상화 수익 중 작가 몫의 20%를 순매출에 포함
+    # v2.3: 독점 종료 후 외부 플랫폼 연재 정산금은 Dibs가 에이전시로 받은 금액 전체를 1차 순매출로 넣어 60/30/10
+    # (v5는 '작가 몫의 20%'만 넣었다). 실비는 deductions 로 따로 뺀다
+    external_share_bps: int = 10000
     termination_after_completion_months: int = 12  # 완결 후 12개월이면 권리 종료
     low_revenue_bps: int = 50  # 분기 순매출이 발행액의 0.5% 미만이면 '저매출 분기'
     low_revenue_quarters: int = 2  # 저매출 분기가 연속 2번이면 권리 종료
@@ -152,8 +154,10 @@ class Settings(BaseModel):
     # ── 마켓 ──
     # 모의 거래소 규칙. 실제 가격제한폭·거래시간은 장외거래소 규정을 따른다
     price_limit_bps: int = 3000  # 기준가 ±30%
-    # 거래 수수료 0.015% (거래소·증권사 몫, DIBS 수입 아님). ppm = 100만분의 1
+    # 거래 수수료 매수·매도 각 0.015%. ppm = 100만분의 1
     trade_fee_ppm: int = 150
+    # v2.3: 거래 수수료는 Dibs 수입 (기획서 1-3 '② 유통·거래 수수료'). 계좌관리비는 Dibs가 증권사에 따로 낸다
+    trade_fee_to_platform: bool = True
     maintenance_start: str = "04:00"  # KST
     maintenance_end: str = "04:30"
 

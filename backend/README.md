@@ -21,7 +21,7 @@
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 
-python -m scripts.seed_demo          # 데모 데이터 (5,000만 원 목표 140% 펀딩, 파일럿 열람 3.2만 명, 상장 종목 + 호가)
+python -m scripts.seed_demo          # 데모 데이터 (모집 중 펀딩 145%, 상장 종목 청월도 + 호가, 모집 중 펀딩 6개)
 uvicorn app.main:app --reload        # http://localhost:8000/docs  (Swagger UI)
 pytest -q                            # 테스트 55개
 python -m scripts.export_docs        # docs/API_SPEC.md · ERD.md · openapi.json 재생성

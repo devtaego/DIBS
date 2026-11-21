@@ -1,3 +1,6 @@
+from datetime import date
+
+from pydantic import BaseModel, Field
 from fastapi import APIRouter, Depends
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -26,8 +29,13 @@ def dev_login(body: DevLoginIn, db: Session = Depends(get_db)):
     return TokenOut(access_token=create_token(user), user_id=user.id)
 
 
+class MockKycIn(BaseModel):
+    birth_date: date | None = Field(default=None, description="모의 본인인증 생년월일 (비우면 성인 1995-01-01)")
+
+
 @router.post("/kyc/mock", response_model=UserOut, summary="모의 본인인증 완료 처리")
-def mock_kyc(user: User = Depends(current_user)):
-    """주민등록번호 등 식별정보는 저장하지 않고, 실서비스에서는 본인확인기관 결과(CI)만 받는다."""
+def mock_kyc(body: MockKycIn | None = None, user: User = Depends(current_user)):
+    """주민등록번호 등 식별정보는 저장하지 않고, 실서비스에서는 본인확인기관 결과(CI·생년월일)만 받는다."""
     user.kyc_verified = True
+    user.birth_date = (body.birth_date if body and body.birth_date else None) or user.birth_date or date(1995, 1, 1)
     return user

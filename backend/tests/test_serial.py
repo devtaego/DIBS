@@ -1,4 +1,5 @@
 """연재 위험 규칙: 약정 회차 자동 지급·조기 완결·지연(태업)·귀책 중단·유보금·반환 청구·증권사 경로."""
+import pytest
 from datetime import timedelta
 
 from app.core import clock
@@ -7,6 +8,8 @@ from tests.conftest import iso
 from tests.test_flow import assert_books_balance
 
 SUB = {"agree_risk_notice": True, "agree_termination_rule": True}
+
+pytestmark = pytest.mark.usefixtures("v5_policy")
 
 
 def listed(api, wid, now, units_by_user: dict, terms: dict | None = None) -> int:

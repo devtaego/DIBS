@@ -13,7 +13,7 @@ from app.core import clock
 from app.core.errors import DomainError
 from app.models import Journal, User
 from app.models.enums import AccountKind
-from app.services import ledger
+from app.services import coins, ledger
 from app.services.ledger import Leg
 from app.services.policy import notify
 from app.services.wallet import COIN_MODE
@@ -57,8 +57,9 @@ def attend(db: Session, user: User) -> dict:
     streak = _streak(days | {today}, today)
     amt = LADDER[(streak - 1) % STREAK_DAYS]
     coin = ledger.get_account(db, AccountKind.COIN, COIN_MODE, user.id)
-    ledger.post(db, "ATTENDANCE", [Leg(ledger.sys(db, AccountKind.SYS_PROMOTION, COIN_MODE), -amt), Leg(coin, amt)],
-                COIN_MODE, "user", user.id, memo=f"{today.isoformat()} 출석 {streak}일째")
+    j = ledger.post(db, "ATTENDANCE", [Leg(ledger.sys(db, AccountKind.SYS_PROMOTION, COIN_MODE), -amt), Leg(coin, amt)],
+                    COIN_MODE, "user", user.id, memo=f"{today.isoformat()} 출석 {streak}일째")
+    coins.credit(db, user.id, "BONUS", amt, j)
     return {**attendance(db, user), "granted": amt}
 
 
@@ -80,7 +81,8 @@ def convert_points(db: Session, user: User, points: int) -> dict:
     if points > partner_points(db, user)["balance"]:
         raise DomainError("NOT_ENOUGH_POINTS", "키움 포인트가 모자라요")
     coin = ledger.get_account(db, AccountKind.COIN, COIN_MODE, user.id)
-    ledger.post(db, "PARTNER_POINT", [Leg(ledger.sys(db, AccountKind.SYS_PARTNER_POINT, COIN_MODE), -points), Leg(coin, points)],
-                COIN_MODE, "user", user.id, memo=f"키움 포인트 {points:,}P → 코인")
+    j = ledger.post(db, "PARTNER_POINT", [Leg(ledger.sys(db, AccountKind.SYS_PARTNER_POINT, COIN_MODE), -points), Leg(coin, points)],
+                    COIN_MODE, "user", user.id, memo=f"키움 포인트 {points:,}P → 코인")
+    coins.credit(db, user.id, "BONUS", points, j)
     notify(db, user.id, "PARTNER_POINT", f"키움 포인트 {points:,}P를 {points:,}코인으로 바꿨어요", "유료 회차를 볼 때 쓸 수 있어요.", "user", user.id)
     return partner_points(db, user)

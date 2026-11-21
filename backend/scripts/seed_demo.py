@@ -193,11 +193,11 @@ def main() -> None:
         for ep in call("creator", "get", f"/works/{a}/episodes")[3:]:  # 4화부터 유료 미리보기
             call("admin", "patch", f"/admin/episodes/{ep['id']}/pricing", json={"is_paid": True})
         seed_paying_fans(a, 5_200)  # 유료 팬 5,200명 → 목표 금액 상한 1,500만 원
-        fa = make_funding(a, 1500, [{"title": "에필로그 크레딧 등재", "min_units": 1},
-                                    {"title": "한정판 양장본 + 넘버링 카드", "min_units": 30, "limited_qty": 50,
+        fa = make_funding(a, 15000, [{"title": "에필로그 크레딧 등재", "min_units": 10},
+                                     {"title": "한정판 양장본 + 넘버링 카드", "min_units": 300, "limited_qty": 50,
                                      "requires_shipping": True}])
-        for r in readers[:29]:  # 29명 × 75 = 2,175조각 (145%), 1인 한도 75조각 = 75만 원
-            call(r, "post", f"/fundings/{fa}/subscriptions", json={**SUB, "units": 75})
+        for r in readers[:29]:  # 29명 × 750 = 21,750조각 (145%), 1인 한도 750조각 = 75만 원 (1조각 1,000원)
+            call(r, "post", f"/fundings/{fa}/subscriptions", json={**SUB, "units": 750})
 
         # 작품 B: 상장 + 거래
         b = make_work("청월도", "무협", 8, cover=COVERS.get("청월도"), synopsis="달빛이 푸른 밤, 멸문한 가문의 막내가 검을 든다.")
@@ -207,19 +207,19 @@ def main() -> None:
         seed_paying_fans(b, 3_500)  # 유료 팬 3,500명 → 상한 1,000만 원
         for r in readers[3:6]:
             call(r, "put", f"/works/{b}/dib")  # 모집 전 찜 → 초기 독자 우선 배정
-        fb = make_funding(b, 1000, [])
-        for r in readers[:25]:  # 25명 × 50 = 1,250조각 (125%), 1인 한도 50조각 = 50만 원
-            call(r, "post", f"/fundings/{fb}/subscriptions", json={**SUB, "units": 50})
+        fb = make_funding(b, 10000, [])
+        for r in readers[:25]:  # 25명 × 500 = 12,500조각 (125%), 1인 한도 500조각 = 50만 원
+            call(r, "post", f"/fundings/{fb}/subscriptions", json={**SUB, "units": 500})
         call("admin", "post", f"/admin/fundings/{fb}/close", params={"force": True})
         call("admin", "post", f"/admin/fundings/{fb}/issuance", json={"broker_name": "제휴증권(모의)"})
         for step, extra in [("FILED", {}), ("ISSUED", {"security_code": "KRDIBS0000002", "trustee": "모의신탁"}),
                             ("LISTING_SCHEDULED", {"listing_date": clock.now().date().isoformat()}), ("LISTED", {})]:
             call("admin", "post", f"/admin/fundings/{fb}/issuance/advance", json={"step": step, **extra})
         order = {"funding_id": fb, "agree_risk_notice": True}
-        call("reader1", "post", "/market/orders", json={**order, "side": "SELL", "price": 11_500, "units": 10})
-        call("reader2", "post", "/market/orders", json={**order, "side": "BUY", "price": 11_500, "units": 6})
-        call("reader3", "post", "/market/orders", json={**order, "side": "SELL", "price": 12_000, "units": 5})
-        call("reader4", "post", "/market/orders", json={**order, "side": "BUY", "price": 11_000, "units": 8})
+        call("reader1", "post", "/market/orders", json={**order, "side": "SELL", "price": 1_150, "units": 100})
+        call("reader2", "post", "/market/orders", json={**order, "side": "BUY", "price": 1_150, "units": 60})
+        call("reader3", "post", "/market/orders", json={**order, "side": "SELL", "price": 1_200, "units": 50})
+        call("reader4", "post", "/market/orders", json={**order, "side": "BUY", "price": 1_100, "units": 80})
         b_eps = call("creator", "get", f"/works/{b}/episodes")
         for r in readers[5:15]:  # 상장 후 유료 구매 → 신탁 계좌로 바로 분할 (공시 대사 시연)
             call(r, "post", f"/episodes/{b_eps[4]['id']}/unlock")
@@ -231,12 +231,12 @@ def main() -> None:
 
         # 추가 작품: 모집 중 펀딩 여러 개 (달성률·마감일·형식이 서로 다르게). 표지는 COVERS 에 있으면 쓴다
         extra = [
-            ("이세계 맛집 사장님", "요리 · 이세계", "WEBTOON", 1000, 13, 3, "이세계로 떨어진 동네 분식집 사장이 마왕군 단골을 만든다."),
-            ("죽은 줄 알았던 남편이 내 상사로 돌아왔다", "현대 로맨스", "WEBNOVEL", 1000, 9, 5, "장례식 1년 뒤, 새 본부장으로 나타난 남편."),
-            ("그날, 사건이 시작됐다", "미스터리 · 추리", "WEBTOON", 1200, 6, 12, "작은 섬마을 고등학교에서 사라진 졸업 앨범."),
-            ("황태자의 가짜 신부는 사실 살인자였다", "로판 · 스릴러", "WEBNOVEL", 1000, 11, 8, "가짜 신부로 들어간 암살자가 황태자에게 들킨다."),
-            ("우리 반은 전셜입니다", "학원 · 코미디", "WEBTOON", 1000, 14, 2, "전설의 영웅들이 같은 반 고등학생으로 환생했다."),
-            ("시골에선 슬로우라이프", "힐링 · 일상", "WEBTOON", 1000, 4, 10, "번아웃 직장인의 귀촌 1년 기록."),
+            ("이세계 맛집 사장님", "요리 · 이세계", "WEBTOON", 10000, 13, 3, "이세계로 떨어진 동네 분식집 사장이 마왕군 단골을 만든다."),
+            ("죽은 줄 알았던 남편이 내 상사로 돌아왔다", "현대 로맨스", "WEBNOVEL", 10000, 9, 5, "장례식 1년 뒤, 새 본부장으로 나타난 남편."),
+            ("그날, 사건이 시작됐다", "미스터리 · 추리", "WEBTOON", 12000, 6, 12, "작은 섬마을 고등학교에서 사라진 졸업 앨범."),
+            ("황태자의 가짜 신부는 사실 살인자였다", "로판 · 스릴러", "WEBNOVEL", 10000, 11, 8, "가짜 신부로 들어간 암살자가 황태자에게 들킨다."),
+            ("우리 반은 전셜입니다", "학원 · 코미디", "WEBTOON", 10000, 14, 2, "전설의 영웅들이 같은 반 고등학생으로 환생했다."),
+            ("시골에선 슬로우라이프", "힐링 · 일상", "WEBTOON", 10000, 4, 10, "번아웃 직장인의 귀촌 1년 기록."),
         ]
         for i, (title, genre, wtype, target, subscribers, days, syn) in enumerate(extra):
             wid = make_work(title, genre, 10, wtype, COVERS.get(title), syn)
@@ -253,7 +253,7 @@ def main() -> None:
             call("admin", "post", f"/admin/fundings/{f['id']}/review", json={"approve": True, "terms": {}})
             call("admin", "post", f"/admin/fundings/{f['id']}/open")
             for r in readers[10: 10 + subscribers]:
-                call(r, "post", f"/fundings/{f['id']}/subscriptions", json={**SUB, "units": 40})
+                call(r, "post", f"/fundings/{f['id']}/subscriptions", json={**SUB, "units": 400})
 
         UPCOMING = {"새벽 세시의 편의점 마법사": 4}
         # 나머지 카탈로그: 펀딩 없이 작품만 (탐색·랭킹용). 찜 수는 서로 다르게
@@ -266,7 +266,7 @@ def main() -> None:
             if title in UPCOMING:  # 공모 예정 (승인 완료, 모집 시작 전)
                 now = clock.now()
                 f = call("creator", "post", f"/works/{wid}/fundings", json={
-                    "target_units": 1000, "open_at": (now + timedelta(days=UPCOMING[title])).isoformat(),
+                    "target_units": 10000, "open_at": (now + timedelta(days=UPCOMING[title])).isoformat(),
                     "close_at": (now + timedelta(days=UPCOMING[title] + 10)).isoformat(),
                     "use_of_funds": "작화 외주 60% · 편집 20% · 마케팅 20%", "reward_tiers": []})
                 call("admin", "post", f"/admin/fundings/{f['id']}/review", json={"approve": True, "terms": {}})

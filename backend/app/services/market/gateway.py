@@ -17,6 +17,10 @@ class MarketGateway(ABC):
     def place_order(self, user: User, funding: Funding, side: OrderSide, price: int, units: int) -> Order: ...
 
     @abstractmethod
+    def place_market_order(self, user: User, funding: Funding, side: OrderSide, units: int) -> Order:
+        """시장가: 최우선 호가에서 체결하고 남은 수량은 취소."""
+        ...
+
     def preview_order(self, user: User, funding: Funding, side: OrderSide, price: int, units: int) -> dict:
         """주문 확인 시트: 수수료·총액·주문 가능 여부와 불가 사유 코드."""
 

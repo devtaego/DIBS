@@ -1,12 +1,17 @@
 """펀딩 → 안분 배정 → 발행·상장 → 거래 → 배당 전체 흐름 (기획안 v2.0 STEP 1~6)."""
+import pytest
 from datetime import date, datetime, timedelta
 
 from app.core import clock
 from tests.conftest import open_funding
 
+pytestmark = pytest.mark.usefixtures("v5_policy")
+
 
 def wallet(api, who):
-    return api.ok(who, "get", "/wallet")
+    w = api.ok(who, "get", "/wallet")
+    w.pop("seeds", None)  # 씨앗 개수(표기용)는 coin ÷ 100이라 비교에서 뺀다
+    return w
 
 
 def assert_books_balance(api):

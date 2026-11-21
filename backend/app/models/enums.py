@@ -61,6 +61,8 @@ class AccountKind(StrEnum):
     SYS_PARTNER_COUPON = "SYS_PARTNER_COUPON"  # 증권사가 사서 신규 계좌 고객에게 준 코인 (계좌 개설 쿠폰)
     SYS_PARTNER_POINT = "SYS_PARTNER_POINT"  # 증권사 포인트를 코인으로 바꿔 준 몫 (증권사가 정산)
     SYS_PROMOTION = "SYS_PROMOTION"  # 출석 코인 등 DIBS 마케팅비
+    SYS_TRUST_RESERVE = "SYS_TRUST_RESERVE"  # 모금액의 최소 유보금 (신탁 보관, 귀책 중단·분쟁 대비)
+    SYS_COIN_EXPIRED = "SYS_COIN_EXPIRED"  # 유효기간이 지난 보너스 씨앗
     SYS_CREATOR_ESCROW = "SYS_CREATOR_ESCROW"  # 회수 전 유보한 작가 매출 몫 (신탁)
     SYS_SPECIAL_PAYABLE = "SYS_SPECIAL_PAYABLE"  # 증권사 지급 대기 중인 특별 분배금
     SYS_TAX_WITHHOLDING = "SYS_TAX_WITHHOLDING"

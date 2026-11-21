@@ -62,3 +62,24 @@ class WithdrawalRequest(Base):
     status: Mapped[str] = mapped_column(String(20), default="PENDING")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=clock.now)
     decided_at: Mapped[datetime | None] = mapped_column(DateTime)
+
+
+class CoinLot(Base):
+    """씨앗(코인) 출처별 묶음 (기획서 3-4-3). 잔액의 기준은 원장이고, 이 표는 출처·유효기간·환불 판단용 보조 장부다.
+
+    source: IAP(인앱결제) | PG(카드·계좌 결제) | CONVERTED(예치금 전환) | BONUS(출석·묶음 보너스·쿠폰·포인트)
+    """
+
+    __tablename__ = "coin_lots"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    source: Mapped[str] = mapped_column(String(20))
+    amount: Mapped[int] = mapped_column(BigInteger)
+    remaining: Mapped[int] = mapped_column(BigInteger)
+    paid_amount: Mapped[int] = mapped_column(BigInteger, default=0)  # 실제 결제 금액 (인앱은 스토어 수수료 보전분 포함)
+    expires_at: Mapped[datetime] = mapped_column(DateTime)
+    status: Mapped[str] = mapped_column(String(20), default="ACTIVE")  # ACTIVE | USED | EXPIRED | REFUNDED
+    package_id: Mapped[str | None] = mapped_column(String(30))
+    journal_id: Mapped[int | None] = mapped_column(ForeignKey("journals.id"))
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=clock.now)

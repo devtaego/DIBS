@@ -22,6 +22,7 @@ class Work(TimestampMixin, Base):
     synopsis: Mapped[str] = mapped_column(Text, default="")
     cover_url: Mapped[str | None] = mapped_column(String(500))
     status: Mapped[WorkStatus] = enum_col(WorkStatus, default=WorkStatus.DRAFT)
+    age_rating: Mapped[str] = mapped_column(String(5), default="ALL")  # ALL | 15 | 19 (19는 본인인증 성인만 회차 열람)
     rights_declared: Mapped[bool] = mapped_column(Boolean, default=False)  # 공개 권한 보유 확인
     prior_contract_note: Mapped[str | None] = mapped_column(Text)  # 기존 계약관계
     review_note: Mapped[str | None] = mapped_column(Text)
@@ -47,6 +48,12 @@ class Episode(TimestampMixin, Base):
     def is_paid(self) -> bool:
         """지금 결제가 필요한가 (유료 미리보기 기간 중)."""
         return self.paid_preview and (self.free_unlock_at is None or clock.now() < self.free_unlock_at)
+
+    @property
+    def price_seeds(self) -> int:
+        """화면 표기용 씨앗 개수 (씨앗 1개 = 100원)."""
+        from app.core.config import settings
+        return self.price_coin // settings.seed_unit_won
 
     work: Mapped[Work] = relationship(back_populates="episodes")
 

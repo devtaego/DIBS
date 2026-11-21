@@ -80,6 +80,10 @@
 |---|---|---|---|---|---|
 | `GET` | `/wallet` | 지갑 잔액 (코인 / 예치금) | 회원 |  | WalletOut |
 | `POST` | `/wallet/coin/charge` | 코인 충전 (PG 모의) | 회원 | AmountIn | WalletOut |
+| `GET` | `/wallet/coin/packages` | 씨앗 묶음 목록 (10 · 30 · 55개) | 회원 |  | CoinPackageOut[] |
+| `POST` | `/wallet/coin/packages/buy` | 씨앗 묶음 구매 (IAP·PG 모의) | 회원 | BuyPackageIn | BuyPackageOut |
+| `GET` | `/wallet/coin/lots` | 씨앗 충전 내역 (출처·남은 양·유효기간) | 회원 |  | CoinLotOut[] |
+| `POST` | `/wallet/coin/lots/{lot_id}/refund` | PG 충전분 결제 취소 (7일 안, 미사용) | 회원 |  | CoinLotOut |
 | `POST` | `/wallet/deposit/charge` | 예치금 입금 (모의 모드: 모의 예치금 지급) | 회원 | AmountIn | WalletOut |
 | `POST` | `/wallet/deposit/to-coin` | 예치금 → 코인 전환 (실거래 모드만) | 회원 | AmountIn | WalletOut |
 | `POST` | `/wallet/deposit/withdrawals` | 예치금 출금 요청 (운영자 승인) | 회원 | AmountIn | WithdrawalOut |
@@ -117,7 +121,7 @@
 | `GET` | `/market/securities/{funding_id}/orderbook` | 호가 (가격별 잔량) | 공개 |  | OrderBookOut |
 | `GET` | `/market/securities/{funding_id}/trades` | 최근 체결 | 공개 |  | TradeOut[] |
 | `GET` | `/market/securities/{funding_id}/dividends` | 종목 배당 내역 | 공개 |  | DividendRunOut[] |
-| `POST` | `/market/orders` | 지정가 주문 (같은 가격끼리만 체결) | 회원 | OrderIn | OrderOut |
+| `POST` | `/market/orders` | 주문 (지정가 또는 시장가) | 회원 | OrderIn | OrderOut |
 | `DELETE` | `/market/orders/{order_id}` | 주문 취소 | 회원 |  | OrderOut |
 
 ## me — 내 증권·청약·배당·알림
@@ -136,6 +140,10 @@
 | `GET` | `/me/dividends` | 정산 리포트 (분기 배당 내역) | 회원 |  | DividendPaymentOut[] |
 | `GET` | `/me/notifications` | 알림 | 회원 |  | NotificationOut[] |
 | `POST` | `/me/notifications/{notification_id}/read` | 알림 읽음 | 회원 |  | OK |
+| `GET` | `/me/attendance` | 출석 현황 (최근 7일, 연속 출석) | 회원 |  |  |
+| `POST` | `/me/attendance` | 오늘 출석 → 열람 코인 (7일 사다리 50·50·200·50·50·50·300) | 회원 |  |  |
+| `GET` | `/me/partner-points` | 제휴 증권사(키움 모의) 포인트 잔액 | 회원 |  |  |
+| `POST` | `/me/partner-points/convert` | 키움 포인트 → 열람 코인 (한 방향만) | 회원 | PointsIn |  |
 
 ## studio — 크리에이터 스튜디오(웹): 내 작품·펀딩·리워드 배송·정산
 
@@ -194,6 +202,8 @@
 | `POST` | `/admin/fundings/{funding_id}/hiatus` | 휴재 공지 기록 (시즌 누적 8주까지 연재 기한에서 뺌) | 운영자 | HiatusIn |  |
 | `POST` | `/admin/fundings/{funding_id}/serial-check` | 연재 지연 판정 (한 달치 경고, 석 달치 귀책 중단) | 운영자 |  |  |
 | `POST` | `/admin/fundings/{funding_id}/clawback` | 귀책 중단 반환금 수납 → 보유자 분배 | 운영자 | ClawbackIn |  |
+| `POST` | `/admin/jobs/deadline-reminders` | 매일: 청약 마감 임박 알림 (청약자·찜한 회원) | 운영자 |  |  |
+| `POST` | `/admin/jobs/expire-coins` | 매일: 유효기간이 지난 씨앗 만료 (보너스 90일 · 유료 5년) | 운영자 |  |  |
 | `POST` | `/admin/jobs/serial-check` | 매일: 상장 작품 연재 지연 판정 | 운영자 |  |  |
 | `POST` | `/admin/fundings/{funding_id}/terminate` | 권리 종료 (완결 후 12개월 또는 저매출 2분기 연속, 원금 상환 없음) | 운영자 |  | FundingOut |
 | `GET` | `/admin/fundings/{funding_id}/payouts` | 작가 지급 일정 | 운영자 |  | PayoutOut[] |
@@ -217,18 +227,25 @@
 
 | code | 기본 메시지 |
 |---|---|
+| `ACCOUNT_CHANGE_HOLD` | 계좌를 바꾼 뒤 {settings.account_change_hold_hours}시간 동안은 출금할 수 없어요 |
+| `ADULT_ONLY` | 19세 이상 본인인증 회원만 볼 수 있어요 |
+| `ALREADY_ATTENDED` | 오늘은 이미 출석했어요. 내일 또 만나요! |
 | `ALREADY_COMPLETED` | 이미 완결 처리된 작품이에요 |
 | `ALREADY_DISCONTINUED` | 연재 중단된 작품이에요 |
 | `ALREADY_REPORTED` | 이미 신고한 글이에요 |
 | `ALREADY_SUBSCRIBED` | 이미 청약했어요. 수량 변경을 이용해 주세요 |
 | `ANNUAL_LIMIT_EXCEEDED` | 연간 투자 한도({annual:,}원)를 넘어요 |
 | `ANON_ID_REQUIRED` | 비로그인 이벤트에는 anon_id 가 필요해요 |
+| `BAD_CHANNEL` | 결제 수단은 IAP 또는 PG예요 |
 | `BAD_HANDOFF` | 넘김 토큰 형식이 아니에요 |
+| `BAD_POINTS` | {POINT_UNIT}P 단위로 바꿀 수 있어요 |
 | `BAD_SIGNATURE` | 증권사 서명이 맞지 않아요 |
 | `BEFORE_PAY_DATE` | 지급일({run.pay_date}) 전이에요 |
 | `BUFFER_SHORT` | 공모 전 비축분이 {need}화(약정 회차의 25%) 이상이어야 해요 |
 | `BUYBACK_NOT_ENABLED` | 이 펀딩은 작가 매입 옵션을 선택하지 않았어요 |
+| `COIN_LOT_NOT_FOUND` | 충전 내역을 찾을 수 없어요 |
 | `COIN_TO_DEPOSIT_FORBIDDEN` | 코인은 예치금으로 바꿀 수 없어요 |
+| `CREATOR_LOCKUP` | 창작자 토큰은 {h.locked_until:%Y-%m-%d}부터 팔 수 있어요 |
 | `CREATOR_NOT_FOUND` | 작가를 찾을 수 없어요 |
 | `CREATOR_ONLY` | 작가 게시판 글은 작가만 쓸 수 있어요. 답글로 참여해 주세요 |
 | `DEV_LOGIN_DISABLED` | 운영 환경에서는 사용할 수 없어요 |
@@ -255,16 +272,18 @@
 | `HANDOFF_EXPIRED` | 넘김 토큰이 만료됐어요. DIBS 앱에서 다시 눌러 주세요 |
 | `HANDOFF_REQUIRED` | 계정 연결에는 넘김 토큰이 필요해요 |
 | `HOLDERS_ONLY` | 이 작품 조각을 가진 주주만 볼 수 있어요 |
+| `HOLDING_LIMIT_EXCEEDED` | 한 종목은 발행량의 {settings.max_holding_bps // 100}%({cap:,}조각)까지 가질 수 있어요 |
 | `IMAGE_REQUIRED` | 팬아트 이미지를 올려 주세요 |
 | `INSUFFICIENT_BALANCE` | 매입가 {price:,}원이 예치금보다 많아요 |
 | `INSUFFICIENT_UNITS` | 매도 가능 수량이 부족해요 |
 | `INVALID_AMOUNT` | 1원 이상 {outstanding:,}원 이하로 입력해 주세요 |
 | `INVALID_ANSWERS` | 각 문항은 1~4점이에요 |
 | `INVALID_BLOCK` | 차단할 수 없는 사용자예요 |
+| `INVALID_FREE_AT` | 정식 공개 시각은 지금보다 뒤여야 해요 |
 | `INVALID_FUNDING_STATUS` | 현재 상태({f.status})에서는 할 수 없어요 |
 | `INVALID_HIATUS` | 휴재 기간은 1주 이상이에요 |
 | `INVALID_ISSUANCE_STEP` | {iss.step} 다음 단계가 아니에요 |
-| `INVALID_ORDER` | 가격과 수량은 1 이상이어야 해요 |
+| `INVALID_ORDER` | 지정가 주문은 가격을 입력해 주세요 |
 | `INVALID_PAYOUT_SCHEDULE` | 작가 지급 비율 합계는 100%여야 해요 |
 | `INVALID_PERIOD` | 기간은 '2027Q1' 형식이에요 |
 | `INVALID_REVENUE` | 매출과 공제액을 확인해 주세요 |
@@ -284,16 +303,20 @@
 | `NOTICE_NOT_FOUND` | 공지를 찾을 수 없어요 |
 | `NOTIFICATION_NOT_FOUND` | 알림을 찾을 수 없어요 |
 | `NOT_AUTHOR` | 내가 쓴 글만 지울 수 있어요 |
+| `NOT_ENOUGH_POINTS` | 키움 포인트가 모자라요 |
 | `NOT_FOUND` | 없는 경로예요 |
 | `NOT_LISTED` | 상장 후에 확인할 수 있어요 |
+| `NOT_REFUNDABLE` | 카드·계좌 결제(PG)로 충전한 씨앗만 여기서 취소할 수 있어요 |
 | `NOT_TRADABLE` | 거래할 수 없는 종목이에요 (미상장 또는 거래 정지) |
 | `NOT_WORK_OWNER` | 내 작품만 관리할 수 있어요 |
 | `NO_CLAWBACK` | 반환 청구액이 없어요 |
+| `NO_COUNTER_ORDER` | 지금 체결할 상대 주문이 없어요. 지정가로 주문해 주세요 |
 | `NO_DIVIDEND_HISTORY` | 배당 이력이 있어야 매입가를 정할 수 있어요 |
 | `NO_EPISODES` | 회차를 1개 이상 등록해 주세요 |
 | `NO_HOLDERS` | 기준일 보유자가 없어요 |
 | `ORDER_NOT_FOUND` | 주문을 찾을 수 없어요 |
 | `ORDER_NOT_OPEN` | 이미 체결되었거나 취소된 주문이에요 |
+| `PACKAGE_NOT_FOUND` | 씨앗 묶음을 찾을 수 없어요 |
 | `PAYMENT_REQUIRED` | 이어서 보려면 {e.price_coin}코인이 필요해요 |
 | `PAYOUT_ALREADY_DONE` | 이미 처리된 지급이에요 |
 | `PAYOUT_NOT_FOUND` | 지급 일정을 찾을 수 없어요 |
@@ -303,6 +326,7 @@
 | `POLICY_NOT_FOUND` | 문서를 찾을 수 없어요 |
 | `POST_NOT_FOUND` | 글을 찾을 수 없어요 |
 | `PRICE_OUT_OF_BAND` | 주문 가능 가격은 {lo:,}~{hi:,}원이에요 |
+| `PRICE_TICK` | 가격은 {PRICE_TICK:,}원 단위로 주문해요 |
 | `RIGHTS_NOT_DECLARED` | 작품 공개 권한을 확인해 주세요 |
 | `RISK_NOTICE_REQUIRED` | 투자 위험 고지에 동의해 주세요 |
 | `RISK_PROFILE_REQUIRED` | 키움 투자성향 확인 후 청약할 수 있어요 |
@@ -311,7 +335,7 @@
 | `SECURITY_NOT_FOUND` | 상장 종목이 아니에요 |
 | `SELF_INVEST_FORBIDDEN` | 창작자는 자기 작품에 청약할 수 없어요 |
 | `SELF_REPORT` | 내 글은 신고할 수 없어요 |
-| `SELF_TRADE_FORBIDDEN` | 창작자는 자기 작품 조각을 거래할 수 없어요 |
+| `SELF_TRADE_FORBIDDEN` | 창작자는 자기 작품 조각을 살 수 없어요 |
 | `SHIPMENT_NOT_FOUND` | 배송 대상이 아니에요 |
 | `SHIPPING_NOT_REQUIRED` | 배송이 필요 없는 리워드예요 |
 | `SHIPPING_REQUIRED` | 배송지를 입력해 주세요 |
@@ -328,9 +352,11 @@
 | `TIER_SOLD_OUT` | 한정 수량이 모두 찼어요 |
 | `TOO_MANY_TIERS` | 리워드 티어는 최대 {MAX_REWARD_TIERS}개예요 |
 | `UNAUTHORIZED` | 로그인이 필요해요 |
+| `UNDERAGE` | 만 {settings.adult_age}세 이상부터 투자할 수 있어요 |
 | `UNKNOWN_EVENT` | 알 수 없는 이벤트예요: {event_type} |
 | `VALIDATION_ERROR` | 입력값을 확인해 주세요 (422, `fields` 에 항목별 사유) |
 | `WITHDRAWAL_DECIDED` | 이미 처리된 요청이에요 |
 | `WITHDRAWAL_NOT_FOUND` | 출금 요청을 찾을 수 없어요 |
+| `WITHDRAW_MIN` | {settings.withdraw_min:,}원 이상부터 출금할 수 있어요 |
 | `WORK_NOT_FOUND` | 작품을 찾을 수 없어요 |
 | `WORK_NOT_PUBLISHED` | 공개된 작품만 펀딩을 신청할 수 있어요 |

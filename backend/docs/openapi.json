@@ -104,7 +104,7 @@
           "auth"
         ],
         "summary": "모의 본인인증 완료 처리",
-        "description": "주민등록번호 등 식별정보는 저장하지 않고, 실서비스에서는 본인확인기관 결과(CI)만 받는다.",
+        "description": "주민등록번호 등 식별정보는 저장하지 않고, 실서비스에서는 본인확인기관 결과(CI·생년월일)만 받는다.",
         "operationId": "mock_kyc_auth_kyc_mock_post",
         "parameters": [
           {
@@ -124,6 +124,23 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/MockKycIn"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -3677,6 +3694,401 @@
         }
       }
     },
+    "/wallet/coin/packages": {
+      "get": {
+        "tags": [
+          "wallet"
+        ],
+        "summary": "씨앗 묶음 목록 (10 · 30 · 55개)",
+        "operationId": "coin_packages_wallet_coin_packages_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/CoinPackageOut"
+                  },
+                  "type": "array",
+                  "title": "Response Coin Packages Wallet Coin Packages Get"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/wallet/coin/packages/buy": {
+      "post": {
+        "tags": [
+          "wallet"
+        ],
+        "summary": "씨앗 묶음 구매 (IAP·PG 모의)",
+        "operationId": "buy_package_wallet_coin_packages_buy_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BuyPackageIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BuyPackageOut"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/wallet/coin/lots": {
+      "get": {
+        "tags": [
+          "wallet"
+        ],
+        "summary": "씨앗 충전 내역 (출처·남은 양·유효기간)",
+        "operationId": "coin_lots_wallet_coin_lots_get",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CoinLotOut"
+                  },
+                  "title": "Response Coin Lots Wallet Coin Lots Get"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/wallet/coin/lots/{lot_id}/refund": {
+      "post": {
+        "tags": [
+          "wallet"
+        ],
+        "summary": "PG 충전분 결제 취소 (7일 안, 미사용)",
+        "operationId": "refund_lot_wallet_coin_lots__lot_id__refund_post",
+        "parameters": [
+          {
+            "name": "lot_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Lot Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CoinLotOut"
+                }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/wallet/deposit/charge": {
       "post": {
         "tags": [
@@ -6588,7 +7000,7 @@
         "tags": [
           "market"
         ],
-        "summary": "지정가 주문 (같은 가격끼리만 체결)",
+        "summary": "주문 (지정가 또는 시장가)",
         "operationId": "place_market_orders_post",
         "parameters": [
           {
@@ -8025,6 +8437,402 @@
                 "schema": {
                   "$ref": "#/components/schemas/OK"
                 }
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/attendance": {
+      "get": {
+        "tags": [
+          "me"
+        ],
+        "summary": "출석 현황 (최근 7일, 연속 출석)",
+        "operationId": "get_attendance_me_attendance_get",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "me"
+        ],
+        "summary": "오늘 출석 → 열람 코인 (7일 사다리 50·50·200·50·50·50·300)",
+        "operationId": "post_attendance_me_attendance_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/partner-points": {
+      "get": {
+        "tags": [
+          "me"
+        ],
+        "summary": "제휴 증권사(키움 모의) 포인트 잔액",
+        "operationId": "get_partner_points_me_partner_points_get",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/partner-points/convert": {
+      "post": {
+        "tags": [
+          "me"
+        ],
+        "summary": "키움 포인트 → 열람 코인 (한 방향만)",
+        "operationId": "convert_partner_points_me_partner_points_convert_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PointsIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
               }
             }
           },
@@ -11309,6 +12117,200 @@
             }
           }
         },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/jobs/deadline-reminders": {
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "매일: 청약 마감 임박 알림 (청약자·찜한 회원)",
+        "operationId": "deadline_reminders_admin_jobs_deadline_reminders_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/jobs/expire-coins": {
+      "post": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "매일: 유효기간이 지난 씨앗 만료 (보너스 90일 · 유료 5년)",
+        "operationId": "expire_coins_admin_jobs_expire_coins_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -14889,6 +15891,10 @@
           "SYS_ROYALTY_POOL",
           "SYS_TRUST_RECEIVABLE",
           "SYS_PARTNER_COUPON",
+          "SYS_PARTNER_POINT",
+          "SYS_PROMOTION",
+          "SYS_TRUST_RESERVE",
+          "SYS_COIN_EXPIRED",
           "SYS_CREATOR_ESCROW",
           "SYS_SPECIAL_PAYABLE",
           "SYS_TAX_WITHHOLDING",
@@ -15079,6 +16085,63 @@
         ],
         "title": "BrokerAccountIn"
       },
+      "BuyPackageIn": {
+        "properties": {
+          "package_id": {
+            "type": "string",
+            "title": "Package Id",
+            "examples": [
+              "seed30"
+            ]
+          },
+          "channel": {
+            "type": "string",
+            "pattern": "^(IAP|PG)$",
+            "title": "Channel",
+            "description": "IAP = 인앱결제 / PG = 카드·계좌 (모의)",
+            "default": "PG"
+          }
+        },
+        "type": "object",
+        "required": [
+          "package_id"
+        ],
+        "title": "BuyPackageIn"
+      },
+      "BuyPackageOut": {
+        "properties": {
+          "package": {
+            "$ref": "#/components/schemas/CoinPackageOut"
+          },
+          "channel": {
+            "type": "string",
+            "title": "Channel"
+          },
+          "paid_amount": {
+            "type": "integer",
+            "title": "Paid Amount"
+          },
+          "lots": {
+            "items": {
+              "$ref": "#/components/schemas/CoinLotOut"
+            },
+            "type": "array",
+            "title": "Lots"
+          },
+          "wallet": {
+            "$ref": "#/components/schemas/WalletOut"
+          }
+        },
+        "type": "object",
+        "required": [
+          "package",
+          "channel",
+          "paid_amount",
+          "lots",
+          "wallet"
+        ],
+        "title": "BuyPackageOut"
+      },
       "CandleOut": {
         "properties": {
           "date": {
@@ -15169,6 +16232,120 @@
         ],
         "title": "CloseOut"
       },
+      "CoinLotOut": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source",
+            "description": "IAP | PG | CONVERTED | BONUS"
+          },
+          "amount": {
+            "type": "integer",
+            "title": "Amount"
+          },
+          "remaining": {
+            "type": "integer",
+            "title": "Remaining"
+          },
+          "paid_amount": {
+            "type": "integer",
+            "title": "Paid Amount"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Expires At"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "package_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Package Id"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "source",
+          "amount",
+          "remaining",
+          "paid_amount",
+          "expires_at",
+          "status",
+          "package_id",
+          "created_at"
+        ],
+        "title": "CoinLotOut"
+      },
+      "CoinPackageOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "seeds": {
+            "type": "integer",
+            "title": "Seeds"
+          },
+          "bonus_seeds": {
+            "type": "integer",
+            "title": "Bonus Seeds"
+          },
+          "total_seeds": {
+            "type": "integer",
+            "title": "Total Seeds"
+          },
+          "coin": {
+            "type": "integer",
+            "title": "Coin",
+            "description": "지급 코인(원 단위, 보너스 제외)"
+          },
+          "bonus_coin": {
+            "type": "integer",
+            "title": "Bonus Coin"
+          },
+          "price": {
+            "type": "integer",
+            "title": "Price",
+            "description": "PG·예치금 결제 금액"
+          },
+          "iap_price": {
+            "type": "integer",
+            "title": "Iap Price",
+            "description": "인앱결제 금액 (스토어 수수료 보전 10% 포함)"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "seeds",
+          "bonus_seeds",
+          "total_seeds",
+          "coin",
+          "bonus_coin",
+          "price",
+          "iap_price"
+        ],
+        "title": "CoinPackageOut"
+      },
       "CreatorOut": {
         "properties": {
           "id": {
@@ -15258,7 +16435,13 @@
             "additionalProperties": true,
             "type": "object",
             "title": "Cost Per 100",
-            "description": "투자금 100원 중 작가·발행 실비·DIBS 몫"
+            "description": "투자금 100원 중 작가·발행 실비·최소 유보금·DIBS 몫"
+          },
+          "creator_token": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Creator Token",
+            "description": "창작자 토큰 몫(bps)과 보호예수 개월"
           },
           "revenue_split": {
             "additionalProperties": true,
@@ -15270,7 +16453,7 @@
             "additionalProperties": true,
             "type": "object",
             "title": "Term",
-            "description": "시즌 연재 + 완결 후 기간, 원금 상환 없음"
+            "description": "고정 운용 기간 여부(v2.2: 없음), 원금 상환 없음"
           },
           "per_user_cap_amount": {
             "type": "integer",
@@ -15580,7 +16763,14 @@
           },
           "price_coin": {
             "type": "integer",
-            "title": "Price Coin"
+            "title": "Price Coin",
+            "description": "원 단위 가격"
+          },
+          "price_seeds": {
+            "type": "integer",
+            "title": "Price Seeds",
+            "description": "화면 표기용 씨앗 개수 (price_coin ÷ 100)",
+            "default": 0
           },
           "free_unlock_at": {
             "anyOf": [
@@ -15593,7 +16783,7 @@
               }
             ],
             "title": "Free Unlock At",
-            "description": "이 시각부터 무료 (공개 21일 후)"
+            "description": "정식 공개 시각. 이때부터 무료"
           },
           "content_url": {
             "type": "string",
@@ -15668,7 +16858,14 @@
           },
           "price_coin": {
             "type": "integer",
-            "title": "Price Coin"
+            "title": "Price Coin",
+            "description": "원 단위 가격"
+          },
+          "price_seeds": {
+            "type": "integer",
+            "title": "Price Seeds",
+            "description": "화면 표기용 씨앗 개수 (price_coin ÷ 100)",
+            "default": 0
           },
           "free_unlock_at": {
             "anyOf": [
@@ -15681,7 +16878,7 @@
               }
             ],
             "title": "Free Unlock At",
-            "description": "이 시각부터 무료 (공개 21일 후)"
+            "description": "정식 공개 시각. 이때부터 무료"
           },
           "unlocked": {
             "type": "boolean",
@@ -15785,7 +16982,14 @@
           },
           "price_coin": {
             "type": "integer",
-            "title": "Price Coin"
+            "title": "Price Coin",
+            "description": "원 단위 가격"
+          },
+          "price_seeds": {
+            "type": "integer",
+            "title": "Price Seeds",
+            "description": "화면 표기용 씨앗 개수 (price_coin ÷ 100)",
+            "default": 0
           },
           "free_unlock_at": {
             "anyOf": [
@@ -15798,7 +17002,7 @@
               }
             ],
             "title": "Free Unlock At",
-            "description": "이 시각부터 무료 (공개 21일 후)"
+            "description": "정식 공개 시각. 이때부터 무료"
           }
         },
         "type": "object",
@@ -15824,7 +17028,21 @@
             "type": "integer",
             "minimum": 0.0,
             "title": "Price Coin",
+            "description": "원 단위 (300 = 씨앗 3개)",
             "default": 0
+          },
+          "free_unlock_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Free Unlock At",
+            "description": "정식 공개(무료 전환) 시각. 비우면 공개 21일 뒤"
           }
         },
         "type": "object",
@@ -16156,14 +17374,14 @@
             "minimum": 1.0,
             "title": "Target Units",
             "examples": [
-              1000
+              10000
             ]
           },
           "unit_price": {
             "type": "integer",
             "minimum": 1000.0,
             "title": "Unit Price",
-            "default": 10000
+            "description": "1조각 가격 (v2.2 기본 1,000원 = 펀딩 1,000원 단위)"
           },
           "open_at": {
             "type": "string",
@@ -16848,10 +18066,10 @@
             "examples": [
               {
                 "allocation_strategy": "PRO_RATA",
-                "max_units_per_user": 300,
+                "max_units_per_user": 500,
                 "security_type": "UNDECIDED",
-                "target_units": 1000,
-                "unit_price": 10000
+                "target_units": 10000,
+                "unit_price": 1000
               }
             ]
           },
@@ -17475,6 +18693,25 @@
         ],
         "title": "LimitsOut"
       },
+      "MockKycIn": {
+        "properties": {
+          "birth_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Birth Date",
+            "description": "모의 본인인증 생년월일 (비우면 성인 1995-01-01)"
+          }
+        },
+        "type": "object",
+        "title": "MockKycIn"
+      },
       "MockSubscribeIn": {
         "properties": {
           "token": {
@@ -17884,11 +19121,25 @@
           "side": {
             "$ref": "#/components/schemas/OrderSide"
           },
+          "order_type": {
+            "type": "string",
+            "pattern": "^(LIMIT|MARKET)$",
+            "title": "Order Type",
+            "description": "LIMIT = 지정가 / MARKET = 시장가 (최우선 호가에서 체결, 남은 수량은 취소)",
+            "default": "LIMIT"
+          },
           "price": {
-            "type": "integer",
-            "exclusiveMinimum": 0.0,
+            "anyOf": [
+              {
+                "type": "integer",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Price",
-            "description": "지정가"
+            "description": "지정가 (시장가면 비움)"
           },
           "units": {
             "type": "integer",
@@ -17904,7 +19155,6 @@
         "required": [
           "funding_id",
           "side",
-          "price",
           "units",
           "agree_risk_notice"
         ],
@@ -18218,6 +19468,21 @@
           "period"
         ],
         "title": "PeriodIn"
+      },
+      "PointsIn": {
+        "properties": {
+          "points": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Points",
+            "description": "바꿀 포인트 (100P 단위, 1P = 1코인)"
+          }
+        },
+        "type": "object",
+        "required": [
+          "points"
+        ],
+        "title": "PointsIn"
       },
       "PolicyOut": {
         "properties": {
@@ -19714,10 +20979,10 @@
           },
           "duration_sec": {
             "type": "integer",
-            "maximum": 60.0,
+            "maximum": 180.0,
             "exclusiveMinimum": 0.0,
             "title": "Duration Sec",
-            "description": "1분 이하"
+            "description": "3분 이하 (하이라이트 1분 권장, 1화 모션웹툰 전편 허용)"
           }
         },
         "type": "object",
@@ -20338,7 +21603,7 @@
               }
             ],
             "title": "Risk Level",
-            "description": "투자성향: STABLE | NEUTRAL | AGGRESSIVE. 없으면 청약·매수 불가"
+            "description": "투자성향 5단계: STABLE 안정형 | STABLE_SEEKING 안정추구형 | NEUTRAL 위험중립형 | ACTIVE 적극투자형 | AGGRESSIVE 공격투자형. 없으면 청약·매수 불가"
           },
           "risk_checked_at": {
             "anyOf": [
@@ -20374,6 +21639,36 @@
               }
             ],
             "title": "Broker Account Masked"
+          },
+          "level": {
+            "type": "string",
+            "title": "Level",
+            "description": "회원 단계: L1 가입 / L2 본인인증 / L3 투자 가능 (만 19세 + 투자성향 + 계좌 연결)",
+            "default": "L1"
+          },
+          "birth_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Birth Date"
+          },
+          "account_changed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Account Changed At"
           },
           "created_at": {
             "type": "string",
@@ -20447,7 +21742,13 @@
           "coin": {
             "type": "integer",
             "title": "Coin",
-            "description": "콘텐츠용 코인 (예치금으로 환전 불가)"
+            "description": "콘텐츠용 코인, 원 단위 (예치금으로 환전 불가)"
+          },
+          "seeds": {
+            "type": "integer",
+            "title": "Seeds",
+            "description": "화면 표기용 씨앗 개수 = coin ÷ 100 (씨앗 1개 = 100원)",
+            "default": 0
           },
           "deposit_available": {
             "type": "integer",
@@ -20558,6 +21859,11 @@
           "status": {
             "$ref": "#/components/schemas/WorkStatus"
           },
+          "age_rating": {
+            "type": "string",
+            "title": "Age Rating",
+            "default": "ALL"
+          },
           "created_at": {
             "type": "string",
             "format": "date-time",
@@ -20651,6 +21957,11 @@
           "status": {
             "$ref": "#/components/schemas/WorkStatus"
           },
+          "age_rating": {
+            "type": "string",
+            "title": "Age Rating",
+            "default": "ALL"
+          },
           "created_at": {
             "type": "string",
             "format": "date-time",
@@ -20739,6 +22050,11 @@
           "status": {
             "$ref": "#/components/schemas/WorkStatus"
           },
+          "age_rating": {
+            "type": "string",
+            "title": "Age Rating",
+            "default": "ALL"
+          },
           "created_at": {
             "type": "string",
             "format": "date-time",
@@ -20776,6 +22092,12 @@
                 "type": "null"
               }
             ]
+          },
+          "display_status": {
+            "type": "string",
+            "title": "Display Status",
+            "description": "기획서 3-1 작품 상태: PUBLISHED · FUNDING · FUNDING_FAILED · ISSUING · LISTED · HALTED · DELISTED (작품 상태와 펀딩 상태를 합쳐 계산)",
+            "default": "PUBLISHED"
           }
         },
         "type": "object",
@@ -20830,6 +22152,13 @@
               }
             ],
             "title": "Cover Url"
+          },
+          "age_rating": {
+            "type": "string",
+            "pattern": "^(ALL|15|19)$",
+            "title": "Age Rating",
+            "description": "연령 등급 (운영자가 심사 때 확정)",
+            "default": "ALL"
           },
           "rights_declared": {
             "type": "boolean",
@@ -20943,6 +22272,11 @@
           "status": {
             "$ref": "#/components/schemas/WorkStatus"
           },
+          "age_rating": {
+            "type": "string",
+            "title": "Age Rating",
+            "default": "ALL"
+          },
           "created_at": {
             "type": "string",
             "format": "date-time",
@@ -20975,6 +22309,18 @@
               }
             ],
             "title": "Title"
+          },
+          "age_rating": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(ALL|15|19)$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Age Rating"
           },
           "genre": {
             "anyOf": [

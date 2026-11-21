@@ -1,8 +1,11 @@
 """연결표(docs/SCREEN_API_MAP.md)에서 새로 필요해진 화면용 API."""
+import pytest
 from datetime import timedelta
 
 from app.core import clock
 from tests.conftest import iso, open_funding
+
+pytestmark = pytest.mark.usefixtures("v5_policy")
 
 
 def list_security(api, fid):

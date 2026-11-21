@@ -33,6 +33,25 @@ def small_fundings(monkeypatch):
     monkeypatch.setattr(settings, "max_subscription_bps", 100_000)  # 소액 흐름 테스트는 1인 한도를 사실상 끈다
 
 
+V5_POLICY = {
+    # v5.0 규칙(시즌·회수 전후 배분·유보·만기)을 검증하는 기존 테스트용. v2.2 기본값은 test_v22.py에서 검증한다
+    "default_unit_price": 10_000, "creator_bps": 8500, "issuance_cost_bps": 1200, "reserve_bps": 0, "platform_fee_bps": 300,
+    "creator_token_bps": 0, "royalty_platform_bps": 2500, "royalty_creator_bps": 3000, "royalty_holder_bps": 4500,
+    "royalty_platform_after_bps": 2500, "royalty_creator_after_bps": 4000, "royalty_holder_after_bps": 3500,
+    "creator_escrow_bps": 5000, "fixed_term_enabled": True, "max_holding_bps": 10000,
+}
+
+
+@pytest.fixture
+def v5_policy(monkeypatch):
+    from app.core.config import settings
+    from app.services.market import mock_exchange
+
+    for k, v in V5_POLICY.items():
+        monkeypatch.setattr(settings, k, v)
+    monkeypatch.setattr(mock_exchange, "PRICE_TICK", 100)
+
+
 @pytest.fixture
 def db_session_factory():
     engine = make_engine("sqlite://")

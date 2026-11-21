@@ -135,6 +135,19 @@ erDiagram
         json paid_runs
         datetime updated_at
     }
+    coin_lots {
+        integer id PK
+        integer user_id FK
+        string source
+        bigint amount
+        bigint remaining
+        bigint paid_amount
+        datetime expires_at
+        string status
+        string package_id
+        integer journal_id FK
+        datetime created_at
+    }
     content_events {
         integer id PK
         integer user_id FK
@@ -225,6 +238,9 @@ erDiagram
         integer creator_bps
         integer issuance_cost_bps
         integer platform_fee_bps
+        integer reserve_bps
+        integer creator_token_bps
+        integer creator_lockup_months
         integer royalty_platform_bps
         integer royalty_creator_bps
         integer royalty_holder_bps
@@ -269,6 +285,7 @@ erDiagram
         integer units
         integer locked_units
         integer avg_price
+        datetime locked_until
         datetime created_at
         datetime updated_at
     }
@@ -465,6 +482,8 @@ erDiagram
         boolean no_investment_experience
         string broker_name
         string broker_account_masked
+        datetime account_changed_at
+        date birth_date
         datetime created_at
         datetime updated_at
     }
@@ -486,6 +505,7 @@ erDiagram
         text synopsis
         string cover_url
         enum status
+        string age_rating
         boolean rights_declared
         text prior_contract_note
         text review_note
@@ -513,6 +533,7 @@ erDiagram
     fundings ||--o{ special_distributions : "funding_id"
     fundings ||--o{ subscriptions : "funding_id"
     fundings ||--o{ trades : "funding_id"
+    journals ||--o{ coin_lots : "journal_id"
     journals ||--o{ dividend_runs : "journal_id"
     journals ||--o{ episode_unlocks : "journal_id"
     journals ||--o{ payout_schedules : "paid_journal_id"
@@ -528,6 +549,7 @@ erDiagram
     shorts ||--o{ posts : "short_id"
     users ||--o{ accounts : "owner_id"
     users ||--o{ broker_links : "user_id"
+    users ||--o{ coin_lots : "user_id"
     users ||--o{ content_events : "user_id"
     users ||--o{ dibs : "user_id"
     users ||--o{ dividend_payments : "user_id"

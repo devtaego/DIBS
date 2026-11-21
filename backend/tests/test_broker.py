@@ -5,6 +5,10 @@ from app.core import clock
 from app.services import broker
 from tests.conftest import open_funding
 
+import pytest
+
+pytestmark = pytest.mark.usefixtures("v5_policy")  # 1조각 10,000원 기준 시나리오
+
 SUB = {"agree_risk_notice": True, "agree_termination_rule": True}
 
 

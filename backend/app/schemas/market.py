@@ -47,7 +47,9 @@ class TradeOut(ORM):
 class OrderIn(BaseModel):
     funding_id: int
     side: OrderSide
-    price: int = Field(gt=0, description="지정가")
+    order_type: str = Field(default="LIMIT", pattern="^(LIMIT|MARKET)$",
+                            description="LIMIT = 지정가 / MARKET = 시장가 (최우선 호가에서 체결, 남은 수량은 취소)")
+    price: int | None = Field(default=None, gt=0, description="지정가 (시장가면 비움)")
     units: int = Field(gt=0)
     agree_risk_notice: bool
 

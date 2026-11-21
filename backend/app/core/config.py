@@ -28,7 +28,8 @@ class Settings(BaseModel):
     live_trading_enabled: bool = _env_bool("DIBS_LIVE_ENABLED", False)
 
     # ── 펀딩(청약) 기본값 ──
-    default_unit_price: int = 10_000
+    # v2.2 조정값 (docs/DECISIONS-v2.2.md): 1조각 = 1,000원. 펀딩은 1,000원 단위·최소 1,000원이라 소수 조각이 없다
+    default_unit_price: int = 1_000
     min_funding_days: int = 7
     max_funding_days: int = 60
     min_target_amount: int = 10_000_000  # v5.0: 작품당 1,000만 원 이상 (월 공모 회차로 발행 실비를 나눔)
@@ -38,13 +39,21 @@ class Settings(BaseModel):
     max_subscription_bps: int = 500
     subscription_lock_minutes: int = 60  # 마감 N분 전부터 감액·취소 불가
 
-    # 모금액 배분 (bps, 1bps = 0.01%) — v5.0: 작가 85 / 발행 실비 12 / DIBS 3
-    # DIBS 발행 수수료를 실비 수준으로 낮춰 '많이 발행할수록 버는 구조'를 피한다. DIBS는 주로 매출 배분 25%로 번다
-    creator_bps: int = 8500
+    # 모금액 배분 (bps, 1bps = 0.01%) — v2.2 조정값: 작가 80 / 발행 실비 12 / 최소 유보금 5 / DIBS 운영비 3
+    # 기획서 0-4의 '작가 80 · 발행 측 20'과 1-3의 'DIBS 펀딩 운영비 3%'를 함께 만족한다. 유보금은 신탁 보관
+    creator_bps: int = 8000
     issuance_cost_bps: int = 1200
+    reserve_bps: int = 500
     platform_fee_bps: int = 300
+    # 창작자 토큰: 발행량의 5%를 창작자에게 배정하고 상장 후 12개월 보호예수 (기획서 1-3의 ○%·○개월 확정값)
+    creator_token_bps: int = 500
+    creator_lockup_months: int = 12
+    # 종목별 1인 보유 한도: 발행량의 10% (기획서 3-5-1·3-7-4 검토안, 청약과 마켓 매수에 함께 적용)
+    max_holding_bps: int = 1000
 
     # v5.0 상품 구조: 시즌 단위. 시즌 연재(약 12개월) + 완결 후 12개월이 지나면 권리 소멸
+    # v2.2: 고정 운용 기간·예정 만기 없이 발행 → 기간 만료·저매출 종료 판정을 끈다 (작가 매입·운영자 상장폐지만 남음)
+    fixed_term_enabled: bool = False
     exclusive_months: int = 12  # 상장 후 DIBS 선공개 독점 기간
     external_share_bps: int = 2000  # 독점 종료 후 외부 연재·영상화 수익 중 작가 몫의 20%를 순매출에 포함
     termination_after_completion_months: int = 12  # 완결 후 12개월이면 권리 종료
@@ -60,6 +69,18 @@ class Settings(BaseModel):
 
     # 발행 전 콘텐츠 (v4.0)
     pilot_free_episodes: int = 3  # 파일럿 1~3화 무료
+    # 씨앗(화면 표기) = 코인 100원. 장부는 원 단위 정수 그대로 두고 응답에 씨앗 개수를 함께 준다 (1화 300원 = 씨앗 3개)
+    seed_unit_won: int = 100
+    bonus_coin_expiry_days: int = 90  # 보너스 씨앗(출석·묶음 보너스·이벤트) 유효기간
+    paid_coin_expiry_days: int = 365 * 5  # 유료 충전분은 5년 (상사채권 소멸시효)
+    pg_refund_days: int = 7  # PG 충전분: 7일 안에 한 번도 안 썼으면 결제 취소
+    iap_markup_bps: int = 1000  # 인앱결제 가격 = 지급 금액 × 110% (스토어 수수료 보전, 기획서 3-4-3)
+    # 씨앗 묶음 (화면 08 씨앗 구매): 10개 1,000원 / 30개 3,000원 / 55개 5,000원(보너스 5개)
+    coin_packages: list = [
+        {"id": "seed10", "seeds": 10, "bonus_seeds": 0, "price": 1_000},
+        {"id": "seed30", "seeds": 30, "bonus_seeds": 0, "price": 3_000},
+        {"id": "seed55", "seeds": 50, "bonus_seeds": 5, "price": 5_000},
+    ]
     preview_free_after_days: int = 21  # 유료 미리보기는 공개 21일 뒤 무료
     default_preview_price_coin: int = 300
     pre_issuance_creator_bps: int = 7000  # 발행 전 순매출 작가 70 / DIBS 30
@@ -94,17 +115,17 @@ class Settings(BaseModel):
     delay_breach_months: int = 3  # 석 달치(12화) 밀리면 귀책 중단
     min_term_after_listing_months: int = 24  # 조기 완결해도 상장 후 24개월까지는 권리 유지
     clawback_bps: int = 5000  # 귀책 중단: 이미 받은 작가 지급금의 50% 반환
-    creator_escrow_bps: int = 5000  # 회수 전 작가 매출 몫의 50%를 신탁에 유보 (회수·종료 때 작가에게, 귀책 시 투자자에게)
+    # v2.2: 작가 몫 60%를 그대로 지급 (회수 전 유보 없음). 귀책 중단 대비는 모금액의 최소 유보금 5%가 맡는다
+    creator_escrow_bps: int = 0
 
-    # 배당 재원(순매출) 배분 (bps) — v4.0 회수 우선 배분
-    # 회수 전: 작가 30 / 투자자 45 / DIBS 25
-    royalty_platform_bps: int = 2500
-    royalty_creator_bps: int = 3000
-    royalty_holder_bps: int = 4500
-    # 회수 후 (누적 세전 분배금 ≥ 발행액이 된 다음 분기부터): 작가 40 / 투자자 35 / DIBS 25
-    royalty_platform_after_bps: int = 2500
-    royalty_creator_after_bps: int = 4000
-    royalty_holder_after_bps: int = 3500
+    # 배당 재원(순매출) 배분 (bps) — v2.2: 작가 60 / 투자자 30 / DIBS 10 고정 (웹툰 업계 작가 몫 60~70% 범위)
+    royalty_platform_bps: int = 1000
+    royalty_creator_bps: int = 6000
+    royalty_holder_bps: int = 3000
+    # 회수 후 배분: v2.2는 회수 전후 전환 없음 (같은 값). 펀딩별로 다르게 심사할 때만 바꾼다
+    royalty_platform_after_bps: int = 1000
+    royalty_creator_after_bps: int = 6000
+    royalty_holder_after_bps: int = 3000
 
     # ── 증권사 연계 (B안: 읽기는 DIBS, 청약·계좌·보유는 증권사) ──
     # INTERNAL = 앱 안 모의 청약 화면(증권사 화면 대체, 시연용) / BROKER = 증권사 청약 화면으로 넘김
@@ -117,6 +138,10 @@ class Settings(BaseModel):
     partner_coupon_coin: int = 20_000  # 계좌 개설 쿠폰: 증권사가 신규 계좌 고객에게 주는 DIBS 코인
     first_time_cap_amount: int = 100_000  # 투자 경험이 없다고 답한 고객의 1인 청약 한도
     enable_mock_broker: bool = _env_bool("DIBS_ENABLE_MOCK_BROKER", True)  # /dev/mock-kiwoom (운영에서 끔)
+    withdraw_min: int = 1_000  # 최소 출금액 (기획서 3-4-4)
+    withdraw_auto_limit: int = 10_000_000  # 1회 이 금액을 넘으면 운영자 승인 후 처리
+    account_change_hold_hours: int = 24  # 계좌 변경 직후 출금 금지 시간
+    adult_age: int = 19  # 투자 가능(L3)·19세 작품 열람 기준 나이
     mock_instant_withdrawal: bool = True  # 모의 모드: 출금은 연결된 키움 계좌로 바로 (운영자 승인 생략)
 
     # ── 마켓 ──

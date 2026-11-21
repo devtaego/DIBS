@@ -5,6 +5,8 @@
 - 예치금 → 코인 전환은 실거래 모드에서만 허용 (모의 예치금으로 실제 코인을 살 수 없음)
 - 코인 → 예치금 전환은 어떤 경우에도 불가 (ledger.post 에서도 차단)
 """
+from datetime import timedelta
+
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -12,7 +14,8 @@ from app.core import clock
 from app.core.errors import Conflict, DomainError, NotFound
 from app.models import Journal, Posting, User, WithdrawalRequest
 from app.models.enums import AccountKind, Mode
-from app.services import ledger
+from app.core.config import settings
+from app.services import coins, ledger
 from app.services.ledger import Leg
 from app.services.policy import current_mode, ensure_mode_allowed
 
@@ -29,9 +32,11 @@ def summary(db: Session, user: User) -> dict:
     mode = current_mode()
     acc = ledger.user_accounts(db, user.id, mode)
     coin = ledger.get_account(db, AccountKind.COIN, COIN_MODE, user.id)
+    coin_bal = ledger.balance(db, coin)
     return {
         "mode": mode,
-        "coin": ledger.balance(db, coin),
+        "coin": coin_bal,
+        "seeds": coin_bal // settings.seed_unit_won,  # 화면 표기: 씨앗 1개 = 100원
         "deposit_available": ledger.balance(db, acc.deposit),
         "deposit_locked": ledger.balance(db, acc.locked),
     }
@@ -40,8 +45,10 @@ def summary(db: Session, user: User) -> dict:
 def charge_coin(db: Session, user: User, amount: int) -> Journal:
     _amount(amount)
     coin = ledger.get_account(db, AccountKind.COIN, COIN_MODE, user.id)
-    return ledger.post(db, "COIN_CHARGE", [Leg(ledger.sys(db, AccountKind.SYS_PG, COIN_MODE), -amount), Leg(coin, amount)],
-                       COIN_MODE, "user", user.id, memo="코인 충전")
+    j = ledger.post(db, "COIN_CHARGE", [Leg(ledger.sys(db, AccountKind.SYS_PG, COIN_MODE), -amount), Leg(coin, amount)],
+                    COIN_MODE, "user", user.id, memo="코인 충전")
+    coins.credit(db, user.id, "PG", amount, j, paid_amount=amount)
+    return j
 
 
 def charge_deposit(db: Session, user: User, amount: int) -> Journal:
@@ -58,11 +65,16 @@ def deposit_to_coin(db: Session, user: User, amount: int) -> Journal:
     if current_mode() != Mode.LIVE:
         raise Conflict("MOCK_DEPOSIT_TO_COIN", "모의 예치금은 코인으로 바꿀 수 없어요")
     acc = ledger.user_accounts(db, user.id, Mode.LIVE)
-    return ledger.post(db, "DEPOSIT_TO_COIN", [Leg(acc.deposit, -amount), Leg(acc.coin, amount)], Mode.LIVE, "user", user.id)
+    j = ledger.post(db, "DEPOSIT_TO_COIN", [Leg(acc.deposit, -amount), Leg(acc.coin, amount)], Mode.LIVE, "user", user.id)
+    coins.credit(db, user.id, "CONVERTED", amount, j, paid_amount=amount)
+    return j
 
 
 def request_withdrawal(db: Session, user: User, amount: int) -> WithdrawalRequest:
-    _amount(amount)
+    if amount < settings.withdraw_min:
+        raise DomainError("WITHDRAW_MIN", f"{settings.withdraw_min:,}원 이상부터 출금할 수 있어요")
+    if user.account_changed_at and clock.now() < user.account_changed_at + timedelta(hours=settings.account_change_hold_hours):
+        raise Conflict("ACCOUNT_CHANGE_HOLD", f"계좌를 바꾼 뒤 {settings.account_change_hold_hours}시간 동안은 출금할 수 없어요")
     mode = current_mode()
     acc = ledger.user_accounts(db, user.id, mode)
     req = WithdrawalRequest(user_id=user.id, amount=amount, mode=mode)

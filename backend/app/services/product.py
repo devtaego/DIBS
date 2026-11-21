@@ -278,7 +278,9 @@ def termination_check(db: Session, f: Funding) -> dict:
         else:
             break
     reason = None
-    if due and clock.now() >= due:
+    if not settings.fixed_term_enabled:  # v2.2: 만기 없음 → 기간 만료·저매출로 자동 종료하지 않는다
+        due = None
+    elif due and clock.now() >= due:
         reason = "COMPLETED_TERM"
     elif streak >= settings.low_revenue_quarters:
         reason = "LOW_REVENUE"

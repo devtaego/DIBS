@@ -49,6 +49,9 @@ class UserOut(ORM):
     risk_checked_at: datetime | None
     broker_name: str | None = Field(description="연결된 제휴 증권사")
     broker_account_masked: str | None
+    level: str = Field(default="L1", description="회원 단계: L1 가입 / L2 본인인증 / L3 투자 가능 (만 19세 + 투자성향 + 계좌 연결)")
+    birth_date: date | None = None
+    account_changed_at: datetime | None = None
     created_at: datetime
 
 

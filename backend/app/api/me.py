@@ -58,6 +58,8 @@ def risk_profile(body: RiskProfileIn, db: Session = Depends(get_db), user: User 
 @router.put("/broker-account", response_model=UserOut, summary="제휴 증권사 계좌 연결 (모의)")
 def broker_account(body: BrokerAccountIn, db: Session = Depends(get_db), user: User = Depends(current_user)):
     digits = body.account_no.replace("-", "")
+    if user.broker_account_masked:  # 이미 연결된 계좌를 바꾸면 24시간 출금 금지 (기획서 3-4-4)
+        user.account_changed_at = clock.now()
     user.broker_name, user.broker_account_masked = body.broker_name, f"****{digits[-4:]}"
     return user
 

@@ -12,12 +12,14 @@ class WorkIn(BaseModel):
     genre: str = Field(max_length=50, examples=["로맨스 판타지"])
     synopsis: str = ""
     cover_url: str | None = None
+    age_rating: str = Field(default="ALL", pattern="^(ALL|15|19)$", description="연령 등급 (운영자가 심사 때 확정)")
     rights_declared: bool = Field(description="작품 공개 권한을 보유했음을 확인")
     prior_contract_note: str | None = Field(default=None, description="기존 연재·출판 계약 관계")
 
 
 class WorkPatch(BaseModel):
     title: str | None = None
+    age_rating: str | None = Field(default=None, pattern="^(ALL|15|19)$")
     genre: str | None = None
     synopsis: str | None = None
     cover_url: str | None = None
@@ -32,6 +34,7 @@ class WorkOut(ORM):
     synopsis: str
     cover_url: str | None
     status: WorkStatus
+    age_rating: str = "ALL"
     created_at: datetime
 
 
@@ -41,6 +44,8 @@ class WorkDetailOut(WorkOut):
     episode_count: int
     funding_id: int | None
     funding_status: FundingStatus | None
+    display_status: str = Field(default="PUBLISHED", description="기획서 3-1 작품 상태: PUBLISHED · FUNDING · FUNDING_FAILED · "
+                                "ISSUING · LISTED · HALTED · DELISTED (작품 상태와 펀딩 상태를 합쳐 계산)")
 
 
 class EpisodeIn(BaseModel):
@@ -56,8 +61,9 @@ class EpisodeOut(ORM):
     title: str
     is_paid: bool = Field(description="지금 결제가 필요한 회차인가 (유료 미리보기 기간 중)")
     paid_preview: bool = Field(description="유료 미리보기로 지정된 회차")
-    price_coin: int
-    free_unlock_at: datetime | None = Field(description="이 시각부터 무료 (공개 21일 후)")
+    price_coin: int = Field(description="원 단위 가격")
+    price_seeds: int = Field(default=0, description="화면 표기용 씨앗 개수 (price_coin ÷ 100)")
+    free_unlock_at: datetime | None = Field(description="정식 공개 시각. 이때부터 무료")
 
 
 class EpisodeContentOut(EpisodeOut):
@@ -70,7 +76,8 @@ class EpisodeListItem(EpisodeOut):
 
 class EpisodePricingIn(BaseModel):
     is_paid: bool
-    price_coin: int = Field(default=0, ge=0)
+    price_coin: int = Field(default=0, ge=0, description="원 단위 (300 = 씨앗 3개)")
+    free_unlock_at: datetime | None = Field(default=None, description="정식 공개(무료 전환) 시각. 비우면 공개 21일 뒤")
 
 
 class ShortIn(BaseModel):

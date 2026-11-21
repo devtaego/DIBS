@@ -80,7 +80,8 @@ def disclosure(db: Session, f: Funding, now: datetime) -> dict:
     return {
         "funding_id": f.id,
         "cost_per_100": {"creator": f.creator_bps / 100, "issuance_cost": f.issuance_cost_bps / 100,
-                         "dibs": f.platform_fee_bps / 100},
+                         "reserve": f.reserve_bps / 100, "dibs": f.platform_fee_bps / 100},
+        "creator_token": {"bps": f.creator_token_bps, "lockup_months": f.creator_lockup_months},
         "revenue_split": {
             "before_recoup": {"holder": f.royalty_holder_bps / 100, "creator": f.royalty_creator_bps / 100,
                               "dibs": f.royalty_platform_bps / 100},
@@ -88,8 +89,10 @@ def disclosure(db: Session, f: Funding, now: datetime) -> dict:
                              "dibs": f.royalty_platform_after_bps / 100},
             "recoup_rule": "원천징수 후 누적 분배금이 발행액에 닿은 분기의 다음 분기부터 회수 후 비율",
         },
-        "term": {"season_months": product.settings.season_months,
-                 "after_completion_months": product.settings.termination_after_completion_months,
+        "term": {"fixed_term": product.settings.fixed_term_enabled,  # v2.2: 고정 운용 기간·만기 없음
+                 "season_months": product.settings.season_months if product.settings.fixed_term_enabled else None,
+                 "after_completion_months": (product.settings.termination_after_completion_months
+                                             if product.settings.fixed_term_enabled else None),
                  "principal_repayment": False},
         "per_user_cap_amount": product.per_user_cap_amount(f.target_amount),
         "buyback_enabled": f.buyback_enabled,

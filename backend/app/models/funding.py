@@ -34,7 +34,7 @@ class Funding(TimestampMixin, Base):
     security_type: Mapped[SecurityType] = enum_col(SecurityType, default=SecurityType.UNDECIDED)
 
     # 모집 조건
-    unit_price: Mapped[int] = mapped_column(Integer, default=settings.default_unit_price)
+    unit_price: Mapped[int] = mapped_column(Integer, default=lambda: settings.default_unit_price)
     target_units: Mapped[int] = mapped_column(Integer)
     max_units_per_user: Mapped[int | None] = mapped_column(Integer)
     open_at: Mapped[datetime | None] = mapped_column(DateTime)
@@ -43,24 +43,27 @@ class Funding(TimestampMixin, Base):
     risk_note: Mapped[str] = mapped_column(Text, default="")
 
     # 모금액 배분 (bps)
-    creator_bps: Mapped[int] = mapped_column(Integer, default=settings.creator_bps)
-    issuance_cost_bps: Mapped[int] = mapped_column(Integer, default=settings.issuance_cost_bps)
-    platform_fee_bps: Mapped[int] = mapped_column(Integer, default=settings.platform_fee_bps)
+    creator_bps: Mapped[int] = mapped_column(Integer, default=lambda: settings.creator_bps)
+    issuance_cost_bps: Mapped[int] = mapped_column(Integer, default=lambda: settings.issuance_cost_bps)
+    platform_fee_bps: Mapped[int] = mapped_column(Integer, default=lambda: settings.platform_fee_bps)
+    reserve_bps: Mapped[int] = mapped_column(Integer, default=lambda: settings.reserve_bps)  # 최소 유보금 (신탁 보관)
+    creator_token_bps: Mapped[int] = mapped_column(Integer, default=lambda: settings.creator_token_bps)  # 창작자 토큰 몫
+    creator_lockup_months: Mapped[int] = mapped_column(Integer, default=lambda: settings.creator_lockup_months)
 
     # 배당 재원(순매출) 배분 (bps) — v4.0 회수 우선 배분
     # 회수 전 (기본 작가 30 / 투자자 45 / DIBS 25)
-    royalty_platform_bps: Mapped[int] = mapped_column(Integer, default=settings.royalty_platform_bps)
-    royalty_creator_bps: Mapped[int] = mapped_column(Integer, default=settings.royalty_creator_bps)
-    royalty_holder_bps: Mapped[int] = mapped_column(Integer, default=settings.royalty_holder_bps)
+    royalty_platform_bps: Mapped[int] = mapped_column(Integer, default=lambda: settings.royalty_platform_bps)
+    royalty_creator_bps: Mapped[int] = mapped_column(Integer, default=lambda: settings.royalty_creator_bps)
+    royalty_holder_bps: Mapped[int] = mapped_column(Integer, default=lambda: settings.royalty_holder_bps)
     # 회수 후 (기본 작가 40 / 투자자 35 / DIBS 25)
-    royalty_platform_after_bps: Mapped[int] = mapped_column(Integer, default=settings.royalty_platform_after_bps)
-    royalty_creator_after_bps: Mapped[int] = mapped_column(Integer, default=settings.royalty_creator_after_bps)
-    royalty_holder_after_bps: Mapped[int] = mapped_column(Integer, default=settings.royalty_holder_after_bps)
+    royalty_platform_after_bps: Mapped[int] = mapped_column(Integer, default=lambda: settings.royalty_platform_after_bps)
+    royalty_creator_after_bps: Mapped[int] = mapped_column(Integer, default=lambda: settings.royalty_creator_after_bps)
+    royalty_holder_after_bps: Mapped[int] = mapped_column(Integer, default=lambda: settings.royalty_holder_after_bps)
     # 회수 판정: 원천징수 후 누적 분배금이 발행액에 닿은 분기. 다음 분기부터 '회수 후' 비율
     recouped_period: Mapped[str | None] = mapped_column(String(7))
 
     # 배정 방식 (v4.0: 균등 20 / 비례 80, 균등분 중 발행량 10%는 초기 독자 우선)
-    allocation_strategy: Mapped[str] = mapped_column(String(50), default=settings.default_allocation_strategy)
+    allocation_strategy: Mapped[str] = mapped_column(String(50), default=lambda: settings.default_allocation_strategy)
     allocation_params: Mapped[dict] = mapped_column(
         JSON, default=lambda: {"equal_ratio_bps": settings.default_equal_ratio_bps,
                                "early_reader_bps": settings.default_early_reader_bps})
@@ -70,9 +73,9 @@ class Funding(TimestampMixin, Base):
     offering_round: Mapped[str | None] = mapped_column(String(7), index=True)
 
     # 시즌 단위 (v5.0). 종료 규칙: 완결 후 12개월 또는 저매출 2분기 연속. 작가 매입은 선택 사항
-    exclusive_months: Mapped[int] = mapped_column(Integer, default=settings.exclusive_months)
+    exclusive_months: Mapped[int] = mapped_column(Integer, default=lambda: settings.exclusive_months)
     exclusive_until: Mapped[datetime | None] = mapped_column(DateTime)  # 상장 시 계산
-    external_share_bps: Mapped[int] = mapped_column(Integer, default=settings.external_share_bps)
+    external_share_bps: Mapped[int] = mapped_column(Integer, default=lambda: settings.external_share_bps)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime)  # 연재 완결 확정
     terminated_at: Mapped[datetime | None] = mapped_column(DateTime)
     termination_reason: Mapped[str | None] = mapped_column(String(50))  # COMPLETED_TERM | LOW_REVENUE | BUYBACK
@@ -81,8 +84,8 @@ class Funding(TimestampMixin, Base):
     discontinue_kind: Mapped[str | None] = mapped_column(String(10))  # FAULT | NO_FAULT
 
     # 연재 약정 (태업·조기 완결·귀책 중단 대비)
-    committed_episodes: Mapped[int] = mapped_column(Integer, default=settings.default_committed_episodes)
-    monthly_quota: Mapped[int] = mapped_column(Integer, default=settings.monthly_episode_quota)
+    committed_episodes: Mapped[int] = mapped_column(Integer, default=lambda: settings.default_committed_episodes)
+    monthly_quota: Mapped[int] = mapped_column(Integer, default=lambda: settings.monthly_episode_quota)
     buffer_episodes: Mapped[int | None] = mapped_column(Integer)  # 공모 전 비축분 (DIBS 심사 때 확인)
     hiatus_weeks_used: Mapped[int] = mapped_column(Integer, default=0)  # 미리 알린 휴재 누적 주
     episodes_at_listing: Mapped[int | None] = mapped_column(Integer)  # 상장 시점 회차 수 (시즌 진행 기준점)

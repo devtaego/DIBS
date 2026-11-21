@@ -1,4 +1,5 @@
 """서비스 기획서 v4.0·v5.0 규칙 (v5.0: 시즌 단위·유료 팬 기준·결제 시점 신탁 분할)."""
+import pytest
 from datetime import datetime, timedelta
 
 from app.core import clock
@@ -6,6 +7,8 @@ from tests.conftest import iso, open_funding
 
 SUB = {"agree_risk_notice": True, "agree_termination_rule": True}
 ORDER = {"agree_risk_notice": True}
+
+pytestmark = pytest.mark.usefixtures("v5_policy")
 
 
 def listed(api, wid, now, units_by_user: dict, target=100):
@@ -260,8 +263,9 @@ def test_payment_goes_to_trust_and_disclosure_reconciles(api, published_work, no
     tb = {(l["kind"], l["mode"]): l["balance"] for l in api.ok("admin", "get", "/admin/ledger/trial-balance")}
     assert tb[("SYS_TRUST_RECEIVABLE", "LIVE")] == 600 and tb[("SYS_COIN_REVENUE", "LIVE")] == 300
     d = api.ok(None, "get", f"/fundings/{fid}/disclosure")
-    assert d["cost_per_100"] == {"creator": 85.0, "issuance_cost": 12.0, "dibs": 3.0}
-    assert d["term"] == {"season_months": 12, "after_completion_months": 12, "principal_repayment": False}
+    assert d["cost_per_100"] == {"creator": 85.0, "issuance_cost": 12.0, "reserve": 0.0, "dibs": 3.0}
+    assert d["term"] == {"fixed_term": True, "season_months": 12, "after_completion_months": 12,
+                         "principal_repayment": False}
     r = d["reconciliation"][0]
     assert (r["period"], r["unlock_gross"], r["trust_inflow"], r["leaked_unlocks"], r["matched"]) == (
         "2027Q1", 600, 600, 0, True)

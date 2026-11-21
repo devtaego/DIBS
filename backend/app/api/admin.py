@@ -50,7 +50,7 @@ from app.schemas.wallet import WithdrawalOut
 from app.services import content as content_svc
 from app.services import dividend as div_svc
 from app.services import funding as svc
-from app.services import product, reminders, serial
+from app.services import coins, product, reminders, serial
 from app.services import wallet as wallet_svc
 from app.services.market.mock_exchange import get_market
 
@@ -120,7 +120,7 @@ def pricing(episode_id: int, body: EpisodePricingIn, db: Session = Depends(get_d
     e = db.get(Episode, episode_id)
     if e is None:
         raise NotFound("EPISODE_NOT_FOUND", "회차를 찾을 수 없어요")
-    return content_svc.set_episode_pricing(db, e, body.is_paid, body.price_coin)
+    return content_svc.set_episode_pricing(db, e, body.is_paid, body.price_coin, body.free_unlock_at)
 
 
 # ── 펀딩 심사·운영 ──
@@ -236,6 +236,11 @@ def clawback(funding_id: int, body: ClawbackIn, db: Session = Depends(get_db)):
 @router.post("/jobs/deadline-reminders", summary="매일: 청약 마감 임박 알림 (청약자·찜한 회원)")
 def deadline_reminders(db: Session = Depends(get_db)):
     return reminders.deadline_reminders(db)
+
+
+@router.post("/jobs/expire-coins", summary="매일: 유효기간이 지난 씨앗 만료 (보너스 90일 · 유료 5년)")
+def expire_coins(db: Session = Depends(get_db)):
+    return coins.expire_bonus(db)
 
 
 @router.post("/jobs/serial-check", summary="매일: 상장 작품 연재 지연 판정")

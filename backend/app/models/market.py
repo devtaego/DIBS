@@ -22,6 +22,7 @@ class Holding(TimestampMixin, Base):
     units: Mapped[int] = mapped_column(Integer, default=0)
     locked_units: Mapped[int] = mapped_column(Integer, default=0)  # 매도 주문으로 묶인 수량
     avg_price: Mapped[int] = mapped_column(Integer, default=0)
+    locked_until: Mapped[datetime | None] = mapped_column(DateTime)  # 창작자 토큰 보호예수 (이때까지 매도 불가)
 
 
 class Order(TimestampMixin, Base):

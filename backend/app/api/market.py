@@ -116,11 +116,15 @@ def dividends(funding_id: int, db: Session = Depends(get_db)):
     return list(db.scalars(select(DividendRun).where(DividendRun.funding_id == f.id).order_by(DividendRun.period.desc())))
 
 
-@router.post("/orders", response_model=OrderOut, status_code=201, summary="지정가 주문 (같은 가격끼리만 체결)")
+@router.post("/orders", response_model=OrderOut, status_code=201, summary="주문 (지정가 또는 시장가)")
 def place(body: OrderIn, db: Session = Depends(get_db), user: User = Depends(current_user)):
     if not body.agree_risk_notice:
         raise DomainError("RISK_NOTICE_REQUIRED", "투자 위험 고지를 확인해 주세요")
     f = _security(db, body.funding_id)
+    if body.order_type == "MARKET":
+        return get_market(db).place_market_order(user, f, body.side, body.units)
+    if body.price is None:
+        raise DomainError("INVALID_ORDER", "지정가 주문은 가격을 입력해 주세요")
     return get_market(db).place_order(user, f, body.side, body.price, body.units)
 
 

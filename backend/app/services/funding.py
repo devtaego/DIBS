@@ -41,7 +41,7 @@ MAX_REWARD_TIERS = 5
 # 운영자가 심사 시 덮어쓸 수 있는 조건
 REVIEWABLE_TERMS = {
     "unit_price", "target_units", "max_units_per_user", "open_at", "close_at", "security_type",
-    "creator_bps", "issuance_cost_bps", "platform_fee_bps",
+    "creator_bps", "issuance_cost_bps", "platform_fee_bps", "reserve_bps", "creator_token_bps", "creator_lockup_months",
     "royalty_platform_bps", "royalty_creator_bps", "royalty_holder_bps",
     "royalty_platform_after_bps", "royalty_creator_after_bps", "royalty_holder_after_bps",
     "allocation_strategy", "allocation_params", "offering_round", "risk_note", "buyback_enabled",
@@ -62,7 +62,7 @@ def _require(f: Funding, *statuses: FundingStatus) -> None:
 
 
 def _validate_terms(f: Funding) -> None:
-    if f.creator_bps + f.issuance_cost_bps + f.platform_fee_bps != 10000:
+    if f.creator_bps + f.issuance_cost_bps + f.reserve_bps + f.platform_fee_bps != 10000:
         raise DomainError("INVALID_TERMS", "모금액 배분율 합계는 100%여야 해요")
     if f.royalty_platform_bps + f.royalty_creator_bps + f.royalty_holder_bps != 10000:
         raise DomainError("INVALID_TERMS", "회수 전 배당 재원 배분율 합계는 100%여야 해요")
@@ -163,6 +163,8 @@ def _check_can_subscribe(db: Session, user: User, f: Funding) -> None:
         raise Forbidden("KYC_REQUIRED", "본인인증 후 청약할 수 있어요")
     if not user.risk_checked_at:
         raise Forbidden("RISK_PROFILE_REQUIRED", "투자성향 확인 후 청약할 수 있어요")
+    if user.birth_date and not user.is_adult(now.date()):
+        raise Forbidden("UNDERAGE", f"만 {settings.adult_age}세 이상부터 투자할 수 있어요")
     if db.get(Work, f.work_id).creator_id == user.id:
         raise Forbidden("SELF_INVEST_FORBIDDEN", "창작자는 자기 작품에 청약할 수 없어요")
 
@@ -466,16 +468,29 @@ def _list_security(db: Session, f: Funding) -> None:
         notify(db, s.user_id, "LISTED", f"「{work.title}」 조각이 상장됐어요", "이제 마켓에서 사고팔 수 있어요.",
                "funding", f.id)
 
-    # 모금액 배분: 발행 비용 / DIBS 수수료 / 작가 지급분(나머지)
+    # 창작자 토큰: 전체 발행량의 creator_token_bps (투자자 배정분 위에 추가 발행), 보호예수 동안 매도 불가
+    investor_units = sum(s.allocated_units for s in subs)
+    creator_units = creator_token_units(investor_units, f.creator_token_bps)
+    if creator_units:
+        db.add(Holding(user_id=work.creator_id, funding_id=f.id, mode=f.mode, units=creator_units, avg_price=0,
+                       locked_until=add_months(clock.now(), f.creator_lockup_months)))
+        notify(db, work.creator_id, "CREATOR_TOKEN", f"「{work.title}」 창작자 토큰 {creator_units:,}조각을 받았어요",
+               f"보호예수 {f.creator_lockup_months}개월 뒤부터 팔 수 있어요.", "funding", f.id)
+
+    # 모금액 배분: 발행 실비 / 최소 유보금(신탁) / DIBS 운영비 / 작가 지급분(나머지)
     issuance_cost = total * f.issuance_cost_bps // 10000
+    reserve = total * f.reserve_bps // 10000
     platform_fee = total * f.platform_fee_bps // 10000
-    creator_total = total - issuance_cost - platform_fee
-    ledger.post(db, "LISTING_SETTLEMENT", [
+    creator_total = total - issuance_cost - reserve - platform_fee
+    legs = [
         Leg(ledger.sys(db, AccountKind.SYS_FUNDING_ESCROW, f.mode), -total),
         Leg(ledger.sys(db, AccountKind.SYS_ISSUANCE_COST, f.mode), issuance_cost),
         Leg(ledger.sys(db, AccountKind.SYS_PLATFORM_REVENUE, f.mode), platform_fee),
         Leg(ledger.sys(db, AccountKind.SYS_CREATOR_PAYABLE, f.mode), creator_total),
-    ], f.mode, "funding", f.id)
+    ]
+    if reserve:
+        legs.append(Leg(ledger.sys(db, AccountKind.SYS_TRUST_RESERVE, f.mode), reserve))
+    ledger.post(db, "LISTING_SETTLEMENT", legs, f.mode, "funding", f.id)
 
     schedules = list(db.scalars(select(PayoutSchedule).where(PayoutSchedule.funding_id == f.id)
                                 .order_by(PayoutSchedule.seq)))
@@ -531,6 +546,14 @@ def fail_issuance(db: Session, f: Funding, reason: str) -> Funding:
         iss.history = [*iss.history, {"step": IssuanceStep.FAILED, "at": clock.now().isoformat(), "note": reason}]
     f.status = FundingStatus.ISSUE_FAILED
     return f
+
+
+def creator_token_units(investor_units: int, creator_token_bps: int) -> int:
+    """창작자 토큰 수량: 전체 발행량(투자자 + 창작자)의 creator_token_bps가 되도록 추가 발행한다.
+    예) 투자자 9,500조각, 5% → 창작자 500조각 (전체 10,000조각 중 5%)."""
+    if creator_token_bps <= 0 or investor_units <= 0:
+        return 0
+    return investor_units * creator_token_bps // (10000 - creator_token_bps)
 
 
 def add_months(dt, months: int):

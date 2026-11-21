@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from app.core.errors import Conflict, DomainError, Forbidden, NotFound
 from app.models import ContentEvent, Dib, Episode, EpisodeUnlock, Funding, User, Work
 from app.models.enums import AccountKind, EventType, FundingStatus, Role, WorkStatus
-from app.services import ledger
+from app.services import coins, ledger
 from app.services.ledger import Leg
 from app.services.wallet import COIN_MODE
 
@@ -29,6 +29,20 @@ def require_owner(work: Work, user: User) -> None:
         raise Forbidden("NOT_WORK_OWNER", "내 작품만 관리할 수 있어요")
 
 
+DISPLAY_BY_FUNDING = {
+    FundingStatus.OPEN: "FUNDING", FundingStatus.FAILED: "FUNDING_FAILED", FundingStatus.ALLOCATED: "ISSUING",
+    FundingStatus.ISSUING: "ISSUING", FundingStatus.ISSUE_FAILED: "PUBLISHED", FundingStatus.LISTED: "LISTED",
+    FundingStatus.SUSPENDED: "HALTED", FundingStatus.TERMINATED: "DELISTED",
+}
+
+
+def display_status(work: Work, funding: Funding | None) -> str:
+    """기획서 3-1의 작품 상태(11개)를 작품 상태 + 최근 펀딩 상태에서 계산한다."""
+    if work.status != WorkStatus.PUBLISHED or funding is None:
+        return str(work.status)
+    return DISPLAY_BY_FUNDING.get(funding.status, "PUBLISHED")
+
+
 def is_listed(db: Session, work_id: int) -> bool:
     return db.scalar(select(func.count()).where(
         Funding.work_id == work_id, Funding.status.in_([FundingStatus.LISTED, FundingStatus.SUSPENDED]))) > 0
@@ -41,7 +55,18 @@ def live_funding(db: Session, work_id: int) -> Funding | None:
                      .order_by(Funding.listed_at.desc()).limit(1))
 
 
+def check_age(ep: Episode, user: User | None) -> None:
+    """19세 작품은 본인인증으로 만 19세 이상이 확인된 회원만 회차를 연다 (기획서 3-1). 작품 상세는 누구나 본다."""
+    if ep.work.age_rating != "19":
+        return
+    if user is not None and (user.role == Role.ADMIN or ep.work.creator_id == user.id):
+        return
+    if user is None or not user.kyc_verified or not user.is_adult(clock.now().date()):
+        raise Forbidden("ADULT_ONLY", "19세 이상 본인인증 회원만 볼 수 있어요")
+
+
 def can_read(db: Session, ep: Episode, user: User | None) -> bool:
+    check_age(ep, user)
     if not ep.is_paid:
         return True
     if user is None:
@@ -52,6 +77,7 @@ def can_read(db: Session, ep: Episode, user: User | None) -> bool:
 
 
 def unlock_episode(db: Session, user: User, ep: Episode) -> EpisodeUnlock:
+    check_age(ep, user)
     if not ep.is_paid:
         raise DomainError("EPISODE_FREE", "무료 회차예요")
     existing = db.scalar(select(EpisodeUnlock).where(EpisodeUnlock.user_id == user.id, EpisodeUnlock.episode_id == ep.id))
@@ -63,6 +89,7 @@ def unlock_episode(db: Session, user: User, ep: Episode) -> EpisodeUnlock:
     dest = AccountKind.SYS_TRUST_RECEIVABLE if live else AccountKind.SYS_COIN_REVENUE
     j = ledger.post(db, "EPISODE_UNLOCK", [Leg(coin, -ep.price_coin), Leg(ledger.sys(db, dest, COIN_MODE), ep.price_coin)],
                     COIN_MODE, "episode", ep.id, memo=f"trust:funding:{live.id}" if live else None)
+    coins.consume(db, user.id, ep.price_coin)
     u = EpisodeUnlock(user_id=user.id, episode_id=ep.id, work_id=ep.work_id, price_coin=ep.price_coin, journal_id=j.id,
                       funding_id=live.id if live else None)
     db.add(u)
@@ -70,14 +97,22 @@ def unlock_episode(db: Session, user: User, ep: Episode) -> EpisodeUnlock:
     return u
 
 
-def set_episode_pricing(db: Session, ep: Episode, is_paid: bool, price_coin: int) -> Episode:
+def set_episode_pricing(db: Session, ep: Episode, is_paid: bool, price_coin: int, free_unlock_at=None) -> Episode:
     """v4.0: 파일럿 1~3화는 무료. 4화부터 유료 미리보기(기본 300원)로 지정할 수 있고, 공개 21일 뒤 무료가 된다.
     발행 전·후 모두 적용된다 (발행 전 순매출은 작가 70 / DIBS 30, 상장 후는 배당 재원)."""
     if is_paid and ep.no <= settings.pilot_free_episodes:
         raise Conflict("PILOT_FREE", f"파일럿 {settings.pilot_free_episodes}화까지는 무료예요")
     price = (price_coin or settings.default_preview_price_coin) if is_paid else 0
     ep.paid_preview, ep.price_coin = is_paid, price
-    ep.free_unlock_at = (ep.created_at or clock.now()) + timedelta(days=settings.preview_free_after_days) if is_paid else None
+    # 정식 공개 시각(무료 전환)은 작가가 예약한 값을 쓰고, 없으면 공개 21일 뒤 (기획서 3-2)
+    if not is_paid:
+        ep.free_unlock_at = None
+    elif free_unlock_at is not None:
+        if free_unlock_at <= clock.now():
+            raise DomainError("INVALID_FREE_AT", "정식 공개 시각은 지금보다 뒤여야 해요")
+        ep.free_unlock_at = free_unlock_at
+    else:
+        ep.free_unlock_at = (ep.created_at or clock.now()) + timedelta(days=settings.preview_free_after_days)
     return ep
 
 

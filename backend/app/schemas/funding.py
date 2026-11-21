@@ -1,6 +1,7 @@
 from datetime import date, datetime
 from typing import Literal
 
+from app.core.config import settings
 from pydantic import BaseModel, Field
 
 from app.models.enums import (
@@ -30,8 +31,9 @@ class RewardTierOut(ORM, RewardTierIn):
 class FundingApplyIn(BaseModel):
     """창작자 펀딩 신청. 조각 단가·배분율 등 최종 조건은 운영자가 심사에서 확정한다."""
 
-    target_units: int = Field(ge=1, examples=[1000])
-    unit_price: int = Field(default=10_000, ge=1000)
+    target_units: int = Field(ge=1, examples=[10000])
+    unit_price: int = Field(default_factory=lambda: settings.default_unit_price, ge=1000,
+                            description="1조각 가격 (v2.2 기본 1,000원 = 펀딩 1,000원 단위)")
     open_at: datetime
     close_at: datetime
     use_of_funds: str = Field(description="자금 사용 계획")
@@ -43,7 +45,7 @@ class FundingReviewIn(BaseModel):
     approve: bool
     note: str | None = None
     terms: dict = Field(default_factory=dict, examples=[{
-        "unit_price": 10000, "target_units": 1000, "max_units_per_user": 300,
+        "unit_price": 1000, "target_units": 10000, "max_units_per_user": 500,
         "allocation_strategy": "PRO_RATA", "security_type": "UNDECIDED",
     }], description="덮어쓸 발행 조건 (REVIEWABLE_TERMS)")
     payout_schedule: list["PayoutIn"] | None = Field(default=None, description="작가 지급 일정. 생략 시 상장 시 100%")
@@ -156,9 +158,10 @@ class DisclosureOut(BaseModel):
     """공시 묶음 (v5.0): 투자금 쓰임, 매출 배분, 상품 기간, 1인 한도, 분기별 정산 대사와 원장 해시."""
 
     funding_id: int
-    cost_per_100: dict = Field(description="투자금 100원 중 작가·발행 실비·DIBS 몫")
+    cost_per_100: dict = Field(description="투자금 100원 중 작가·발행 실비·최소 유보금·DIBS 몫")
+    creator_token: dict = Field(default_factory=dict, description="창작자 토큰 몫(bps)과 보호예수 개월")
     revenue_split: dict = Field(description="순매출 배분 (회수 전·후)")
-    term: dict = Field(description="시즌 연재 + 완결 후 기간, 원금 상환 없음")
+    term: dict = Field(description="고정 운용 기간 여부(v2.2: 없음), 원금 상환 없음")
     per_user_cap_amount: int
     buyback_enabled: bool
     settlement_basis: str

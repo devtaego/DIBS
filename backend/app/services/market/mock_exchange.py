@@ -11,7 +11,7 @@
 import math
 from datetime import date, datetime, time, timedelta
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.core import clock
@@ -36,7 +36,7 @@ def in_maintenance(at: datetime) -> bool:
     return _hm(settings.maintenance_start) <= at.time() < _hm(settings.maintenance_end)
 
 
-PRICE_TICK = 100  # 호가 단위: 조각 가격은 100원 단위 (청약은 1조각 = 공모가 단위)
+PRICE_TICK = 10  # 호가 단위 10원 (v2.2: 1조각 공모가 1,000원 기준)
 
 
 def price_band(reference_price: int) -> tuple[int, int]:
@@ -65,8 +65,15 @@ class InternalMockExchange(MarketGateway):
             raise Forbidden("KYC_REQUIRED", "본인인증 후 거래할 수 있어요")
         if side == OrderSide.BUY and not user.risk_checked_at:
             raise Forbidden("RISK_PROFILE_REQUIRED", "투자성향 확인 후 매수할 수 있어요")
+        if side == OrderSide.BUY and user.birth_date and not user.is_adult(now.date()):
+            raise Forbidden("UNDERAGE", f"만 {settings.adult_age}세 이상부터 투자할 수 있어요")
         if db.get(Work, f.work_id).creator_id == user.id:
-            raise Forbidden("SELF_TRADE_FORBIDDEN", "창작자는 자기 작품 조각을 거래할 수 없어요")
+            # 창작자는 자기 작품을 살 수 없고, 받은 창작자 토큰은 보호예수가 끝난 뒤 팔 수만 있다 (기획서 1-3·2-3)
+            if side == OrderSide.BUY:
+                raise Forbidden("SELF_TRADE_FORBIDDEN", "창작자는 자기 작품 조각을 살 수 없어요")
+            h = self._holding(user.id, f)
+            if h is not None and h.locked_until and now < h.locked_until:
+                raise Forbidden("CREATOR_LOCKUP", f"창작자 토큰은 {h.locked_until:%Y-%m-%d}부터 팔 수 있어요")
         if units < 1 or price < 1:
             raise DomainError("INVALID_ORDER", "가격과 수량은 1 이상이어야 해요")
         lo, hi = price_band(f.reference_price)
@@ -80,6 +87,7 @@ class InternalMockExchange(MarketGateway):
         if side == OrderSide.BUY:
             gross = price * units
             check_investment_limit(db, user, f.mode, f.id, gross)
+            self._check_holding_cap(user, f, units)
             lock = gross + trade_fee(gross, order.fee_ppm)
             order.locked_amount = lock
             db.add(order)
@@ -95,6 +103,36 @@ class InternalMockExchange(MarketGateway):
             db.flush()
 
         self._match(order, f)
+        return order
+
+    def _check_holding_cap(self, user: User, f: Funding, units: int) -> None:
+        """종목별 1인 보유 한도: 발행량의 max_holding_bps (보유 + 미체결 매수 + 이번 주문)."""
+        issued = self.db.scalar(select(func.coalesce(func.sum(Holding.units), 0)).where(
+            Holding.funding_id == f.id, Holding.mode == f.mode)) or 0
+        cap = issued * settings.max_holding_bps // 10000
+        h = self._holding(user.id, f)
+        pending = self.db.scalar(select(func.coalesce(func.sum(Order.remaining_units), 0)).where(
+            Order.funding_id == f.id, Order.mode == f.mode, Order.user_id == user.id, Order.side == OrderSide.BUY,
+            Order.status.in_(OPEN_STATUSES))) or 0
+        if (h.units if h else 0) + pending + units > cap:
+            raise DomainError("HOLDING_LIMIT_EXCEEDED",
+                              f"한 종목은 발행량의 {settings.max_holding_bps // 100}%({cap:,}조각)까지 가질 수 있어요")
+
+    def best_price(self, f: Funding, side: OrderSide) -> int | None:
+        """시장가 주문이 체결될 최우선 호가: 매수는 가장 싼 매도, 매도는 가장 비싼 매수."""
+        opposite = OrderSide.SELL if side == OrderSide.BUY else OrderSide.BUY
+        agg = func.min(Order.price) if side == OrderSide.BUY else func.max(Order.price)
+        return self.db.scalar(select(agg).where(Order.funding_id == f.id, Order.mode == f.mode,
+                                                Order.side == opposite, Order.status.in_(OPEN_STATUSES)))
+
+    def place_market_order(self, user: User, funding: Funding, side: OrderSide, units: int) -> Order:
+        """시장가: 최우선 호가 한 단계에서 체결하고, 남은 수량은 바로 취소한다 (IOC)."""
+        price = self.best_price(funding, side)
+        if price is None:
+            raise Conflict("NO_COUNTER_ORDER", "지금 체결할 상대 주문이 없어요. 지정가로 주문해 주세요")
+        order = self.place_order(user, funding, side, price, units)
+        if order.remaining_units > 0 and order.status in OPEN_STATUSES:
+            self._release(order, OrderStatus.CANCELLED)
         return order
 
     def _match(self, order: Order, f: Funding) -> None:

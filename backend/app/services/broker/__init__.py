@@ -181,9 +181,11 @@ def grant_coupon(db: Session, link: BrokerLink) -> int:
         return 0
     amt = settings.partner_coupon_coin
     coin = ledger.get_account(db, AccountKind.COIN, COIN_MODE, link.user_id)
-    ledger.post(db, "PARTNER_COUPON", [Leg(ledger.sys(db, AccountKind.SYS_PARTNER_COUPON, COIN_MODE), -amt),
-                                       Leg(coin, amt)], COIN_MODE, "broker_link", link.id,
-                memo=f"{settings.broker_name} 계좌 개설 쿠폰")
+    j = ledger.post(db, "PARTNER_COUPON", [Leg(ledger.sys(db, AccountKind.SYS_PARTNER_COUPON, COIN_MODE), -amt),
+                                           Leg(coin, amt)], COIN_MODE, "broker_link", link.id,
+                    memo=f"{settings.broker_name} 계좌 개설 쿠폰")
+    from app.services import coins
+    coins.credit(db, link.user_id, "BONUS", amt, j)
     link.coupon_coin = amt
     notify(db, link.user_id, "PARTNER_COUPON", f"{settings.broker_name} 계좌 개설 쿠폰 {amt:,}코인이 들어왔어요",
            "유료 회차를 볼 때 쓸 수 있어요.", "broker_link", link.id)

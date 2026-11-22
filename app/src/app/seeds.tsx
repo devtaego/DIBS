@@ -1,7 +1,8 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { Alert, Pressable, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 
+import { ConfirmSheet } from '@/components/ConfirmSheet';
 import { Dibby } from '@/components/dibby';
 import { ErrorBox, Loading } from '@/components/ui';
 import { BigBtn, SubHeader, Txt, V2Screen, color, PINK } from '@/ds';
@@ -21,6 +22,9 @@ export default function Seeds() {
   const { back } = useLocalSearchParams<{ back?: string }>();
   const [pick, setPick] = useState('seed30');
   const [busy, setBusy] = useState(false);
+  // 결제 전 확인 시트: 'buy' 씨앗 구매, 'convert' 키움 포인트 전환. 결과·오류도 같은 화면 안에 띄운다 (웹은 Alert 가 안 뜸)
+  const [ask, setAsk] = useState<'buy' | 'convert' | null>(null);
+  const [notice, setNotice] = useState<{ ok: boolean; text: string } | null>(null);
   const { data, error, loading, reload } = useApi(async () => {
     const [pkgs, w, pts] = await Promise.all([
       api.get<Pkg[]>('/wallet/coin/packages'), api.get<Wallet & { seeds?: number }>('/wallet'),
@@ -38,28 +42,41 @@ export default function Seeds() {
     setBusy(true);
     try {
       await api.post('/wallet/coin/packages/buy', { package_id: p.id, channel: 'PG' });
+      setAsk(null);
       if (back) router.back();
-      else { await reload(); Alert.alert('씨앗을 샀어요', `씨앗 ${p.total_seeds}개가 들어왔어요.`); }
+      else { await reload(); setNotice({ ok: true, text: `결제했어요 · 씨앗 ${p.total_seeds}개가 들어왔어요 (${p.price.toLocaleString('ko-KR')}원)` }); }
     } catch (e) {
-      Alert.alert('결제하지 못했어요', (e as ApiError).message);
+      setAsk(null);
+      setNotice({ ok: false, text: `결제하지 못했어요 · ${(e as ApiError).message}` });
     } finally {
       setBusy(false);
     }
   };
   const convert = async () => {
     if (!ptSeeds) return;
+    setBusy(true);
     try {
       await api.post('/me/partner-points/convert', { points: ptSeeds * 100 });
+      setAsk(null);
       await reload();
+      setNotice({ ok: true, text: `키움 포인트 ${(ptSeeds * 100).toLocaleString('ko-KR')}P를 씨앗 ${ptSeeds}개로 바꿨어요` });
     } catch (e) {
-      Alert.alert('바꾸지 못했어요', (e as ApiError).message);
+      setAsk(null);
+      setNotice({ ok: false, text: `바꾸지 못했어요 · ${(e as ApiError).message}` });
+    } finally {
+      setBusy(false);
     }
   };
 
   return (
     <V2Screen header={<SubHeader title="씨앗 구매" />} pad={20} gap={10}
-      footer={p ? <BigBtn label={busy ? '결제하는 중…' : `카드·계좌로 ${p.price.toLocaleString('ko-KR')}원 결제`} disabled={busy} onPress={buy} h={52} /> : undefined}>
+      footer={p ? <BigBtn label={`씨앗 ${p.total_seeds}개 · ${p.price.toLocaleString('ko-KR')}원 결제하기`} disabled={busy} onPress={() => { setNotice(null); setAsk('buy'); }} h={52} /> : undefined}>
       <ErrorBox error={error} onRetry={reload} />
+      {notice ? (
+        <View accessibilityRole="alert" style={{ padding: 12, paddingHorizontal: 14, borderRadius: 14, backgroundColor: notice.ok ? '#EEF8F1' : '#FDEEEE', marginTop: 8 }}>
+          <Txt v="label2" w="semibold" c={notice.ok ? '#1F7A45' : color.negative}>{notice.text}</Txt>
+        </View>
+      ) : null}
       {loading && !data ? <Loading /> : null}
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, padding: 16, borderRadius: 20, backgroundColor: '#FFF8EC', borderWidth: 1, borderColor: '#F3E3C6', marginTop: 8, marginBottom: 6 }}>
         <Dibby pose="dibs" size={56} />
@@ -75,7 +92,7 @@ export default function Seeds() {
             <Txt v="label1" w="bold" c={color.labelStrong}>키움 포인트로 바꾸기</Txt>
             <Txt v="caption1" w="medium" c="#9C3F66">100P = 씨앗 1개 · 보유 {data.pts.balance.toLocaleString('ko-KR')}P → 씨앗 {ptSeeds}개</Txt>
           </View>
-          <Pressable onPress={convert} disabled={!ptSeeds} accessibilityRole="button" style={{ height: 36, paddingHorizontal: 14, borderRadius: 999, backgroundColor: color.white, borderWidth: 1, borderColor: '#F3C7D6', justifyContent: 'center', opacity: ptSeeds ? 1 : 0.5 }}>
+          <Pressable onPress={() => { setNotice(null); setAsk('convert'); }} disabled={!ptSeeds} accessibilityRole="button" style={{ height: 36, paddingHorizontal: 14, borderRadius: 999, backgroundColor: color.white, borderWidth: 1, borderColor: '#F3C7D6', justifyContent: 'center', opacity: ptSeeds ? 1 : 0.5 }}>
             <Txt v="label2" w="bold" c={PINK}>{ptSeeds}개 받기</Txt>
           </Pressable>
         </View>
@@ -102,6 +119,25 @@ export default function Seeds() {
       <Txt v="caption1" w="medium" c={color.labelAssistive} style={{ marginTop: 6, marginHorizontal: 2 }}>
         씨앗은 회차 미리보기·굿즈·이벤트에만 쓰고 현금이나 예치금으로 바꿀 수 없어요. 카드·계좌로 산 씨앗은 7일 안에 쓰지 않았으면 결제를 취소할 수 있어요. 보너스 씨앗은 90일 뒤 사라져요.
       </Txt>
+      {p ? (
+        <ConfirmSheet visible={ask === 'buy'} onClose={() => setAsk(null)} busy={busy} title="결제할까요?"
+          rows={[
+            { label: '상품', value: `씨앗 ${p.total_seeds}개${p.bonus_seeds ? ` (보너스 ${p.bonus_seeds}개 포함)` : ''}` },
+            { label: '결제 수단', value: '카드·계좌 (모의 결제)' },
+            { label: '결제 후 내 씨앗', value: `${seeds.toLocaleString('ko-KR')}개 → ${(seeds + p.total_seeds).toLocaleString('ko-KR')}개` },
+            { label: '결제 금액', value: `${p.price.toLocaleString('ko-KR')}원`, strong: true },
+          ]}
+          note="7일 안에 쓰지 않은 씨앗은 결제를 취소할 수 있어요. 씨앗은 현금이나 예치금으로 바꿀 수 없어요."
+          confirmLabel={`${p.price.toLocaleString('ko-KR')}원 결제하기`} onConfirm={buy} />
+      ) : null}
+      <ConfirmSheet visible={ask === 'convert'} onClose={() => setAsk(null)} busy={busy} title="포인트를 씨앗으로 바꿀까요?"
+        rows={[
+          { label: '쓸 키움 포인트', value: `${(ptSeeds * 100).toLocaleString('ko-KR')}P` },
+          { label: '남는 포인트', value: `${((data?.pts.balance ?? 0) - ptSeeds * 100).toLocaleString('ko-KR')}P` },
+          { label: '받을 씨앗', value: `${ptSeeds}개`, strong: true },
+        ]}
+        note="100P = 씨앗 1개. 바꾼 씨앗은 포인트로 되돌릴 수 없어요."
+        confirmLabel={`씨앗 ${ptSeeds}개로 바꾸기`} onConfirm={convert} />
     </V2Screen>
   );
 }

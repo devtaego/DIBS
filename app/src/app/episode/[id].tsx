@@ -3,6 +3,7 @@ import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { Alert, Image, Pressable, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ConfirmSheet } from '@/components/ConfirmSheet';
 import { ShortVideo } from '@/components/ShortVideo';
 import { imageSource } from '@/lib/media';
 
@@ -20,6 +21,9 @@ export default function EpisodeScreen() {
   const [ep, setEp] = useState<EpisodeContent | null>(null);
   const [locked, setLocked] = useState<{ message: string; price: number } | null>(null);
   const [busy, setBusy] = useState(false);
+  // 열기 전 확인 시트 ('seed' 씨앗으로 / 'points' 키움 포인트로)와 잠금 화면 안 오류 문구 (웹은 Alert 가 안 뜸)
+  const [ask, setAsk] = useState<'seed' | 'points' | null>(null);
+  const [lockMsg, setLockMsg] = useState<string | null>(null);
 
   const load = async () => {
     try {
@@ -54,9 +58,11 @@ export default function EpisodeScreen() {
     try {
       await api.post('/me/partner-points/convert', { points: Math.ceil(price / 100) * 100 });
       await api.post(`/episodes/${id}/unlock`);
+      setAsk(null);
       await load();
     } catch (e) {
-      Alert.alert('열 수 없어요', (e as ApiError).message);
+      setAsk(null);
+      setLockMsg((e as ApiError).message);
     } finally {
       setBusy(false);
     }
@@ -66,11 +72,13 @@ export default function EpisodeScreen() {
     setBusy(true);
     try {
       await api.post(`/episodes/${id}/unlock`);
+      setAsk(null);
       await load();
     } catch (e) {
+      setAsk(null);
       const err = e as ApiError;
       if (err.code === 'INSUFFICIENT_BALANCE') router.push({ pathname: '/seeds', params: { back: '1' } });
-      else Alert.alert('구매 실패', err.message);
+      else setLockMsg(err.message);
     } finally {
       setBusy(false);
     }
@@ -92,13 +100,30 @@ export default function EpisodeScreen() {
           {short ? (
             <Button title={`씨앗 ${seedPrice - (mySeeds ?? 0)}개가 모자라요 · 씨앗 사기`} onPress={() => router.push({ pathname: '/seeds', params: { back: '1' } })} style={{ marginTop: space(6), alignSelf: 'stretch' }} />
           ) : (
-            <Button title={`씨앗 ${seedPrice}개로 열기`} onPress={unlock} loading={busy} style={{ marginTop: space(6), alignSelf: 'stretch' }} />
+            <Button title={`씨앗 ${seedPrice}개로 열기`} onPress={() => { setLockMsg(null); setAsk('seed'); }} style={{ marginTop: space(6), alignSelf: 'stretch' }} />
           )}
           {pts && pts.balance >= need ? (
-            <Button title={`키움 포인트 ${need.toLocaleString('ko-KR')}P로 열기`} kind="ghost" onPress={unlockWithPoints} loading={busy} style={{ marginTop: space(2), alignSelf: 'stretch' }} />
+            <Button title={`키움 포인트 ${need.toLocaleString('ko-KR')}P로 열기`} kind="ghost" onPress={() => { setLockMsg(null); setAsk('points'); }} style={{ marginTop: space(2), alignSelf: 'stretch' }} />
           ) : null}
+          {lockMsg ? <T size={13} weight="600" color={colors.danger} style={{ marginTop: space(3), textAlign: 'center' }}>{lockMsg}</T> : null}
           <Muted style={{ marginTop: space(3), textAlign: 'center' }}>정식 공개되면 무료로 볼 수 있어요. 씨앗은 콘텐츠 전용이라 예치금으로 바꿀 수 없어요.{'\n'}키움 포인트 100P = 씨앗 1개.</Muted>
         </Card>
+        <ConfirmSheet visible={ask === 'seed'} onClose={() => setAsk(null)} busy={busy} title="이 회차를 열까요?"
+          rows={[
+            { label: '내 씨앗', value: `${(mySeeds ?? 0).toLocaleString('ko-KR')}개` },
+            { label: '연 뒤 남는 씨앗', value: `${Math.max(0, (mySeeds ?? 0) - seedPrice).toLocaleString('ko-KR')}개` },
+            { label: '쓸 씨앗', value: `${seedPrice}개 (${(seedPrice * 100).toLocaleString('ko-KR')}원어치)`, strong: true },
+          ]}
+          note="한 번 열면 계속 볼 수 있어요. 쓴 씨앗은 되돌릴 수 없어요."
+          confirmLabel={`씨앗 ${seedPrice}개 쓰고 열기`} onConfirm={unlock} />
+        <ConfirmSheet visible={ask === 'points'} onClose={() => setAsk(null)} busy={busy} title="키움 포인트로 열까요?"
+          rows={[
+            { label: '내 키움 포인트', value: `${(pts?.balance ?? 0).toLocaleString('ko-KR')}P` },
+            { label: '연 뒤 남는 포인트', value: `${Math.max(0, (pts?.balance ?? 0) - need).toLocaleString('ko-KR')}P` },
+            { label: '쓸 포인트', value: `${need.toLocaleString('ko-KR')}P`, strong: true },
+          ]}
+          note="포인트를 씨앗으로 바꾼 뒤 바로 이 회차를 열어요 (100P = 씨앗 1개)."
+          confirmLabel={`${need.toLocaleString('ko-KR')}P 쓰고 열기`} onConfirm={unlockWithPoints} />
       </Screen>
     );
   }

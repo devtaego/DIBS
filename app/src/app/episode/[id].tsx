@@ -1,6 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { router, useLocalSearchParams } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { useCallback, useEffect, useState } from 'react';
 import { Alert, Image, Pressable, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ShortVideo } from '@/components/ShortVideo';
@@ -42,11 +42,12 @@ export default function EpisodeScreen() {
 
   const [coin, setCoin] = useState<number | null>(null);
   const [pts, setPts] = useState<{ balance: number } | null>(null);
-  useEffect(() => {
+  // 잔액은 화면에 돌아올 때마다 다시 읽는다 (씨앗 구매 화면에서 사고 돌아오면 바로 '열기' 버튼이 보이게)
+  useFocusEffect(useCallback(() => {
     if (!locked) return;
     api.get<{ coin: number }>('/wallet').then((w) => setCoin(w.coin)).catch(() => {});
     api.get<{ balance: number }>('/me/partner-points').then(setPts).catch(() => {});
-  }, [locked]);
+  }, [locked]));
   const unlockWithPoints = async () => {
     const price = locked?.price ?? 300;
     setBusy(true);

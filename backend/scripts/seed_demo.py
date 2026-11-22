@@ -23,6 +23,7 @@ from fastapi.testclient import TestClient
 from app.core import clock
 from app.core.db import SessionLocal
 from app.main import app
+from app.services.market.mock_exchange import PRICE_TICK, price_band
 from app.models import ContentEvent, Episode, EpisodeUnlock, Journal, User
 from app.models.enums import EventType, Mode
 
@@ -133,6 +134,45 @@ SHORT_VIDEOS: dict[str, tuple[str, int]] = {
 }
 
 
+def seed_price_history(call, listed: list[tuple[int, int, list[str]]], days: int = 40) -> None:
+    """상장 종목마다 지난 `days`일 동안의 체결을 만든다 (차트 시연용 합성 데이터).
+
+    공모가(1,000원)에서 시작해 오늘 가격보다 4~12% 낮은 값까지 무작위로 걷는다. 하루 2~4건을
+    매도·매수 주문을 같은 가격·수량으로 넣어 바로 체결시키고, 하루가 끝나면 기준가를 갱신한다.
+    매일 가격은 그날 기준가 ±30% 안, 10원 단위. 판 사람은 그만큼 들고 있는지 따져서 고른다.
+    """
+    base = clock.now()
+    tick = lambda v: max(PRICE_TICK, int(round(v / PRICE_TICK)) * PRICE_TICK)  # noqa: E731
+    state = {}
+    for fid, today, holders in listed:
+        rnd = random.Random(7_000 + fid)
+        state[fid] = {"rnd": rnd, "p": 1_000, "ref": 1_000, "target": tick(today / (1 + rnd.uniform(0.04, 0.12))),
+                      "hold": {h: 400 for h in holders}}  # 균등 20 + 비례 80 배정 결과: 1인 400조각
+    for i, d in enumerate(range(days, 0, -1)):
+        day = (base - timedelta(days=d)).replace(hour=10, minute=0, second=0)
+        for fid, st in state.items():
+            rnd, left = st["rnd"], days - i
+            lo, hi = price_band(st["ref"])
+            drift = (st["target"] - st["p"]) / left
+            for j in range(rnd.randint(2, 4)):
+                clock.set_now(day.replace(hour=10 + j * 2, minute=rnd.randint(0, 59)))
+                q = min(hi, max(lo, tick(st["p"] + drift / 2 + rnd.gauss(0, st["p"] * 0.03))))
+                u = rnd.randint(5, 40)
+                sellers = [h for h, n in st["hold"].items() if n >= u + 150]  # 오늘 매도 주문 몫(최대 100조각)은 남겨 둔다
+                seller = rnd.choice(sellers)
+                buyer = rnd.choice([h for h in st["hold"] if h != seller])
+                o = {"funding_id": fid, "agree_risk_notice": True, "price": q, "units": u}
+                call(seller, "post", "/market/orders", json={**o, "side": "SELL"})
+                call(buyer, "post", "/market/orders", json={**o, "side": "BUY"})
+                st["hold"][seller] -= u
+                st["hold"][buyer] += u
+                st["p"] = q
+            st["ref"] = st["p"]
+        clock.set_now(day.replace(hour=23, minute=0))
+        call("admin", "post", "/admin/jobs/roll-reference-prices")
+    clock.set_now(base)
+
+
 def main() -> None:
     with TestClient(app) as c:
         tok: dict[str, str] = {}
@@ -149,6 +189,8 @@ def main() -> None:
                 raise SystemExit(f"{method.upper()} {url} 실패: {r.status_code} {r.text}")
             return r.json()
 
+        listed: list[tuple[int, int, list[str]]] = []  # (종목 id, 오늘 가격, 처음 배정받은 독자) → 지난 거래 합성용
+        today_orders: list = []  # 오늘 체결·호가는 지난 거래를 다 만든 뒤에 넣는다 (기준가 갱신이 오늘 가격을 덮지 않게)
         login("admin", "ADMIN")
         login("creator", "CREATOR")
         readers = [f"reader{i}" for i in range(1, 31)]
@@ -214,10 +256,11 @@ def main() -> None:
             call("admin", "patch", f"/admin/episodes/{ep['id']}/pricing", json={"is_paid": True})
         seed_paying_fans(b, 3_500)  # 상장 후 4주 유료 구매자 (시연용 일괄 생성)
         order = {"funding_id": fb, "agree_risk_notice": True}
-        call("reader1", "post", "/market/orders", json={**order, "side": "SELL", "price": 1_150, "units": 100})
-        call("reader2", "post", "/market/orders", json={**order, "side": "BUY", "price": 1_150, "units": 60})
-        call("reader3", "post", "/market/orders", json={**order, "side": "SELL", "price": 1_200, "units": 50})
-        call("reader4", "post", "/market/orders", json={**order, "side": "BUY", "price": 1_100, "units": 80})
+        listed.append((fb, 1_150, readers[:25]))
+        today_orders += [("reader1", {**order, "side": "SELL", "price": 1_150, "units": 100}),
+                         ("reader2", {**order, "side": "BUY", "price": 1_150, "units": 60}),
+                         ("reader3", {**order, "side": "SELL", "price": 1_200, "units": 50}),
+                         ("reader4", {**order, "side": "BUY", "price": 1_100, "units": 80})]
         b_eps = call("creator", "get", f"/works/{b}/episodes")
         for r in readers[5:15]:  # 상장 후 유료 구매 → 신탁 계좌로 바로 분할 (공시 대사 시연)
             call(r, "post", f"/episodes/{b_eps[4]['id']}/unlock")
@@ -285,9 +328,10 @@ def main() -> None:
                 call("admin", "post", f"/admin/fundings/{f}/issuance/advance", json={"step": step, **extra_})
             seller, buyer = readers[5 + k % 3], readers[9 + k % 3]
             o = {"funding_id": f, "agree_risk_notice": True}
-            call(seller, "post", "/market/orders", json={**o, "side": "SELL", "price": price, "units": 40})
-            call(buyer, "post", "/market/orders", json={**o, "side": "BUY", "price": price, "units": 25})
-            call(buyer, "post", "/market/orders", json={**o, "side": "BUY", "price": price - 20, "units": 30})
+            listed.append((f, price, readers[5:30]))
+            today_orders.extend([(seller, {**o, "side": "SELL", "price": price, "units": 40}),
+                                 (buyer, {**o, "side": "BUY", "price": price, "units": 25}),
+                                 (buyer, {**o, "side": "BUY", "price": price - 20, "units": 30})])
         # 나머지 카탈로그: 펀딩 없이 작품만 (탐색·랭킹용). 찜 수는 서로 다르게
         done = {"악녀인데 남주들이 나를 숭배한다", "청월도", *(t for t, *_ in extra)}
         rest = [row for row in CATALOG if row[1] not in done]
@@ -307,6 +351,11 @@ def main() -> None:
                     "close_at": (now + timedelta(days=UPCOMING[title] + 10)).isoformat(),
                     "use_of_funds": "작화 외주 60% · 편집 20% · 마케팅 20%", "reward_tiers": []})
                 call("admin", "post", f"/admin/fundings/{f['id']}/review", json={"approve": True, "terms": {}})
+
+        # 상장 종목의 지난 40일 거래 (합성 시연 데이터). 실제 주문·체결 API로 만들어서 원장·보유 수량이 맞는다
+        seed_price_history(call, listed, days=40)
+        for who, body in today_orders:
+            call(who, "post", "/market/orders", json=body)
 
         # 마감 임박 알림 (매일 돌리는 작업을 시연 시점에 한 번 실행)
         print("마감 임박 알림:", call("admin", "post", "/admin/jobs/deadline-reminders"))

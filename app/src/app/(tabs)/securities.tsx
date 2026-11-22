@@ -42,7 +42,7 @@ export default function SecuritiesTab() {
   const pnl = (data?.holdings ?? []).reduce((a, h) => a + h.pnl, 0);
   const cost = evalSum - pnl;
   const idx = marketIndex(data?.list ?? []);
-  const idxSeries = [1000, ...rows.map((r) => r.s.last_price ?? r.s.unit_price).slice(0, 8).map((p, i, a) => 1000 + ((idx.value - 1000) * (i + 1)) / a.length)];
+  const idxSeries = useMemo(() => indexSeries(data?.list ?? [], data?.charts ?? [], idx.value), [data, idx.value]);
 
   return (
     <V2Screen header={<TabHeader title="토큰증권" badge="STO" />} tabBar pad={20}>
@@ -110,3 +110,18 @@ export default function SecuritiesTab() {
     </V2Screen>
   );
 }
+
+// 지수 추이: 날짜마다 (그날 종가 ÷ 공모가) 평균 × 1,000. 거래가 없던 날은 직전 종가(없으면 공모가)를 쓴다.
+// 체결 기록이 거의 없으면 공모가 → 현재 지수 두 점으로 그린다.
+function indexSeries(list: SecurityItem[], charts: Candle[][], now: number): number[] {
+  const days = [...new Set(charts.flat().map((c) => c.date))].sort();
+  if (days.length < 3) return [1000, now];
+  const last = list.map((s) => s.unit_price);
+  const out = days.map((d) => {
+    list.forEach((s, i) => { const c = charts[i]?.find((x) => x.date === d); if (c) last[i] = c.close; });
+    return (list.reduce((a, s, i) => a + last[i] / s.unit_price, 0) / Math.max(1, list.length)) * 1000;
+  });
+  out[out.length - 1] = now; // 마지막 점은 지금 지수와 맞춘다
+  return out;
+}
+

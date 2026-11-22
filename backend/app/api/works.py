@@ -20,6 +20,7 @@ from app.schemas.content import (
     WorkCardOut,
     WorkDetailOut,
     WorkIn,
+    ReaderTrendOut,
     WorkMetricsOut,
     WorkOut,
     WorkPatch,
@@ -227,6 +228,12 @@ def dib(work_id: int, db: Session = Depends(get_db), user: User = Depends(curren
 def undib(work_id: int, db: Session = Depends(get_db), user: User = Depends(current_user)):
     svc.toggle_dib(db, user, svc.get_work(db, work_id, user), False)
     return OK()
+
+
+@router.get("/works/{work_id}/reader-trend", response_model=ReaderTrendOut,
+            summary="독자 추이 (오늘까지 7일 하루 순독자 · 주간 증가율 · 무료 회차별 시작/완독 독자)")
+def reader_trend(work_id: int, db: Session = Depends(get_db), user: User | None = Depends(optional_user)):
+    return svc.reader_trend(db, svc.get_work(db, work_id, user))
 
 
 @router.get("/works/{work_id}/metrics", response_model=WorkMetricsOut, summary="작품 지표 (창작자·운영자)")

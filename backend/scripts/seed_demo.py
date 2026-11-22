@@ -28,23 +28,38 @@ from app.models import ContentEvent, Episode, EpisodeUnlock, Journal, User
 from app.models.enums import EventType, Mode
 
 
-def seed_pilot_events(work_id: int, readers: int, finish_1: float, finish_3: float) -> None:
-    """파일럿 1~3화 열람 이벤트 (최근 4주, 비로그인 기기 기준). 지표 카드·펀딩 개설 조건 시연용."""
+def seed_pilot_events(work_id: int, readers: int, finish_1: float, finish_3: float, span_days: int = 27) -> None:
+    """파일럿 1~3화 열람 이벤트 (최근 4주, 비로그인 기기 기준). 지표 카드·펀딩 개설 조건 시연용 합성 데이터.
+
+    날짜별 유입은 작품마다 다른 주간 추세(-15% ~ +55%)에 요일 효과(주말↑)와 날마다 흔들림을 얹어서 나눈다.
+    그래서 펀딩 상세 '하루 독자' 차트와 주간 독자 증가율이 작품마다 다르게 보인다. 2화 완독은 1화와 3화 사이.
+    span_days: 파일럿을 공개한 지 며칠 됐는지 (짧으면 최근 7일·직전 7일이 다 차지 않은 작품)."""
     rnd = random.Random(work_id)
     now = clock.now()
     db = SessionLocal()
     eps = list(db.query(Episode).filter(Episode.work_id == work_id, Episode.no <= 3).order_by(Episode.no))
+    growth = rnd.uniform(-0.15, 0.55)  # 주간 추세: 1주 전보다 이번 주 유입이 이만큼 많다
+    weights = []
+    for k in range(span_days):  # k일 전 (0 = 최근 24시간)
+        day = now - timedelta(days=k)
+        weekend = 1.15 if day.weekday() >= 5 else 1.0
+        weights.append((1 + growth) ** (-k / 7) * weekend * rnd.uniform(0.85, 1.15))
+    r2 = (finish_3 / finish_1) ** 0.5  # 1화 완독 → 2화 완독, 2화 완독 → 3화 완독을 같은 비율로
     rows = []
     for i in range(readers):
-        anon, at = f"w{work_id}-d{i}", now - timedelta(minutes=rnd.randint(60, 27 * 24 * 60))
+        k = rnd.choices(range(span_days), weights)[0]
+        anon, at = f"w{work_id}-d{i}", now - timedelta(days=k, minutes=rnd.randint(1, 24 * 60 - 1))
         rows.append(dict(anon_id=anon, event_type=EventType.VIEW_START, work_id=work_id, episode_id=eps[0].id,
                          occurred_at=at, props={}))
         if rnd.random() < finish_1:
             rows.append(dict(anon_id=anon, event_type=EventType.VIEW_COMPLETE, work_id=work_id,
                              episode_id=eps[0].id, occurred_at=at, props={}))
-            if rnd.random() < finish_3 / finish_1:
+            if rnd.random() < r2:
                 rows.append(dict(anon_id=anon, event_type=EventType.VIEW_COMPLETE, work_id=work_id,
-                                 episode_id=eps[2].id, occurred_at=at + timedelta(minutes=20), props={}))
+                                 episode_id=eps[1].id, occurred_at=at + timedelta(minutes=10), props={}))
+                if rnd.random() < r2:
+                    rows.append(dict(anon_id=anon, event_type=EventType.VIEW_COMPLETE, work_id=work_id,
+                                     episode_id=eps[2].id, occurred_at=at + timedelta(minutes=20), props={}))
     db.bulk_insert_mappings(ContentEvent, rows)
     db.commit()
     db.close()
@@ -281,7 +296,9 @@ def main() -> None:
         ]
         for i, (title, genre, wtype, target, subscribers, days, syn) in enumerate(extra):
             wid = make_work(title, genre, 10, wtype, COVERS.get(title), syn)
-            seed_pilot_events(wid, target * 3 + i * 500, 0.8, 0.5)  # 열람자 × 15% → 목표 금액 상한 안쪽
+            # 열람자 × 15% → 목표 금액 상한 안쪽. 두 작품은 파일럿을 늦게 공개해 하루 독자 데이터가 짧다 (4일·10일)
+            span = {"시골에선 슬로우라이프": 4, "이세계 맛집 사장님": 10}.get(title, 27)
+            seed_pilot_events(wid, target * 3 + i * 500, 0.8, 0.5, span)
             for r in readers[6 + i: 9 + i] + (["reader1"] if days <= 2 else []):  # reader1: 마감 임박 찜 알림 시연
                 call(r, "put", f"/works/{wid}/dib")
             now = clock.now()

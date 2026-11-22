@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react';
 import { Pressable, View } from 'react-native';
 
 import { Dibby } from '@/components/dibby';
+import { MiniBars, weeklyText } from '@/components/ReaderCharts';
 import { ErrorBox, Loading } from '@/components/ui';
 import { CoverImg, Icon, PillRow, PINK, PINK_MUTED, TabHeader, Tag, Txt, V2Screen, color, wonText } from '@/ds';
 import { api, type FundingCard, type WorkCard } from '@/lib/api';
@@ -84,6 +85,7 @@ function FundCard({ f, cover, liked, onLike }: { f: FundingCard; cover?: string 
             <Txt v="label2" c={color.labelNeutral} style={{ fontStyle: 'italic' }}>“{f.pitch}”</Txt>
           </View>
         ) : null}
+        {f.readers_7d?.length ? <ReaderRow f={f} /> : null}
         <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 8 }}>
           <Txt v="heading2" w="bold" c={PINK} tabular>{pct}%</Txt>
           <Txt v="label1" w="bold" c={color.labelStrong} tabular>{wonText(f.progress.raised_amount)}</Txt>
@@ -99,5 +101,25 @@ function FundCard({ f, cover, liked, onLike }: { f: FundingCard; cover?: string 
         <Txt v="caption1" w="semibold" c={PINK} style={{ textAlign: 'right', marginTop: -4 }}>{foot}</Txt>
       </View>
     </Pressable>
+  );
+}
+
+// 카드 안 '최근 7일 독자' 한 줄: 미니 막대 + 주간 증가율. 공개한 지 얼마 안 된 작품은 '공개 N일째 · 비교 전'
+function ReaderRow({ f }: { f: FundingCard }) {
+  const days = f.readers_7d ?? [];
+  const tracked = f.reader_tracked_days ?? 0;
+  const weekly = weeklyText(f.reader_change_1w, tracked);
+  const num = tracked >= 14 && f.reader_change_1w != null;
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }} accessibilityLabel={`최근 7일 독자, 주간 증가율 ${weekly}`}>
+      <MiniBars values={days} />
+      <View style={{ flex: 1 }}>
+        <Txt v="caption1" w="semibold" c={color.labelNeutral}>
+          {tracked ? `최근 7일 독자 ${(f.readers_last_7d ?? 0).toLocaleString('ko-KR')}명` : '아직 독자 데이터 없음'}
+          {tracked && tracked < 7 ? ` · 공개 ${tracked}일째` : ''}
+        </Txt>
+      </View>
+      <Txt v="caption1" w="bold" c={num ? ((f.reader_change_1w ?? 0) >= 0 ? color.rise : color.fall) : color.labelAlternative} tabular>주간 {weekly}</Txt>
+    </View>
   );
 }

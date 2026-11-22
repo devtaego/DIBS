@@ -77,7 +77,16 @@ def list_fundings(status: FundingStatus | None = Query(default=FundingStatus.OPE
         stmt = stmt.where(Funding.status == status)
     if offering_round:
         stmt = stmt.where(Funding.offering_round == offering_round)
-    return [FundingCardOut(**card(db, f)) for f in db.scalars(stmt.order_by(Funding.close_at).limit(limit).offset(offset))]
+    fs = list(db.scalars(stmt.order_by(Funding.close_at).limit(limit).offset(offset)))
+    # 카드 미니 차트: 작품들의 최근 7일 하루 순독자를 한 번에 센다
+    daily = content_svc.daily_readers(db, [f.work_id for f in fs], 7)
+    out = []
+    for f in fs:
+        ch = content_svc.reader_change_1w(db, f.work_id)
+        out.append(FundingCardOut(**card(db, f), readers_7d=[d["readers"] for d in daily[f.work_id]],
+                                  reader_change_1w=ch["reader_change_1w"], readers_last_7d=ch["readers_last_7d"],
+                                  reader_tracked_days=ch["tracked_days"]))
+    return out
 
 
 @router.get("/fundings/{funding_id}", response_model=FundingDetailOut, summary="펀딩 상세 (조건·달성률·리워드)")

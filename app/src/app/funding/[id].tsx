@@ -6,9 +6,10 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Dibby } from '@/components/dibby';
+import { DailyReadersChart, EpisodeFunnelChart, weeklyText } from '@/components/ReaderCharts';
 import { ErrorBox, Loading } from '@/components/ui';
-import { CoverImg, HeadBtn, Icon, PINK, Spark, Tag, Txt, color, wonText } from '@/ds';
-import { api, track, type Creator, type Disclosure, type Episode, type FundingDetail, type Indicators, type Serial, type Subscription, type WorkDetail } from '@/lib/api';
+import { CoverImg, HeadBtn, Icon, PINK, Tag, Txt, color, wonText } from '@/ds';
+import { api, track, type Creator, type Disclosure, type Episode, type FundingDetail, type Indicators, type ReaderTrend, type Serial, type Subscription, type WorkDetail } from '@/lib/api';
 import { dateText } from '@/lib/format';
 import { nowMs } from '@/lib/now';
 import { shareWork } from '@/lib/share';
@@ -31,10 +32,11 @@ export default function FundingScreen() {
       api.get<Disclosure>(`/fundings/${id}/disclosure`).catch(() => null),
       api.get<Serial>(`/fundings/${id}/serial`).catch(() => null),
     ]);
-    const [work, eps] = await Promise.all([api.get<WorkDetail>(`/works/${f.work_id}`), api.get<Episode[]>(`/works/${f.work_id}/episodes`)]);
+    const [work, eps, trend] = await Promise.all([api.get<WorkDetail>(`/works/${f.work_id}`), api.get<Episode[]>(`/works/${f.work_id}/episodes`),
+      api.get<ReaderTrend>(`/works/${f.work_id}/reader-trend`).catch(() => null)]);
     const creator = await api.get<Creator>(`/creators/${work.creator_id}`).catch(() => null);
     const sub = await api.get<Subscription | null>(`/fundings/${id}/subscriptions/me`).catch(() => null);
-    return { f, ind, disc, ser, work, eps, creator, sub };
+    return { f, ind, disc, ser, work, eps, creator, sub, trend };
   }, [id], 30_000);
   useEffect(() => track('FUNDING_VIEW', { funding_id: Number(id) }), [id]);
 
@@ -46,7 +48,15 @@ export default function FundingScreen() {
       </SafeAreaView>
     );
   }
-  const { f, ind, disc, ser, work, eps, creator, sub } = data;
+  const { f, ind, disc, ser, work, eps, creator, sub, trend } = data;
+  // 주간 독자 증가율: 공개 14일 전이면 직전 7일이 다 차지 않아 '비교 전'으로 (값은 데이터팀 정의 그대로 받음)
+  const tracked = trend?.tracked_days ?? (work.reader_change_1w != null ? 14 : 0);
+  const change = trend ? trend.reader_change_1w : work.reader_change_1w;
+  const weekly = weeklyText(change, tracked);
+  const weeklyNum = tracked >= 14 && change != null;
+  const weeklyDesc = !tracked ? '아직 회차를 본 독자가 없어요.'
+    : tracked < 14 ? `파일럿 공개 ${tracked}일째예요. 직전 7일이 다 쌓이는 공개 14일째부터 주간 증가율을 보여 줘요.${trend ? ` 최근 7일 순독자 ${trend.readers_last_7d.toLocaleString('ko-KR')}명.` : ''}`
+    : `직전 7일 대비 최근 7일 동안 회차를 본 순독자 수의 변화율이에요.${trend ? ` 최근 7일 ${trend.readers_last_7d.toLocaleString('ko-KR')}명 · 직전 7일 ${trend.readers_prev_7d.toLocaleString('ko-KR')}명.` : ''}`;
   const open = f.status === 'OPEN';
   const listed = f.status === 'LISTED' || f.status === 'SUSPENDED';
   const pct = Math.round(f.progress.achievement_pct);
@@ -117,16 +127,16 @@ export default function FundingScreen() {
               <Txt v="body1" w="bold" c={color.labelStrong}>미리보기 반응 지표</Txt>
             </View>
             <Metric title="1화 → 3화 연독률" value={ind?.pilot_read_through != null ? `${Math.round(ind.pilot_read_through * 100)}%` : '-'}
-              desc="1화를 끝까지 본 독자 중 공개된 마지막 무료 회차까지 본 비율이에요.">
-              {ind?.pilot_read_through != null ? (
+              desc="1화를 끝까지 본 독자 중 공개된 마지막 무료 회차까지 본 비율이에요. 막대는 회차별로 끝까지 본 독자예요.">
+              {trend?.episode_funnel.length ? <EpisodeFunnelChart funnel={trend.episode_funnel} /> : ind?.pilot_read_through != null ? (
                 <View style={{ height: 8, marginTop: 10, marginBottom: 6, borderRadius: 999, backgroundColor: color.fillNormal, overflow: 'hidden' }}>
                   <View style={{ width: `${Math.round(ind.pilot_read_through * 100)}%`, height: '100%', borderRadius: 999, backgroundColor: PINK }} />
                 </View>
               ) : null}
             </Metric>
-            <Metric title="주간 독자 증가율" value={work.reader_change_1w != null ? `${work.reader_change_1w > 0 ? '+' : ''}${(Math.round(work.reader_change_1w * 1000) / 10).toFixed(1)}%` : '-'}
-              vc={(work.reader_change_1w ?? 0) >= 0 ? color.rise : color.fall} desc="직전 7일 대비 최근 7일 동안 회차를 본 순독자 수의 변화율이에요.">
-              {work.reader_change_1w != null ? <View style={{ marginTop: 8, overflow: 'hidden' }}><Spark values={[1, 1 + work.reader_change_1w]} up={work.reader_change_1w >= 0} w={260} h={40} area /></View> : null}
+            <Metric title="주간 독자 증가율" value={weekly}
+              vc={weeklyNum ? ((change ?? 0) >= 0 ? color.rise : color.fall) : color.labelAlternative} desc={weeklyDesc}>
+              {trend ? <DailyReadersChart days={trend.days} trackedDays={trend.tracked_days} /> : null}
             </Metric>
             {ind ? (
               <Metric title="관심 등록" value={`${ind.dibs_total.toLocaleString('ko-KR')}명`} desc={`최근 7일 ${ind.dibs_7d.toLocaleString('ko-KR')}명이 새로 찜했어요. 최근 4주 열람자 ${ind.pilot_readers_4w.toLocaleString('ko-KR')}명.`} />

@@ -57,6 +57,7 @@ def main():
         for e in eps:
             get(f"/episodes/{e['id']}")
         get(f"/works/{w['id']}/shorts")
+        get(f"/works/{w['id']}/reader-trend")
     for cid in sorted({w["creator_id"] for w in works}):
         get(f"/creators/{cid}")
     fids = {w["funding_id"] for w in works if w.get("funding_id")}

@@ -181,12 +181,22 @@ def work_metrics(db: Session, work: Work) -> dict:
     }
 
 
+def first_read_at(db: Session, work_id: int):
+    """이 작품 회차가 처음 열린 시각 (VIEW_START 최초). 데이터가 없으면 None."""
+    return db.scalar(select(func.min(ContentEvent.occurred_at)).where(
+        ContentEvent.work_id == work_id, ContentEvent.event_type == EventType.VIEW_START))
+
+
 def reader_change_1w(db: Session, work_id: int) -> dict:
     """v_work_metrics_pre.reader_change_1w (데이터팀 정의):
     직전 7일 대비 최근 7일 회차 뷰어(VIEW_START, 이벤트 코드 1102) 순독자 변화율 = (최근 − 직전) ÷ 직전.
-    직전 7일 순독자가 0명이면 null. 기준 시각은 이벤트 발생 시각(occurred_at)."""
+    직전 7일 순독자가 0명이면 null. 기준 시각은 이벤트 발생 시각(occurred_at).
+    tracked_days = 첫 열람부터 오늘까지 일수 (데이터가 없으면 0). 14일이 안 되면 직전 7일이 다 차지 않은 것이라
+    화면은 증가율 대신 '비교 전'으로 보여 준다 (값 자체는 데이터팀 정의대로 계산)."""
     viewer = func.coalesce(literal("u") + cast(ContentEvent.user_id, String), literal("a") + ContentEvent.anon_id)
     now = clock.now()
+    first = first_read_at(db, work_id)
+    tracked = (now.date() - first.date()).days + 1 if first else 0
 
     def readers(start, end) -> int:
         return db.scalar(select(func.count(distinct(viewer))).where(
@@ -195,8 +205,51 @@ def reader_change_1w(db: Session, work_id: int) -> dict:
 
     recent = readers(now - timedelta(days=7), now)
     prev = readers(now - timedelta(days=14), now - timedelta(days=7))
-    return {"readers_last_7d": recent, "readers_prev_7d": prev,
+    return {"readers_last_7d": recent, "readers_prev_7d": prev, "tracked_days": tracked,
             "reader_change_1w": round((recent - prev) / prev, 3) if prev else None}
+
+
+def daily_readers(db: Session, work_ids: list[int], days: int = 7) -> dict[int, list[dict]]:
+    """작품별 하루 순독자 (VIEW_START 고유 독자). 오늘을 끝으로 `days`개 막대, 지금 시각부터 거꾸로 24시간씩 끊는다
+    (마지막 막대 = 최근 24시간 = '오늘'). 그래서 오전에 봐도 오늘 막대가 덜 찬 것처럼 낮아지지 않는다.
+    여러 작품을 구간마다 묶음 쿼리 한 번으로 센다 (펀딩 목록 카드용).
+    첫 열람 전 구간은 None (공개 전이라 데이터 없음), 공개 뒤 아무도 안 본 구간은 0 으로 구분한다."""
+    if not work_ids:
+        return {}
+    viewer = func.coalesce(literal("u") + cast(ContentEvent.user_id, String), literal("a") + ContentEvent.anon_id)
+    now = clock.now()
+    firsts = dict(db.execute(select(ContentEvent.work_id, func.min(ContentEvent.occurred_at))
+                             .where(ContentEvent.work_id.in_(work_ids), ContentEvent.event_type == EventType.VIEW_START)
+                             .group_by(ContentEvent.work_id)).all())
+    out: dict[int, list[dict]] = {w: [] for w in work_ids}
+    for i in range(days):
+        end = now - timedelta(days=days - 1 - i)
+        start = end - timedelta(days=1)
+        got = dict(db.execute(select(ContentEvent.work_id, func.count(distinct(viewer)))
+                              .where(ContentEvent.work_id.in_(work_ids), ContentEvent.event_type == EventType.VIEW_START,
+                                     ContentEvent.occurred_at >= start, ContentEvent.occurred_at < end)
+                              .group_by(ContentEvent.work_id)).all())
+        for w in work_ids:
+            first = firsts.get(w)
+            value = None if first is None or first >= end else int(got.get(w, 0))
+            out[w].append({"date": end.date().isoformat(), "readers": value})
+    return out
+
+
+def reader_trend(db: Session, work: Work) -> dict:
+    """펀딩 상세 '미리보기 반응 지표' 차트: 오늘까지 7일 하루 순독자, 주간 증가율, 무료 회차별 시작·완독 독자."""
+    viewer = func.coalesce(literal("u") + cast(ContentEvent.user_id, String), literal("a") + ContentEvent.anon_id)
+
+    def uniq(event: EventType, episode_id: int) -> int:
+        return int(db.scalar(select(func.count(distinct(viewer))).where(
+            ContentEvent.work_id == work.id, ContentEvent.event_type == event, ContentEvent.episode_id == episode_id)) or 0)
+
+    eps = list(db.scalars(select(Episode).where(Episode.work_id == work.id, Episode.no <= settings.pilot_free_episodes)
+                          .order_by(Episode.no)))
+    funnel = [{"no": e.no, "starters": uniq(EventType.VIEW_START, e.id), "completes": uniq(EventType.VIEW_COMPLETE, e.id)}
+              for e in eps]
+    return {"work_id": work.id, "days": daily_readers(db, [work.id], 7)[work.id], **reader_change_1w(db, work.id),
+            "episode_funnel": funnel}
 
 
 def review_metrics(db: Session, work: Work) -> dict:

@@ -124,10 +124,11 @@ export default function Seeds() {
           rows={[
             { label: '상품', value: `씨앗 ${p.total_seeds}개${p.bonus_seeds ? ` (보너스 ${p.bonus_seeds}개 포함)` : ''}` },
             { label: '결제 수단', value: '카드·계좌 (모의 결제)' },
+            { label: '내 키움 계좌 예치금', value: `${(data?.w.deposit_available ?? 0).toLocaleString('ko-KR')}원 (그대로)` },
             { label: '결제 후 내 씨앗', value: `${seeds.toLocaleString('ko-KR')}개 → ${(seeds + p.total_seeds).toLocaleString('ko-KR')}개` },
             { label: '결제 금액', value: `${p.price.toLocaleString('ko-KR')}원`, strong: true },
           ]}
-          note="7일 안에 쓰지 않은 씨앗은 결제를 취소할 수 있어요. 씨앗은 현금이나 예치금으로 바꿀 수 없어요."
+          note="씨앗 값은 카드·계좌에서 따로 나가고, 투자용 키움 예치금에서는 빠지지 않아요. 7일 안에 쓰지 않은 씨앗은 결제를 취소할 수 있고, 씨앗은 현금이나 예치금으로 바꿀 수 없어요."
           confirmLabel={`${p.price.toLocaleString('ko-KR')}원 결제하기`} onConfirm={buy} />
       ) : null}
       <ConfirmSheet visible={ask === 'convert'} onClose={() => setAsk(null)} busy={busy} title="포인트를 씨앗으로 바꿀까요?"

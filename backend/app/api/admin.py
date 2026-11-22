@@ -279,7 +279,9 @@ def pay_payout(funding_id: int, seq: int, db: Session = Depends(get_db)):
 @router.post("/revenues", response_model=RevenueOut, status_code=201, summary="매출 입력 (광고·굿즈 등)")
 def add_revenue(body: RevenueIn, db: Session = Depends(get_db)):
     f = svc.get_funding(db, body.funding_id)
-    return div_svc.add_revenue(db, f, body.period, body.source, body.gross, body.deductions, body.note, body.evidence_url)
+    return div_svc.add_revenue(db, f, body.period, body.source, body.gross, body.deductions, body.note, body.evidence_url,
+                               income_type=body.income_type,
+                               direct_costs=body.direct_costs.model_dump() if body.direct_costs else None)
 
 
 @router.post("/fundings/{funding_id}/revenues/aggregate", response_model=RevenueOut,

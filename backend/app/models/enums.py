@@ -152,11 +152,21 @@ class RevenueSource(StrEnum):
     # 2차 IP·해외: 굿즈 · 판권 등 → 작가 40 / 투자자 25 / DIBS·에이전시 35 (수익구조 설계 v1.8)
     PAID_EPISODE = "PAID_EPISODE"
     AD = "AD"
-    GOODS = "GOODS"  # 굿즈·캐릭터 상품 순매출 (2차 IP 비율)
+    GOODS = "GOODS"  # 굿즈 (2차·해외 비율, 외부 직접비만 공제)
     EXTERNAL_SERIAL = "EXTERNAL_SERIAL"  # 독점 종료 후 외부 플랫폼 연재 정산금 (v2.3: 전액, 실비 공제 후 60/30/10)
-    # 2차·해외 IP (판권·출판·캐릭터 라이선스·해외 연재). Dibs가 에이전시로 받은 금액에서 외부 직접비를 빼고
-    # 작가 40 / 투자자 25 / Dibs·에이전시 35로 나눈다 (수익구조 설계 v1.8). 계약서·정산서 증빙 필수
+    # 2차·해외: 판권료·로열티·인세·굿즈·해외 연재 수익·해외 선급금 (종류는 SecondaryIncome). 외부 직접비
+    # (법무·번역·현지화 실비)만 빼고 작가 40 / 투자자 25 / Dibs·에이전시 35 (수익구조 설계 v1.8). 증빙 필수
     SECONDARY_IP = "SECONDARY_IP"
+
+
+class SecondaryIncome(StrEnum):
+    """2차·해외 수입 종류 (작가 40 / 투자자 25 / DIBS 35로 나누는 재원)."""
+    LICENSE_FEE = "LICENSE_FEE"  # 판권료 (영상·게임 등)
+    ROYALTY = "ROYALTY"  # 로열티 (캐릭터·라이선스)
+    PUBLISHING = "PUBLISHING"  # 인세 (단행본)
+    GOODS = "GOODS"  # 굿즈
+    OVERSEAS_SERIAL = "OVERSEAS_SERIAL"  # 해외 연재 수익
+    OVERSEAS_ADVANCE = "OVERSEAS_ADVANCE"  # 해외 선급금
 
 
 class PostKind(StrEnum):

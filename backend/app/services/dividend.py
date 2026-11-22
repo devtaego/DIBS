@@ -3,7 +3,9 @@
 재원 두 갈래 (순매출 = 수입 − 공제):
   1차 연재 매출 = 유료 회차(인앱 수수료 30% 공제) · 광고 · 독점 종료 후 외부 연재 → 작가 60 / 투자자 30 / DIBS 10
                   (비율은 펀딩별 royalty_* 값. 회수 전후 비율을 달리 둘 수 있지만 v2.3 기본은 같다)
-  2차 IP·해외   = 판권·단행본·굿즈·캐릭터·해외 연재 (외부 직접비 공제) → 작가 40 / 투자자 25 / DIBS·에이전시 35
+  2차 IP·해외   = 판권료 · 로열티 · 인세 · 굿즈 · 해외 연재 수익 · 해외 선급금
+                  − 외부 직접비 (법무 · 번역 · 현지화 실비만, DIBS 내부 인건비·비용은 공제 불가)
+                  = 순수익 → 작가 40 / 투자자 25 / DIBS·에이전시 35
 거래 수수료는 거래소·증권사 몫이라 배당 재원에도, DIBS 수입에도 넣지 않는다.
 주주 몫: 기준일(분기 말일 24:00) 보유 조각 수 비례, 원 단위 절사 → 잔여는 플랫폼 귀속
 지급: 다음 달 10일 예치금, 배당소득세 15.4% 원천징수
@@ -17,7 +19,7 @@ from app.core import clock
 from app.core.config import settings
 from app.core.errors import Conflict, DomainError, NotFound
 from app.models import DividendPayment, DividendRun, EpisodeUnlock, Funding, Holding, RevenueRecord, Trade, Work
-from app.models.enums import AccountKind, DiscontinueKind, DividendStatus, FundingStatus, RevenueSource
+from app.models.enums import AccountKind, DiscontinueKind, DividendStatus, FundingStatus, RevenueSource, SecondaryIncome
 from app.services import ledger, product
 from app.services.ledger import Leg
 from app.services.policy import notify
@@ -45,10 +47,32 @@ def _listed(f: Funding) -> None:
         raise Conflict("NOT_LISTED", "상장된 종목만 배당할 수 있어요")
 
 
+SECONDARY_SOURCES = (RevenueSource.SECONDARY_IP, RevenueSource.GOODS)
+DIRECT_COST_KEYS = ("legal", "translation", "localization")  # 법무 · 번역 · 현지화 실비만 (DIBS 내부 비용 불가)
+
+
 def add_revenue(db: Session, f: Funding, period: str, source: RevenueSource, gross: int, deductions: int,
-                note: str | None = None, evidence_url: str | None = None) -> RevenueRecord:
+                note: str | None = None, evidence_url: str | None = None,
+                income_type: SecondaryIncome | None = None, direct_costs: dict | None = None) -> RevenueRecord:
     _listed(f)
     parse_period(period)
+    if source in SECONDARY_SOURCES:
+        # 2차·해외 수입 − 외부 직접비(법무·번역·현지화) = 순수익. 공제는 항목별 내역으로만 받는다
+        if source == RevenueSource.GOODS:
+            income_type = SecondaryIncome.GOODS
+        if income_type is None:
+            raise DomainError("INCOME_TYPE_REQUIRED",
+                              "수입 종류를 골라 주세요 (판권료·로열티·인세·굿즈·해외 연재 수익·해외 선급금)")
+        costs = {k: int((direct_costs or {}).get(k) or 0) for k in DIRECT_COST_KEYS}
+        if set(direct_costs or {}) - set(DIRECT_COST_KEYS) or any(v < 0 for v in costs.values()):
+            raise DomainError("COST_NOT_DEDUCTIBLE", "외부 직접비는 법무·번역·현지화 실비만 뺄 수 있어요")
+        if deductions and deductions != sum(costs.values()):
+            raise DomainError("COST_NOT_DEDUCTIBLE",
+                              "2차·해외 수익은 법무·번역·현지화 실비만 뺄 수 있어요. DIBS 내부 인건비·비용은 뺄 수 없어요")
+        deductions = sum(costs.values())
+        direct_costs = costs
+    else:
+        income_type, direct_costs = None, None
     if gross < 0 or deductions < 0 or deductions > gross:
         raise DomainError("INVALID_REVENUE", "매출과 공제액을 확인해 주세요")
     if source == RevenueSource.EXTERNAL_SERIAL:
@@ -66,7 +90,8 @@ def add_revenue(db: Session, f: Funding, period: str, source: RevenueSource, gro
     if db.scalar(select(DividendRun.id).where(DividendRun.funding_id == f.id, DividendRun.period == period)):
         raise Conflict("PERIOD_CLOSED", "이미 배당을 계산한 분기예요")
     r = RevenueRecord(funding_id=f.id, period=period, source=source, gross=gross, deductions=deductions,
-                      net=gross - deductions, note=note, evidence_url=evidence_url)
+                      net=gross - deductions, note=note, evidence_url=evidence_url,
+                      income_type=str(income_type) if income_type else None, direct_costs=direct_costs)
     db.add(r)
     db.flush()
     return r
@@ -100,9 +125,6 @@ def holdings_at(db: Session, f: Funding, cutoff: datetime) -> dict[int, int]:
         units[t.buyer_id] = units.get(t.buyer_id, 0) - t.units
         units[t.seller_id] = units.get(t.seller_id, 0) + t.units
     return {u: n for u, n in units.items() if n > 0}
-
-
-SECONDARY_SOURCES = (RevenueSource.SECONDARY_IP, RevenueSource.GOODS)
 
 
 def split_amounts(primary_net: int, secondary_net: int, holder_bps: int, creator_bps: int) -> tuple[int, int, int]:

@@ -91,7 +91,8 @@ def disclosure(db: Session, f: Funding, now: datetime) -> dict:
             "secondary_ip": {"holder": product.settings.royalty_secondary_holder_bps / 100,
                              "creator": product.settings.royalty_secondary_creator_bps / 100,
                              "dibs": product.settings.royalty_secondary_platform_bps / 100,
-                             "sources": "판권 · 단행본 · 굿즈 · 캐릭터 · 해외 연재 (외부 직접비 공제 후)"},
+                             "sources": "판권료 · 로열티 · 인세 · 굿즈 · 해외 연재 수익 · 해외 선급금",
+                             "deductible": "외부 직접비(법무 · 번역 · 현지화 실비)만 공제, DIBS 내부 인건비·비용은 공제 불가"},
         },
         "term": {"fixed_term": product.settings.fixed_term_enabled,  # v2.2: 고정 운용 기간·만기 없음
                  "season_months": product.settings.season_months if product.settings.fixed_term_enabled else None,

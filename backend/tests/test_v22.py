@@ -244,9 +244,11 @@ def test_secondary_ip_revenue_split_40_25_35(api, published_work, now):
     api.login("a")
     api.ok("a", "post", "/wallet/deposit/charge", json={"amount": 2_000_000})
     fid = listed(api, published_work["id"], now, {"a": 1000})
-    ip = {"funding_id": fid, "source": "SECONDARY_IP", "period": "2027Q2", "gross": 5_000_000, "deductions": 1_000_000}
+    ip = {"funding_id": fid, "source": "SECONDARY_IP", "period": "2027Q2", "gross": 5_000_000,
+          "income_type": "LICENSE_FEE", "direct_costs": {"legal": 600_000, "translation": 400_000}}
     api.err("admin", "post", "/admin/revenues", "EVIDENCE_REQUIRED", json=ip)
-    api.ok("admin", "post", "/admin/revenues", json={**ip, "evidence_url": "s3://dibs/contracts/drama-license.pdf"})
+    rec = api.ok("admin", "post", "/admin/revenues", json={**ip, "evidence_url": "s3://dibs/contracts/drama-license.pdf"})
+    assert (rec["deductions"], rec["net"], rec["income_type"]) == (1_000_000, 4_000_000, "LICENSE_FEE")
     run = api.ok("admin", "post", f"/admin/fundings/{fid}/dividends", params={"force": True}, json={"period": "2027Q2"})
     assert (run["net_revenue"], run["secondary_revenue"]) == (4_000_000, 4_000_000)
     assert (run["holder_pool"], run["creator_amount"], run["platform_amount"]) == (1_000_000, 1_600_000, 1_400_000)
@@ -260,7 +262,9 @@ def test_primary_and_secondary_revenue_split_separately(api, published_work, now
     base = {"funding_id": fid, "period": "2027Q2"}
     api.ok("admin", "post", "/admin/revenues", json={**base, "source": "AD", "gross": 1_000_000})
     api.ok("admin", "post", "/admin/revenues", json={**base, "source": "SECONDARY_IP", "gross": 2_500_000,
-                                                     "deductions": 500_000, "evidence_url": "s3://dibs/contracts/a.pdf"})
+                                                     "income_type": "OVERSEAS_ADVANCE",
+                                                     "direct_costs": {"localization": 500_000},
+                                                     "evidence_url": "s3://dibs/contracts/a.pdf"})
     run = api.ok("admin", "post", f"/admin/fundings/{fid}/dividends", params={"force": True}, json={"period": "2027Q2"})
     assert (run["net_revenue"], run["secondary_revenue"]) == (3_000_000, 2_000_000)
     # 투자자 300,000 + 500,000 · 작가 600,000 + 800,000 · DIBS 100,000 + 700,000
@@ -399,3 +403,25 @@ def test_market_order_skips_own_resting_orders(api, published_work, now):
             json={**ORDER, "funding_id": fid, "side": "BUY", "order_type": "MARKET", "units": 1})
     h = next(x for x in api.ok("b", "get", "/me/holdings") if x["funding_id"] == fid)
     assert (h["units"], h["locked_units"]) == (103, 3)
+
+
+def test_secondary_ip_only_external_direct_costs_deductible(api, published_work, now):
+    """2차·해외 순수익 = 수입 − 외부 직접비(법무·번역·현지화). DIBS 내부 인건비·비용이나 항목 없는 공제는 막는다."""
+    api.login("a")
+    api.ok("a", "post", "/wallet/deposit/charge", json={"amount": 2_000_000})
+    fid = listed(api, published_work["id"], now, {"a": 1000})
+    base = {"funding_id": fid, "period": "2027Q2", "source": "SECONDARY_IP", "gross": 3_000_000,
+            "evidence_url": "s3://dibs/contracts/b.pdf"}
+    api.err("admin", "post", "/admin/revenues", "INCOME_TYPE_REQUIRED", json=base)
+    # 항목 없이 뭉뚱그린 공제 → 거절
+    api.err("admin", "post", "/admin/revenues", "COST_NOT_DEDUCTIBLE",
+            json={**base, "income_type": "PUBLISHING", "deductions": 300_000})
+    # 내부 인건비 같은 항목은 입력 자체가 안 된다
+    api.err("admin", "post", "/admin/revenues", "VALIDATION_ERROR",
+            json={**base, "income_type": "PUBLISHING", "direct_costs": {"legal": 100_000, "staff": 200_000}})
+    rec = api.ok("admin", "post", "/admin/revenues",
+                 json={**base, "income_type": "PUBLISHING", "direct_costs": {"legal": 100_000, "translation": 200_000}})
+    assert rec["direct_costs"] == {"legal": 100_000, "translation": 200_000, "localization": 0}
+    assert (rec["deductions"], rec["net"]) == (300_000, 2_700_000)
+    run = api.ok("admin", "post", f"/admin/fundings/{fid}/dividends", params={"force": True}, json={"period": "2027Q2"})
+    assert (run["holder_pool"], run["creator_amount"], run["platform_amount"]) == (675_000, 1_080_000, 945_000)

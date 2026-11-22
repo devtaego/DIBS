@@ -148,8 +148,9 @@ class Settings(BaseModel):
     royalty_holder_bps: int = 3000
     # 회수 후 배분: v2.2는 회수 전후 전환 없음 (같은 값). 펀딩별로 다르게 심사할 때만 바꾼다
     royalty_platform_after_bps: int = 1000
-    # 2차 IP·해외 순수익 (판권·단행본·굿즈·캐릭터·해외 연재) — 수익구조 설계 v1.8: 작가 40 / 투자자 25 / DIBS·에이전시 35
-    # (DIBS 35 = 정산 10 + 에이전시 20 + 2차 외주비 5). 순수익 = 수입 − 외부 직접비. 회수 전후 같은 비율
+    # 2차·해외 순수익 — 수익구조 설계 v1.8: 작가 40 / 투자자 25 / DIBS·에이전시 35 (DIBS 35 = 정산 10 + 에이전시 20 + 2차 외주비 5)
+    # 수입: 판권료 · 로열티 · 인세 · 굿즈 · 해외 연재 수익 · 해외 선급금
+    # 순수익 = 수입 − 외부 직접비(법무 · 번역 · 현지화 실비만). DIBS 내부 인건비·비용은 뺄 수 없다. 회수 전후 같은 비율
     royalty_secondary_creator_bps: int = 4000
     royalty_secondary_holder_bps: int = 2500
     royalty_secondary_platform_bps: int = 3500

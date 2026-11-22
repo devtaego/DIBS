@@ -1,8 +1,8 @@
 from datetime import date, datetime
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
-from app.models.enums import DividendStatus, FundingStatus, Mode, OrderSide, OrderStatus, RevenueSource
+from app.models.enums import DividendStatus, FundingStatus, Mode, OrderSide, OrderStatus, RevenueSource, SecondaryIncome
 from app.schemas.common import ORM
 
 
@@ -83,12 +83,22 @@ class HoldingOut(BaseModel):
 
 
 # ── 배당 ──
+class DirectCostsIn(BaseModel):
+    """2차·해외 수익에서 뺄 수 있는 외부 직접비. DIBS 내부 인건비·비용은 항목이 없어 넣을 수 없다."""
+    model_config = ConfigDict(extra="forbid")
+    legal: int = Field(default=0, ge=0, description="법무 실비 (계약 검토 · 상표 등)")
+    translation: int = Field(default=0, ge=0, description="번역 실비")
+    localization: int = Field(default=0, ge=0, description="현지화 실비")
+
+
 class RevenueIn(BaseModel):
     funding_id: int
     period: str = Field(pattern=r"^\d{4}Q[1-4]$", examples=["2027Q1"])
     source: RevenueSource
     gross: int = Field(ge=0)
-    deductions: int = Field(default=0, ge=0, description="인앱 수수료, 굿즈 원가·배송비 등")
+    deductions: int = Field(default=0, ge=0, description="1차 매출의 공제액 (인앱 수수료 등). 2차·해외는 direct_costs로만")
+    income_type: SecondaryIncome | None = Field(default=None, description="2차·해외 수입 종류 (SECONDARY_IP일 때 필수)")
+    direct_costs: DirectCostsIn | None = Field(default=None, description="2차·해외 외부 직접비 (법무·번역·현지화만)")
     note: str | None = None
     evidence_url: str | None = None
 
@@ -101,6 +111,8 @@ class RevenueOut(ORM):
     gross: int
     deductions: int
     net: int
+    income_type: str | None = None
+    direct_costs: dict | None = None
     note: str | None
     created_at: datetime
 

@@ -146,7 +146,8 @@ def test_full_flow(api, published_work, now):
     assert (rev["gross"], rev["deductions"], rev["net"]) == (1_000, 300, 700)  # 인앱 수수료 30% 공제
     api.ok("admin", "post", "/admin/revenues", json={"funding_id": fid, **period, "source": "AD", "gross": 100_000})
     api.ok("admin", "post", "/admin/revenues",
-           json={"funding_id": fid, **period, "source": "GOODS", "gross": 50_000, "deductions": 20_000})
+           json={"funding_id": fid, **period, "source": "GOODS", "gross": 50_000,
+                 "direct_costs": {"legal": 20_000}})  # 굿즈 = 2차 수입, 외부 직접비(법무)만 공제
 
     clock.set_now(datetime(2027, 4, 1, 9, 0))
     run = api.ok("admin", "post", f"/admin/fundings/{fid}/dividends", json=period)

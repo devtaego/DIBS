@@ -1,6 +1,6 @@
 from datetime import date, datetime
 
-from sqlalchemy import BigInteger, Boolean, Date, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
+from sqlalchemy import JSON, BigInteger, Boolean, Date, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core import clock
@@ -10,7 +10,7 @@ from app.models.enums import DividendStatus, RevenueSource
 
 
 class RevenueRecord(Base):
-    """상장 작품의 DIBS 안 매출 (배당 재원). 2차 IP 사업 수익은 대상이 아님."""
+    """상장 작품의 배당 재원 매출. 1차(연재)와 2차·해외(판권료·로열티·인세·굿즈·해외 연재·해외 선급금)."""
 
     __tablename__ = "revenue_records"
 
@@ -19,7 +19,9 @@ class RevenueRecord(Base):
     period: Mapped[str] = mapped_column(String(7), index=True)  # "2027Q1"
     source: Mapped[RevenueSource] = enum_col(RevenueSource)
     gross: Mapped[int] = mapped_column(BigInteger)
-    deductions: Mapped[int] = mapped_column(BigInteger, default=0)  # 인앱 수수료, 굿즈 원가·배송비
+    deductions: Mapped[int] = mapped_column(BigInteger, default=0)  # 1차: 인앱 수수료 등 · 2차: 외부 직접비 합계
+    income_type: Mapped[str | None] = mapped_column(String(30))  # 2차·해외 수입 종류 (SecondaryIncome)
+    direct_costs: Mapped[dict | None] = mapped_column(JSON)  # 2차 외부 직접비 내역 {legal, translation, localization}
     net: Mapped[int] = mapped_column(BigInteger)
     note: Mapped[str | None] = mapped_column(Text)
     evidence_url: Mapped[str | None] = mapped_column(String(500))  # 증빙

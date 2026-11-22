@@ -83,7 +83,8 @@ export default function SubscribeScreen() {
     setError(null);
     try {
       const h = await api.post<Handoff>(`/fundings/${id}/broker-handoff`);
-      router.push({ pathname: '/kiwoom/[id]', params: { id: String(id), token: h.token, ...(n ? { units: String(n) } : {}) } });
+      // 이미 청약 중이면 지금 수량(prev)도 넘겨서 키움 화면이 '더 결제' / '돌려받기'로 보여 주게 한다
+      router.push({ pathname: '/kiwoom/[id]', params: { id: String(id), token: h.token, ...(n ? { units: String(n) } : {}), ...(existing ? { prev: String(existing.units) } : {}) } });
     } catch (e) {
       setError(e as ApiError);
     }
@@ -157,7 +158,8 @@ export default function SubscribeScreen() {
 
   if (step === 'terms') {
     return (
-      <DScreen header={header} footer={<Button label={`${manwon(amount)} 키움증권에서 결제하기`} disabled={!(agreeRisk && agreeTerm && (fit || agreeUnfit))} onPress={() => toBroker(units)} />}>
+      <DScreen header={header} footer={<Button label={!existing ? `${manwon(amount)} 키움증권에서 결제하기`
+        : delta > 0 ? `${manwon(delta)} 더 결제하고 바꾸기` : delta < 0 ? `${manwon(amount)}으로 줄이기 · ${manwon(-delta)} 돌려받기` : '청약 금액 그대로 두기'} disabled={!(agreeRisk && agreeTerm && (fit || agreeUnfit))} onPress={() => toBroker(units)} />}>
         <Stack.Screen options={{ headerShown: false }} />
         <PageTitle title="투자 전에 확인해 주세요" sub={`${f.work_title} · ${units}조각 · ${manwon(amount)}`} />
         <Panel>

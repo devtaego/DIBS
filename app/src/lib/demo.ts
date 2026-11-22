@@ -166,6 +166,9 @@ function subscribe(fid: number, units: number) {
   const prev = (cur?.units as number | undefined) ?? 0;
   const delta = units - prev;
   const amt = delta * f.unit_price;
+  // 서버와 같게: 1인 한도(조각) 넘으면 거절
+  const cap = (f as Fd & { per_user_cap_units?: number }).per_user_cap_units;
+  if (cap && units > cap) throw err(422, 'PER_USER_CAP_EXCEEDED', `1인 한도는 ${cap.toLocaleString('ko-KR')}조각(${(cap * f.unit_price).toLocaleString('ko-KR')}원)이에요`);
   if (amt > (wallet() as unknown as W).deposit_available) throw err(409, 'INSUFFICIENT_BALANCE', `예치금이 ${(amt - (wallet() as unknown as W).deposit_available).toLocaleString('ko-KR')}원 모자라요. 충전하고 다시 시도해 주세요`);
   setW((w) => { w.deposit_available -= amt; w.deposit_locked += amt; });
   if (amt) line(units === 0 ? 'SUBSCRIPTION_UNLOCK' : delta > 0 ? 'SUBSCRIPTION_LOCK' : 'SUBSCRIPTION_UNLOCK', 'DEPOSIT', -amt, ['funding', fid]);
@@ -177,8 +180,8 @@ function subscribe(fid: number, units: number) {
     subs.unshift(sub);
   }
   local['/me/subscriptions'] = subs;
-  local[`/fundings/${fid}/subscriptions/me`] = units === 0 ? undefined : sub;
-  if (units === 0) delete local[`/fundings/${fid}/subscriptions/me`];
+  // 취소하면 null 로 둔다 (지우면 녹화본의 예전 청약이 다시 보인다)
+  local[`/fundings/${fid}/subscriptions/me`] = units === 0 ? null : sub;
   bumpProgress(fid, delta, cur ? (units === 0 ? -1 : 0) : 1);
   return sub;
 }

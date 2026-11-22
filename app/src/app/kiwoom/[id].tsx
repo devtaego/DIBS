@@ -19,7 +19,8 @@ import { colors, radii, space } from '@/lib/theme';
  * 제휴 API가 없으므로 DIBS가 제안한 연동 규격대로 움직이는 모의 키움 서버(/dev/mock-kiwoom)를 호출한다.
  */
 export default function MockKiwoomScreen() {
-  const { id, token, units: u0 } = useLocalSearchParams<{ id: string; token: string; units?: string }>();
+  const { id, token, units: u0, prev: p0 } = useLocalSearchParams<{ id: string; token: string; units?: string; prev?: string }>();
+  const prev = Number(p0 ?? 0); // 이미 청약 중인 수량 (바꾸기)
   const [f, setF] = useState<FundingDetail | null>(null);
   const [units, setUnits] = useState(Math.max(1, Number(u0) || 1));
   const [splash, setSplash] = useState(true);
@@ -51,11 +52,12 @@ export default function MockKiwoomScreen() {
       showDone({
         pose: 'dibs',
         tag: 'KIWOOM',
-        title: '키움에서 청약을 접수했어요',
-        sub: `${f.work_title}\n${units}조각 청약`,
+        title: prev ? '청약 수량을 바꿨어요' : '키움에서 청약을 접수했어요',
+        sub: `${f.work_title}\n${prev ? `${prev}조각 → ` : ''}${units}조각 청약`,
         rows: [
           ['청약 수량', `${units.toLocaleString('ko-KR')}조각`],
           ['청약 금액', won(units * f.unit_price)],
+          ...(prev && prev !== units ? ([[units > prev ? '더 묶인 금액' : '돌려받은 금액', won(Math.abs(units - prev) * f.unit_price)]] as [string, string][]) : []),
           ['배정 발표', f.close_at ? `${dateText(f.close_at)} 마감 후` : '마감 후'],
           ...(coupon ? ([['계좌 개설 쿠폰', `씨앗 ${Math.floor(coupon / 100).toLocaleString('ko-KR')}개`]] as [string, string][]) : []),
         ],
@@ -92,7 +94,9 @@ export default function MockKiwoomScreen() {
             <>
               <T size={13} color={colors.labelAlternative}>청약 수량</T>
               <T size={26} weight="700" style={{ marginTop: space(1) }}>{units.toLocaleString('ko-KR')}조각</T>
-              <T size={13} color={colors.labelAlternative} style={{ marginTop: space(1) }}>청약 금액 {won(units * f.unit_price)} · DIBS에서 정한 수량이에요</T>
+              <T size={13} color={colors.labelAlternative} style={{ marginTop: space(1) }}>
+                {prev ? `지금 ${prev.toLocaleString('ko-KR')}조각 → ${units.toLocaleString('ko-KR')}조각으로 바꿔요 · 청약 금액 ${won(units * f.unit_price)}` : `청약 금액 ${won(units * f.unit_price)} · DIBS에서 정한 수량이에요`}
+              </T>
             </>
           ) : (
             <>
@@ -109,7 +113,8 @@ export default function MockKiwoomScreen() {
         <ErrorBox error={error} />
       </Screen>
       <CtaBar>
-        <Button title={`${won(units * f.unit_price)} 결제하고 청약하기`} onPress={submit} loading={busy} style={{ flex: 1, opacity: agree ? 1 : 0.55 }} />
+        <Button title={!prev ? `${won(units * f.unit_price)} 결제하고 청약하기`
+          : units > prev ? `${won((units - prev) * f.unit_price)} 더 결제하고 바꾸기` : units < prev ? `${won((prev - units) * f.unit_price)} 돌려받고 바꾸기` : '그대로 두기'} onPress={submit} loading={busy} style={{ flex: 1, opacity: agree ? 1 : 0.55 }} />
       </CtaBar>
     </View>
   );

@@ -1,4 +1,4 @@
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Pressable, TextInput, View } from 'react-native';
 
@@ -19,6 +19,7 @@ const DEMO_ACCOUNTS: { email: string; role: Me['role']; label: string; desc: str
 ];
 
 export default function Login() {
+  const { out } = useLocalSearchParams<{ out?: string }>(); // MY > 로그아웃으로 들어왔는지
   const { login, loginWithToken, baseUrl, changeBaseUrl } = useSession();
   const [phone, setPhone] = useState('');
   const [busy, setBusy] = useState(false);
@@ -73,8 +74,9 @@ export default function Login() {
   return (
     <V2Screen header={<SubHeader />} pad={24} footer={<BigBtn label={busy ? '보내는 중…' : '인증번호 받기'} disabled={!valid || busy} onPress={requestOtp} h={52} />}>
       <View style={{ gap: 8, marginTop: 4, marginBottom: 24 }}>
-        <Txt v="title3" w="bold" c={color.labelStrong}>{'다시 만나서\n반가워요'}</Txt>
-        <Txt v="label2" c={color.labelNeutral}>가입할 때 쓴 휴대폰 번호로 로그인해요. 처음이면 바로 가입돼요.</Txt>
+        {/* 첫 방문·로그아웃 뒤·'이미 계정이 있나요'에서 모두 오는 화면이라 인사 대신 할 일을 말한다 */}
+        <Txt v="title3" w="bold" c={color.labelStrong}>{out === '1' ? '로그아웃했어요' : '휴대폰 번호로\n시작해요'}</Txt>
+        <Txt v="label2" c={color.labelNeutral}>{out === '1' ? '다시 들어오려면 가입할 때 쓴 휴대폰 번호로 로그인해요.' : '가입한 번호면 로그인되고, 처음이면 바로 가입돼요.'}</Txt>
       </View>
       <Field label="휴대폰 번호" value={phone} onChangeText={(t) => setPhone(formatPhone(t))} placeholder="010-0000-0000" keyboardType="number-pad" maxLength={13}
         status={phone.length >= 12 && !valid ? 'Negative' : undefined} help={phone.length >= 12 && !valid ? '휴대폰 번호를 다시 확인해 주세요' : undefined} />

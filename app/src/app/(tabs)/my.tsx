@@ -137,7 +137,7 @@ export default function My() {
             if (Platform.OS === 'web') { const d = globalThis.document; globalThis.location?.replace(d?.querySelector('base') ? new URL('index.html', d.baseURI).href : '/'); } else { await loadConfig(); await refreshMe(); router.replace('/intro'); }
           }} />
       ) : <Txt v="caption2" c={color.labelAssistive}>{`서버: ${baseUrl}`}</Txt>}
-      <Button label="로그아웃" variant="Outlined" tone="Assistive" size="Medium" onPress={async () => { await logout(); router.replace('/login'); }} />
+      <Button label="로그아웃" variant="Outlined" tone="Assistive" size="Medium" onPress={async () => { await logout(); router.replace({ pathname: '/login', params: { out: '1' } }); }} />
     </DScreen>
   );
 }

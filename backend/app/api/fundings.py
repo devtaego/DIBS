@@ -174,12 +174,11 @@ def buyback(funding_id: int, db: Session = Depends(get_db), user: User = Depends
     return product.buyback(db, f, user.id)
 
 
-@router.get("/fundings/{funding_id}/subscriptions/me", response_model=SubscriptionOut, summary="내 청약 조회")
+@router.get("/fundings/{funding_id}/subscriptions/me", response_model=SubscriptionOut | None,
+            summary="내 청약 조회 (청약하지 않았으면 null)")
 def my_subscription(funding_id: int, db: Session = Depends(get_db), user: User = Depends(current_user)):
-    sub = db.scalar(select(Subscription).where(Subscription.funding_id == funding_id, Subscription.user_id == user.id))
-    if sub is None:
-        raise NotFound("SUBSCRIPTION_NOT_FOUND", "청약 내역이 없어요")
-    return sub
+    # 청약 전 화면에서도 매번 부르는 조회라, 없으면 404 대신 null 로 돌려준다 (콘솔 오류 방지)
+    return db.scalar(select(Subscription).where(Subscription.funding_id == funding_id, Subscription.user_id == user.id))
 
 
 @router.patch("/fundings/{funding_id}/subscriptions/me", response_model=SubscriptionOut,

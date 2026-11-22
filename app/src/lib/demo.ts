@@ -178,7 +178,8 @@ async function demoRequestInner(method: string, path: string, body?: unknown, qu
     if (path in F) return clone(F[path]);
     const prefix = Object.keys(F).find((x) => x.startsWith(`${path}?`));
     if (prefix) return clone(F[prefix]);
-    if (/\/(subscriptions\/me)$/.test(path) || /^\/fundings\/\d+$/.test(path)) throw Object.assign(new Error('없음'), { status: 404, code: 'NOT_FOUND' });
+    if (/\/subscriptions\/me$/.test(path)) return null; // 서버와 같게: 청약 없으면 null
+    if (/^\/fundings\/\d+$/.test(path)) throw Object.assign(new Error('없음'), { status: 404, code: 'NOT_FOUND' });
     if (path.endsWith('/orderbook')) return { bids: [], asks: [], reference_price: null, last_price: null, price_band: { min: null, max: null } };
     return path.endsWith('s') || /\/(feed|chart|trades|history)$/.test(path) ? [] : {};
   }

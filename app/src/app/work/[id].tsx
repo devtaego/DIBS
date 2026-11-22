@@ -22,7 +22,9 @@ export default function WorkScreen() {
   const [note, setNote] = useState('');
   const { data, error, loading, reload, setData } = useApi(async () => {
     const [work, episodes] = await Promise.all([api.get<WorkDetail>(`/works/${id}`), api.get<Episode[]>(`/works/${id}/episodes`)]);
-    const funding = work.funding_id ? await api.get<FundingDetail>(`/fundings/${work.funding_id}`).catch(() => null) : null;
+    // 모집 시작 전(심사 중·공모 예정) 펀딩은 서버가 상세를 공개하지 않으므로 부르지 않는다
+    const fundingPublic = !!work.funding_status && !['DRAFT', 'IN_REVIEW', 'REJECTED', 'APPROVED'].includes(work.funding_status);
+    const funding = work.funding_id && fundingPublic ? await api.get<FundingDetail>(`/fundings/${work.funding_id}`).catch(() => null) : null;
     const listed = !!work.funding_status && ['LISTED', 'SUSPENDED'].includes(work.funding_status);
     const sec = listed && work.funding_id ? await api.get<SecurityItem>(`/market/securities/${work.funding_id}`).catch(() => null) : null;
     return { work, episodes, funding, sec };

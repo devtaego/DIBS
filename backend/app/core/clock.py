@@ -9,7 +9,17 @@ from zoneinfo import ZoneInfo
 
 KST = ZoneInfo("Asia/Seoul")
 # 시연용: DIBS_NOW=2027-03-02T09:00:00 처럼 주면 그 시각으로 고정 (조각투자 개정 시행 2027년 2월 이후 기준 시연)
-_fixed: datetime | None = datetime.fromisoformat(os.environ["DIBS_NOW"]) if os.getenv("DIBS_NOW") else None
+# (앱의 EXPO_PUBLIC_NOW 처럼 +09:00 이 붙은 값을 그대로 넣어도 KST naive 로 맞춘다)
+
+
+def _parse_fixed(raw: str | None) -> datetime | None:
+    if not raw:
+        return None
+    dt = datetime.fromisoformat(raw)
+    return dt.astimezone(KST).replace(tzinfo=None) if dt.tzinfo else dt
+
+
+_fixed: datetime | None = _parse_fixed(os.getenv("DIBS_NOW"))
 
 
 def now() -> datetime:

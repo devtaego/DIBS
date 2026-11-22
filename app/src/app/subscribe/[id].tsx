@@ -45,8 +45,8 @@ export default function SubscribeScreen() {
         setExisting(null); setTier(null);
         setAmountText(String(Math.min(100_000, fd.per_user_cap_units * fd.unit_price)));
         try {
-          const s = await api.get<Subscription>(`/fundings/${id}/subscriptions/me`);
-          if (s.status === 'ACTIVE') { setExisting(s); setAmountText(String(s.units * fd.unit_price)); setTier(s.requested_tier_id); }
+          const s = await api.get<Subscription | null>(`/fundings/${id}/subscriptions/me`);
+          if (s?.status === 'ACTIVE') { setExisting(s); setAmountText(String(s.units * fd.unit_price)); setTier(s.requested_tier_id); }
         } catch {
           /* 청약 없음 */
         }

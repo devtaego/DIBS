@@ -33,7 +33,7 @@ export default function FundingScreen() {
     ]);
     const [work, eps] = await Promise.all([api.get<WorkDetail>(`/works/${f.work_id}`), api.get<Episode[]>(`/works/${f.work_id}/episodes`)]);
     const creator = await api.get<Creator>(`/creators/${work.creator_id}`).catch(() => null);
-    const sub = await api.get<Subscription>(`/fundings/${id}/subscriptions/me`).catch(() => null);
+    const sub = await api.get<Subscription | null>(`/fundings/${id}/subscriptions/me`).catch(() => null);
     return { f, ind, disc, ser, work, eps, creator, sub };
   }, [id], 30_000);
   useEffect(() => track('FUNDING_VIEW', { funding_id: Number(id) }), [id]);

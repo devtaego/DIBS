@@ -125,9 +125,10 @@ export async function loadDemoState() {
 function saveDemoState() {
   AsyncStorage.setItem(SAVE_KEY, JSON.stringify({ local, unlocked: [...unlocked], attended, points, kiwoomCoupon, jid })).catch(() => {});
 }
-/** 시연 처음부터: 저장한 시연 상태와 기기 설정(출석·키움 연결·좋아요 등)을 지운다 */
+/** 시연 처음부터: 첫 접속과 같게 만든다. 저장한 시연 상태, 기기 설정(출석·키움 연결·좋아요 등),
+ *  앱 소개를 본 기록, 바꿔 둔 시연 계정까지 지운다 (다음 접속에 앱 소개 → 기본 시연 계정으로 시작) */
 export async function resetDemoState() {
-  const keys = (await AsyncStorage.getAllKeys().catch(() => [] as readonly string[])).filter((k) => k.startsWith('dibs.') && k !== 'dibs.introSeen' && k !== 'dibs.token' && k !== 'dibs.baseUrl');
+  const keys = (await AsyncStorage.getAllKeys().catch(() => [] as readonly string[])).filter((k) => k.startsWith('dibs.') && k !== 'dibs.baseUrl');
   await AsyncStorage.multiRemove(keys).catch(() => {});
   for (const k of Object.keys(local)) delete local[k];
   unlocked.clear(); attended = false; points = 3000; kiwoomCoupon = false;

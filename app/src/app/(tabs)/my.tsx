@@ -5,7 +5,7 @@ import { Image, Platform, Pressable, View } from 'react-native';
 import { AttendanceCard } from '@/components/AttendanceCard';
 import { ErrorBox } from '@/components/ui';
 import { Button, DScreen, GroupLabel, Icon, ListCell, Panel, TopAppBar, Txt, color, radius, spacing } from '@/ds';
-import { api, type Holding, type MySubscription, type Wallet, type WorkCard } from '@/lib/api';
+import { api, loadConfig, type Holding, type MySubscription, type Wallet, type WorkCard } from '@/lib/api';
 import { DEMO, resetDemoState } from '@/lib/demo';
 import { nowMs } from '@/lib/now';
 import { clearPrefMemory, useKiwoomLink, useVisitStreak } from '@/lib/prefs';
@@ -129,12 +129,12 @@ export default function My() {
         <ListCell title="앱 소개 다시 보기" icon="info" onPress={() => router.push({ pathname: '/intro', params: { replay: '1' } })} divider={false} />
       </View>
       {DEMO ? (
-        // 시연용: 청약·충전·출석 결과를 지우고 처음 상태로 (두 번 눌러야 실행)
+        // 시연용: 첫 접속처럼 되돌린다 — 청약·충전·출석 결과를 지우고 앱 소개부터 다시 (두 번 눌러야 실행)
         <Button label={resetArm ? '한 번 더 누르면 처음 상태로 돌아가요' : '처음 상태로 되돌리기'} variant="Outlined" tone="Assistive" size="Medium"
           onPress={async () => {
             if (!resetArm) { setResetArm(true); setTimeout(() => setResetArm(false), 3000); return; }
             await resetDemoState(); clearPrefMemory();
-            if (Platform.OS === 'web') { const d = globalThis.document; globalThis.location?.replace(d?.querySelector('base') ? new URL('index.html', d.baseURI).href : '/'); } else { await refreshMe(); router.replace('/'); }
+            if (Platform.OS === 'web') { const d = globalThis.document; globalThis.location?.replace(d?.querySelector('base') ? new URL('index.html', d.baseURI).href : '/'); } else { await loadConfig(); await refreshMe(); router.replace('/intro'); }
           }} />
       ) : <Txt v="caption2" c={color.labelAssistive}>{`서버: ${baseUrl}`}</Txt>}
       <Button label="로그아웃" variant="Outlined" tone="Assistive" size="Medium" onPress={async () => { await logout(); router.replace('/login'); }} />

@@ -49,6 +49,100 @@ function line(kind: string, account: string, amount: number, ref?: [string, numb
   local['/wallet/history?limit=30'] = h; local['/wallet/history'] = h;
 }
 const err = (status: number, code: string, message: string) => Object.assign(new Error(message), { status, code });
+// ── 조각 주문: 서버와 같게 보유 수량·예치금을 반영한다 ──
+// 매수 지정가 = 예치금 묶기, 매도 지정가 = 보유 조각 묶기(locked_units), 시장가 = 바로 체결(보유·예치금 이동), 취소 = 묶은 것 풀기.
+// 시연에는 상대 주문을 내는 다른 사람이 없어서 지정가는 미체결로 남는다.
+type Hold = { funding_id: number; work_title: string; mode: string; units: number; locked_units: number; avg_price: number; last_price: number | null; eval_amount: number; pnl: number; pnl_pct: number };
+type Ord = { id: number; funding_id: number; mode: string; side: string; price: number; units: number; remaining_units: number; status: string; fee_ppm: number; locked_amount: number; trade_date: string; created_at: string; work_title?: string };
+const FEE_PPM = 150;
+const tradeFee = (gross: number) => Math.floor((gross * FEE_PPM) / 1_000_000);
+const holdings = () => clone((local['/me/holdings'] ?? F['/me/holdings'] ?? []) as Hold[]);
+const holdingOf = (fid: number) => holdings().find((h) => h.funding_id === fid);
+const availableUnits = (fid: number) => { const h = holdingOf(fid); return h ? h.units - h.locked_units : 0; };
+function saveHoldings(list: Hold[]) {
+  for (const h of list) {
+    const px = h.last_price ?? h.avg_price;
+    h.eval_amount = h.units * px; h.pnl = h.eval_amount - h.units * h.avg_price;
+    h.pnl_pct = h.units && h.avg_price ? Math.round((h.pnl / (h.units * h.avg_price)) * 10000) / 100 : 0;
+  }
+  local['/me/holdings'] = list.filter((h) => h.units > 0);
+}
+const orders = (open: boolean) => clone((local[open ? '/me/orders?open_only=true' : '/me/orders'] ?? F[open ? '/me/orders?open_only=true' : '/me/orders'] ?? []) as Ord[]);
+function saveOrder(o: Ord) {
+  const all = orders(false).filter((x) => x.id !== o.id); all.unshift(o); local['/me/orders'] = all;
+  const open = orders(true).filter((x) => x.id !== o.id);
+  if (o.status === 'OPEN' || o.status === 'PARTIAL') open.unshift(o);
+  local['/me/orders?open_only=true'] = open;
+}
+function securityTitle(fid: number) {
+  const s = F[`/market/securities/${fid}`] as { work_title?: string } | undefined;
+  return s?.work_title ?? holdingOf(fid)?.work_title ?? '';
+}
+function lastPrice(fid: number) {
+  const s = F[`/market/securities/${fid}`] as { last_price?: number | null; reference_price?: number | null } | undefined;
+  return s?.last_price ?? s?.reference_price ?? null;
+}
+function placeOrder(b: { funding_id: number; side: string; price?: number; units: number; order_type?: string }) {
+  const fid = Number(b.funding_id), units = Math.floor(Number(b.units));
+  if (!(units >= 1)) throw err(422, 'INVALID_ORDER', '수량은 1 이상이어야 해요');
+  let price = Number(b.price ?? 0);
+  let fillUnits = units;
+  if (b.order_type === 'MARKET') {
+    // 시장가: 서버와 같게 내 주문은 빼고 최우선 반대 호가 한 단계에서 체결, 남은 수량은 취소 (IOC)
+    const ob = F[`/market/securities/${fid}/orderbook`] as { asks: { price: number; units: number }[]; bids: { price: number; units: number }[] } | undefined;
+    const opp = b.side === 'BUY' ? 'SELL' : 'BUY';
+    const mine = (px: number) => orders(true).filter((o) => o.funding_id === fid && o.side === opp && o.price === px).reduce((a, o) => a + o.remaining_units, 0);
+    const levels = ((b.side === 'BUY' ? ob?.asks : ob?.bids) ?? []).map((l) => ({ price: l.price, units: l.units - mine(l.price) })).filter((l) => l.units > 0);
+    if (!levels.length) throw err(409, 'NO_COUNTER_ORDER', '지금 체결할 상대 주문이 없어요. 지정가로 주문해 주세요');
+    const best = levels.reduce((x, y) => (b.side === 'BUY' ? (y.price < x.price ? y : x) : (y.price > x.price ? y : x)));
+    price = best.price; fillUnits = Math.min(units, best.units);
+  }
+  const gross = price * fillUnits, fee = tradeFee(gross);
+  const w = wallet() as unknown as W;
+  if (b.side === 'SELL' && units > availableUnits(fid)) throw err(422, 'INSUFFICIENT_UNITS', `매도 가능 수량이 부족해요 (팔 수 있는 조각 ${availableUnits(fid)}개)`);
+  if (b.side === 'BUY' && gross + fee > w.deposit_available) throw err(409, 'INSUFFICIENT_BALANCE', `예치금이 ${(gross + fee - w.deposit_available).toLocaleString('ko-KR')}원 모자라요`);
+  const o: Ord = { id: ++jid, funding_id: fid, mode: 'MOCK', side: b.side, price, units, remaining_units: units, status: 'OPEN', fee_ppm: FEE_PPM,
+    locked_amount: 0, trade_date: nowIso().slice(0, 10), created_at: nowIso(), work_title: securityTitle(fid) };
+  const list = holdings();
+  let h = list.find((x) => x.funding_id === fid);
+  if (b.order_type === 'MARKET') {
+    if (b.side === 'BUY') {
+      setW((x) => { x.deposit_available -= gross + fee; });
+      if (!h) { h = { funding_id: fid, work_title: o.work_title ?? '', mode: 'MOCK', units: 0, locked_units: 0, avg_price: price, last_price: lastPrice(fid), eval_amount: 0, pnl: 0, pnl_pct: 0 }; list.push(h); }
+      h.avg_price = Math.round((h.avg_price * h.units + gross) / (h.units + fillUnits)); h.units += fillUnits;
+      line('TRADE', 'DEPOSIT', -(gross + fee), ['funding', fid], `${o.work_title} ${fillUnits}조각 매수`);
+    } else if (h) {
+      h.units -= fillUnits;
+      setW((x) => { x.deposit_available += gross - fee; });
+      line('TRADE', 'DEPOSIT', gross - fee, ['funding', fid], `${o.work_title} ${fillUnits}조각 매도`);
+    }
+    o.remaining_units = units - fillUnits; o.status = fillUnits === units ? 'FILLED' : 'CANCELLED';
+  } else if (b.side === 'BUY') {
+    o.locked_amount = gross + fee;
+    setW((x) => { x.deposit_available -= gross + fee; x.deposit_locked += gross + fee; });
+    line('ORDER_LOCK', 'DEPOSIT', -(gross + fee), ['order', o.id], `${o.work_title} 매수 주문`);
+  } else if (h) {
+    h.locked_units += units;
+  }
+  saveHoldings(list); saveOrder(o);
+  return o;
+}
+function cancelOrder(id: number) {
+  const o = orders(true).find((x) => x.id === id) ?? orders(false).find((x) => x.id === id);
+  if (!o || !(o.status === 'OPEN' || o.status === 'PARTIAL')) throw err(409, 'ORDER_NOT_OPEN', '이미 체결됐거나 취소된 주문이에요');
+  if (o.side === 'BUY') {
+    const back = o.locked_amount || o.remaining_units * o.price + tradeFee(o.remaining_units * o.price);
+    setW((x) => { x.deposit_available += back; x.deposit_locked = Math.max(0, x.deposit_locked - back); });
+    line('ORDER_UNLOCK', 'DEPOSIT', back, ['order', o.id], '주문 취소');
+    o.locked_amount = 0;
+  } else {
+    const list = holdings(); const h = list.find((x) => x.funding_id === o.funding_id);
+    if (h) h.locked_units = Math.max(0, h.locked_units - o.remaining_units);
+    saveHoldings(list);
+  }
+  o.status = 'CANCELLED'; saveOrder(o);
+  return o;
+}
 type Prog = { requested_units: number; raised_amount: number; participants: number; achievement_pct: number };
 type Fd = { id: number; work_id: number; work_title: string; status: string; unit_price: number; target_units: number; close_at: string | null; progress: Prog };
 function bumpProgress(fid: number, delta: number, newcomer: number) {
@@ -164,8 +258,11 @@ async function demoRequestInner(method: string, path: string, body?: unknown, qu
       const gross = price * units, fee = Math.floor((gross * 150) / 1_000_000);
       const w = wallet() as unknown as W;
       const band = (base?.price_band ?? { min: 0, max: 0 }) as { min: number; max: number };
-      const reasons = [price < band.min || price > band.max ? '가격 제한폭(±30%)을 벗어났어요' : null, query?.side !== 'SELL' && gross + fee > w.deposit_available ? '예치금이 모자라요' : null].filter(Boolean);
-      return { ...(base ?? {}), side: query?.side ?? 'BUY', price, units, gross, fee, total: query?.side === 'SELL' ? gross - fee : gross + fee, available_deposit: w.deposit_available, can_place: reasons.length === 0, reasons };
+      const fid = Number(op[1]), avail = availableUnits(fid), sell = query?.side === 'SELL';
+      const reasons = [price < band.min || price > band.max ? 'PRICE_OUT_OF_BAND' : null,
+        !sell && gross + fee > w.deposit_available ? 'INSUFFICIENT_BALANCE' : null,
+        sell && units > avail ? 'INSUFFICIENT_UNITS' : null].filter(Boolean);
+      return { ...(base ?? {}), side: query?.side ?? 'BUY', price, units, gross, fee, total: sell ? gross - fee : gross + fee, available_deposit: w.deposit_available, available_units: avail, can_place: reasons.length === 0, reasons };
     }
     if (path === '/me/attendance') return attendanceState();
     if (path === '/me/partner-points') return { broker: '키움증권', balance: points, converted: 3000 - points, unit: 100, rate: 1 };
@@ -300,15 +397,8 @@ async function demoRequestInner(method: string, path: string, body?: unknown, qu
   if (path === '/fundings/' + path.split('/')[2] + '/broker-handoff') {
     return { channel: 'INTERNAL', broker: '키움증권', deeplink: 'kiwoom-mock://offering', token: `demo-${path.split('/')[2]}`, expires_at: new Date(Date.now() + 600000).toISOString(), linked: false };
   }
-  if (path === '/market/orders') {
-    const b = (body ?? {}) as { funding_id: number; side: string; price?: number; units: number; order_type?: string };
-    if (b.order_type === 'MARKET') {
-      // 시장가: 시연 데이터의 최우선 반대 호가에서 전량 체결된 것으로 보여 준다
-      const ob = F[`/market/securities/${b.funding_id}/orderbook`] as { asks: { price: number }[]; bids: { price: number }[] } | undefined;
-      const px = b.side === 'BUY' ? Math.min(...(ob?.asks ?? []).map((a) => a.price)) : Math.max(...(ob?.bids ?? []).map((x) => x.price));
-      return { id: Date.now() % 100000, ...b, price: Number.isFinite(px) ? px : 1000, remaining_units: 0, status: 'FILLED', created_at: new Date().toISOString() };
-    }
-    return { id: Date.now() % 100000, ...b, remaining_units: b.units, status: 'OPEN', created_at: new Date().toISOString() };
-  }
+  if (path === '/market/orders') return placeOrder((body ?? {}) as { funding_id: number; side: string; price?: number; units: number; order_type?: string });
+  const co = path.match(/^\/market\/orders\/(\d+)$/);
+  if (co && method === 'DELETE') return cancelOrder(Number(co[1]));
   return { ok: true };
 }

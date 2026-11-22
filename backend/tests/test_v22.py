@@ -354,3 +354,21 @@ def test_reserve_split_on_early_completion(api, published_work, now):
     c = out["committed"]
     assert out["reserve_to_creator"] == 50_000 * out["published"] // c
     assert out["reserve_to_creator"] + out["reserve_to_holders"] == 50_000
+
+
+def test_market_order_skips_own_resting_orders(api, published_work, now):
+    """시장가 매수는 내 매도 주문을 최우선 호가로 고르지 않는다 (자기 주문과는 체결 안 함 → 예전엔 그냥 취소됐다)."""
+    for u in ("a", "b"):
+        api.login(u)
+        api.ok(u, "post", "/wallet/deposit/charge", json={"amount": 2_000_000})
+    fid = listed(api, published_work["id"], now, {"a": 900, "b": 100})  # 1인 보유 한도 105조각
+    api.ok("b", "post", "/market/orders", json={**ORDER, "funding_id": fid, "side": "SELL", "price": 1_010, "units": 3})  # 내 매도 (더 쌈)
+    api.ok("a", "post", "/market/orders", json={**ORDER, "funding_id": fid, "side": "SELL", "price": 1_020, "units": 3})  # 남의 매도
+    o = api.ok("b", "post", "/market/orders", json={**ORDER, "funding_id": fid, "side": "BUY", "order_type": "MARKET", "units": 2})
+    assert (o["price"], o["remaining_units"], o["status"]) == (1_020, 0, "FILLED")
+    api.ok("b", "post", "/market/orders", json={**ORDER, "funding_id": fid, "side": "BUY", "order_type": "MARKET", "units": 1})
+    # 남은 매도가 내 것뿐이면 시장가 매수는 상대 주문 없음
+    api.err("b", "post", "/market/orders", "NO_COUNTER_ORDER",
+            json={**ORDER, "funding_id": fid, "side": "BUY", "order_type": "MARKET", "units": 1})
+    h = next(x for x in api.ok("b", "get", "/me/holdings") if x["funding_id"] == fid)
+    assert (h["units"], h["locked_units"]) == (103, 3)

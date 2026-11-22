@@ -42,11 +42,20 @@ export default function OrderScreen() {
   const [best, setBest] = useState<{ ask: number | null; bid: number | null }>({ ask: null, bid: null });
   const [sending, setSending] = useState(false);
   const [agree, setAgree] = useState(false);
-  // 시장가: 최우선 반대 호가 한 단계에서 체결 → 예상 가격 = 매수는 최저 매도호가, 매도는 최고 매수호가
+  // 시장가: 최우선 반대 호가 한 단계에서 체결 → 예상 가격 = 매수는 최저 매도호가, 매도는 최고 매수호가.
+  // 내 주문과는 체결하지 않으므로(서버 규칙) 호가에서 내 미체결 주문 수량은 빼고 고른다
   useEffect(() => {
-    api.get<{ asks: { price: number }[]; bids: { price: number }[] }>(`/market/securities/${params.id}/orderbook`)
-      .then((ob) => setBest({ ask: ob.asks.length ? Math.min(...ob.asks.map((a) => a.price)) : null, bid: ob.bids.length ? Math.max(...ob.bids.map((b) => b.price)) : null }))
-      .catch(() => {});
+    type Level = { price: number; units: number };
+    Promise.all([
+      api.get<{ asks: Level[]; bids: Level[] }>(`/market/securities/${params.id}/orderbook`),
+      api.get<Order[]>('/me/orders', { open_only: true }).catch(() => [] as Order[]),
+    ]).then(([ob, mine]) => {
+      const left = (levels: Level[], side: 'BUY' | 'SELL') => levels.map((l) => ({ price: l.price, units: l.units - mine
+        .filter((o) => o.funding_id === Number(params.id) && o.side === side && o.price === l.price).reduce((a, o) => a + o.remaining_units, 0) }))
+        .filter((l) => l.units > 0).map((l) => l.price);
+      const asks = left(ob.asks, 'SELL'), bids = left(ob.bids, 'BUY');
+      setBest({ ask: asks.length ? Math.min(...asks) : null, bid: bids.length ? Math.max(...bids) : null });
+    }).catch(() => {});
   }, [params.id]);
   const marketPx = side === 'BUY' ? best.ask : best.bid;
   const effPrice = otype === 'MARKET' ? marketPx ?? 0 : Number(price);

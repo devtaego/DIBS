@@ -119,16 +119,20 @@ class InternalMockExchange(MarketGateway):
             raise DomainError("HOLDING_LIMIT_EXCEEDED",
                               f"한 종목은 발행량의 {settings.max_holding_bps // 100}%({cap:,}조각)까지 가질 수 있어요")
 
-    def best_price(self, f: Funding, side: OrderSide) -> int | None:
-        """시장가 주문이 체결될 최우선 호가: 매수는 가장 싼 매도, 매도는 가장 비싼 매수."""
+    def best_price(self, f: Funding, side: OrderSide, user_id: int | None = None) -> int | None:
+        """시장가 주문이 체결될 최우선 호가: 매수는 가장 싼 매도, 매도는 가장 비싼 매수.
+        자기 주문과는 체결하지 않으므로(자전거래 방지) user_id 를 주면 내 주문은 빼고 찾는다."""
         opposite = OrderSide.SELL if side == OrderSide.BUY else OrderSide.BUY
         agg = func.min(Order.price) if side == OrderSide.BUY else func.max(Order.price)
-        return self.db.scalar(select(agg).where(Order.funding_id == f.id, Order.mode == f.mode,
-                                                Order.side == opposite, Order.status.in_(OPEN_STATUSES)))
+        q = select(agg).where(Order.funding_id == f.id, Order.mode == f.mode,
+                              Order.side == opposite, Order.status.in_(OPEN_STATUSES))
+        if user_id is not None:
+            q = q.where(Order.user_id != user_id)
+        return self.db.scalar(q)
 
     def place_market_order(self, user: User, funding: Funding, side: OrderSide, units: int) -> Order:
         """시장가: 최우선 호가 한 단계에서 체결하고, 남은 수량은 바로 취소한다 (IOC)."""
-        price = self.best_price(funding, side)
+        price = self.best_price(funding, side, user.id)
         if price is None:
             raise Conflict("NO_COUNTER_ORDER", "지금 체결할 상대 주문이 없어요. 지정가로 주문해 주세요")
         order = self.place_order(user, funding, side, price, units)

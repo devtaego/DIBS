@@ -73,3 +73,4 @@ def test_buy_seeds_with_exact_deposit(api):
     w = api.ok("c", "get", "/wallet")
     assert w["deposit_available"] == 0 and w["coin"] == 1000
     api.err("c", "post", "/wallet/coin/packages/buy", "INSUFFICIENT_BALANCE", json={"package_id": "seed10", "channel": "DEPOSIT"})
+

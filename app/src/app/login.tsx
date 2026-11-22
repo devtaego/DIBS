@@ -11,12 +11,20 @@ import { useSession } from '@/lib/session';
 import { finishLogin, type SocialResult } from '@/lib/social';
 
 // 00 로그인 (Screens – MVP v2): 휴대폰 번호 → 인증번호, 간편 로그인(카카오·네이버·구글)
-const DEMO_ACCOUNTS: { email: string; role: Me['role']; label: string; desc: string }[] = [
-  { email: 'reader30@dibs.dev', role: 'READER', label: '새 투자자 (reader30)', desc: '아직 청약하지 않은 계정' },
-  { email: 'reader1@dibs.dev', role: 'READER', label: '기존 투자자 (reader1)', desc: '청약·보유 조각 있음' },
+// 서버에 붙였을 때: 역할별 계정 4개가 각각 실제로 로그인된다
+const SERVER_ACCOUNTS: { email: string; role: Me['role']; label: string; desc: string; off?: boolean }[] = [
+  { email: 'reader30@dibs.dev', role: 'READER', label: '새 투자자', desc: '아직 청약하지 않은 계정' },
+  { email: 'reader1@dibs.dev', role: 'READER', label: '기존 투자자', desc: '청약·보유 조각 있음' },
   { email: 'creator@dibs.dev', role: 'CREATOR', label: '창작자', desc: '작품 2개 · 정산 확인' },
   { email: 'admin@dibs.dev', role: 'ADMIN', label: '운영자', desc: '마감·상장·배당 실행' },
 ];
+// 정적 시연: 녹화한 데이터가 투자자 한 명 기준이라 체험 투자자만 열고, 나머지 역할은 흐리게 보여 준다
+const DEMO_ACCOUNTS: typeof SERVER_ACCOUNTS = [
+  { email: 'reader1@dibs.dev', role: 'READER', label: '체험 투자자', desc: '청약·보유 조각이 있는 시연 계정' },
+  { email: 'creator@dibs.dev', role: 'CREATOR', label: '창작자', desc: '서버에 연결하면 쓸 수 있어요', off: true },
+  { email: 'admin@dibs.dev', role: 'ADMIN', label: '운영자', desc: '서버에 연결하면 쓸 수 있어요', off: true },
+];
+const ACCOUNTS = DEMO ? DEMO_ACCOUNTS : SERVER_ACCOUNTS;
 
 export default function Login() {
   const { out } = useLocalSearchParams<{ out?: string }>(); // MY > 로그아웃으로 들어왔는지
@@ -87,7 +95,7 @@ export default function Login() {
       {msg ? <Txt v="label2" w="medium" c={color.negative} style={{ marginTop: 12 }}>{msg}</Txt> : null}
 
       <View style={{ marginTop: 28 }}>
-        <Fold title="개발·시연" sub="서버 주소, 시연 계정으로 바로 시작" icon="gear" last>
+        <Fold title="개발·시연" sub={DEMO ? '체험 계정으로 바로 시작' : '서버 주소, 시연 계정으로 바로 시작'} icon="gear" last>
           {!DEMO ? (
             <View style={{ gap: 8 }}>
               <TextInput value={url} onChangeText={setUrl} autoCapitalize="none" autoCorrect={false} accessibilityLabel="서버 주소"
@@ -95,14 +103,15 @@ export default function Login() {
               <Pressable onPress={check} accessibilityRole="button"><Txt v="label2" w="semibold" c={color.primaryStrong}>연결 확인{health ? ` · ${health}` : ''}</Txt></Pressable>
             </View>
           ) : null}
-          {DEMO_ACCOUNTS.map((d) => (
-            <Pressable key={d.email} onPress={() => demoLogin(d.email, d.role)} accessibilityRole="button"
-              style={{ paddingVertical: 10, flexDirection: 'row', alignItems: 'center', borderTopWidth: 1, borderTopColor: color.lineAlternative }}>
+          {ACCOUNTS.map((d) => (
+            <Pressable key={d.email} onPress={d.off ? undefined : () => demoLogin(d.email, d.role)} disabled={d.off}
+              accessibilityRole="button" accessibilityState={{ disabled: !!d.off }}
+              style={{ paddingVertical: 10, flexDirection: 'row', alignItems: 'center', borderTopWidth: 1, borderTopColor: color.lineAlternative, opacity: d.off ? 0.45 : 1 }}>
               <View style={{ flex: 1 }}>
                 <Txt v="label1" w="semibold" c={color.labelStrong}>{d.label}</Txt>
                 <Txt v="caption1" c={color.labelAlternative}>{d.desc}</Txt>
               </View>
-              <Txt v="label1" c={color.labelAssistive}>→</Txt>
+              {d.off ? null : <Txt v="label1" c={color.labelAssistive}>→</Txt>}
             </Pressable>
           ))}
         </Fold>

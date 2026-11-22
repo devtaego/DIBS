@@ -21,6 +21,7 @@ from datetime import timedelta
 from fastapi.testclient import TestClient
 
 from app.core import clock
+from app.core.config import settings
 from app.core.db import SessionLocal
 from app.main import app
 from app.services.market.mock_exchange import PRICE_TICK, price_band
@@ -152,7 +153,7 @@ SHORT_VIDEOS: dict[str, tuple[str, int]] = {
 def seed_price_history(call, listed: list[tuple[int, int, list[str]]], days: int = 40) -> None:
     """상장 종목마다 지난 `days`일 동안의 체결을 만든다 (차트 시연용 합성 데이터).
 
-    공모가(1,000원)에서 시작해 오늘 가격보다 4~12% 낮은 값까지 무작위로 걷는다. 하루 2~4건을
+    공모가(1조각 1만 원)에서 시작해 오늘 가격보다 4~12% 낮은 값까지 무작위로 걷는다. 하루 2~4건을
     매도·매수 주문을 같은 가격·수량으로 넣어 바로 체결시키고, 하루가 끝나면 기준가를 갱신한다.
     매일 가격은 그날 기준가 ±30% 안, 10원 단위. 판 사람은 그만큼 들고 있는지 따져서 고른다.
     """
@@ -161,8 +162,9 @@ def seed_price_history(call, listed: list[tuple[int, int, list[str]]], days: int
     state = {}
     for fid, today, holders in listed:
         rnd = random.Random(7_000 + fid)
-        state[fid] = {"rnd": rnd, "p": 1_000, "ref": 1_000, "target": tick(today / (1 + rnd.uniform(0.04, 0.12))),
-                      "hold": {h: 400 for h in holders}}  # 균등 20 + 비례 80 배정 결과: 1인 400조각
+        unit = settings.default_unit_price
+        state[fid] = {"rnd": rnd, "p": unit, "ref": unit, "target": tick(today / (1 + rnd.uniform(0.04, 0.12))),
+                      "hold": {h: 40 for h in holders}}  # 균등 20 + 비례 80 배정 결과: 1인 40조각
     for i, d in enumerate(range(days, 0, -1)):
         day = (base - timedelta(days=d)).replace(hour=10, minute=0, second=0)
         for fid, st in state.items():
@@ -172,8 +174,10 @@ def seed_price_history(call, listed: list[tuple[int, int, list[str]]], days: int
             for j in range(rnd.randint(2, 4)):
                 clock.set_now(day.replace(hour=10 + j * 2, minute=rnd.randint(0, 59)))
                 q = min(hi, max(lo, tick(st["p"] + drift / 2 + rnd.gauss(0, st["p"] * 0.03))))
-                u = rnd.randint(5, 40)
-                sellers = [h for h, n in st["hold"].items() if n >= u + 150]  # 오늘 매도 주문 몫(최대 100조각)은 남겨 둔다
+                if left == 1:  # 마지막 날은 목표가로 맞춰 오늘 주문 가격이 가격제한폭(±30%) 안에 들게 한다
+                    q = min(hi, max(lo, st["target"]))
+                u = rnd.randint(1, 4)
+                sellers = [h for h, n in st["hold"].items() if n >= u + 15]  # 오늘 매도 주문 몫(최대 10조각)은 남겨 둔다
                 seller = rnd.choice(sellers)
                 buyer = rnd.choice([h for h in st["hold"] if h != seller])
                 o = {"funding_id": fid, "agree_risk_notice": True, "price": q, "units": u}
@@ -248,20 +252,20 @@ def main() -> None:
             call(r, "put", f"/works/{a}/dib")
         call("creator", "patch", "/me", json={"nickname": "윤서하", "bio": "회사에 다니며 밤마다 그린 원고로 첫 연재를 준비하고 있어요. 로맨스 판타지와 따뜻한 일상물을 좋아해요. 응원해 주시면 약속한 회차까지 끝까지 그릴게요."})
         # 상장 전 공개 회차는 무료 (유료 미리보기는 상장 후). 상한은 열람자 44,000 × 결제율 15% = 6,600명 기준 1,500만 원
-        fa = make_funding(a, 15000, [{"title": "에필로그 크레딧 등재", "min_units": 10},
-                                     {"title": "한정판 양장본 + 넘버링 카드", "min_units": 300, "limited_qty": 50,
+        fa = make_funding(a, 1500, [{"title": "에필로그 크레딧 등재", "min_units": 1},
+                                    {"title": "한정판 양장본 + 넘버링 카드", "min_units": 30, "limited_qty": 50,
                                      "requires_shipping": True}])
-        for r in readers[:29]:  # 29명 × 750 = 21,750조각 (145%), 1인 한도 750조각 = 75만 원 (1조각 1,000원)
-            call(r, "post", f"/fundings/{fa}/subscriptions", json={**SUB, "units": 750})
+        for r in readers[:29]:  # 29명 × 75 = 2,175조각 (145%), 1인 한도 75조각 = 75만 원 (1조각 1만 원)
+            call(r, "post", f"/fundings/{fa}/subscriptions", json={**SUB, "units": 75})
 
         # 작품 B: 상장 + 거래
         b = make_work("청월도", "무협", 8, cover=COVERS.get("청월도"), synopsis="달빛이 푸른 밤, 멸문한 가문의 막내가 검을 든다.")
         seed_pilot_events(b, 30_000, 0.8, 0.5)
         for r in readers[3:6]:
             call(r, "put", f"/works/{b}/dib")  # 모집 전 찜 (알림용, 배정 우선권은 없음)
-        fb = make_funding(b, 10000, [])
-        for r in readers[:25]:  # 25명 × 500 = 12,500조각 (125%), 1인 한도 500조각 = 50만 원
-            call(r, "post", f"/fundings/{fb}/subscriptions", json={**SUB, "units": 500})
+        fb = make_funding(b, 1000, [])
+        for r in readers[:25]:  # 25명 × 50 = 1,250조각 (125%), 1인 한도 50조각 = 50만 원
+            call(r, "post", f"/fundings/{fb}/subscriptions", json={**SUB, "units": 50})
         call("admin", "post", f"/admin/fundings/{fb}/close", params={"force": True})
         call("admin", "post", f"/admin/fundings/{fb}/issuance", json={"broker_name": "제휴증권(모의)"})
         for step, extra in [("FILED", {}), ("ISSUED", {"security_code": "KRDIBS0000002", "trustee": "모의신탁"}),
@@ -271,11 +275,11 @@ def main() -> None:
             call("admin", "patch", f"/admin/episodes/{ep['id']}/pricing", json={"is_paid": True})
         seed_paying_fans(b, 3_500)  # 상장 후 4주 유료 구매자 (시연용 일괄 생성)
         order = {"funding_id": fb, "agree_risk_notice": True}
-        listed.append((fb, 1_150, readers[:25]))
-        today_orders += [("reader1", {**order, "side": "SELL", "price": 1_150, "units": 100}),
-                         ("reader2", {**order, "side": "BUY", "price": 1_150, "units": 60}),
-                         ("reader3", {**order, "side": "SELL", "price": 1_200, "units": 50}),
-                         ("reader4", {**order, "side": "BUY", "price": 1_100, "units": 80})]
+        listed.append((fb, 11_500, readers[:25]))
+        today_orders += [("reader1", {**order, "side": "SELL", "price": 11_500, "units": 10}),
+                         ("reader2", {**order, "side": "BUY", "price": 11_500, "units": 6}),
+                         ("reader3", {**order, "side": "SELL", "price": 12_000, "units": 5}),
+                         ("reader4", {**order, "side": "BUY", "price": 11_000, "units": 8})]
         b_eps = call("creator", "get", f"/works/{b}/episodes")
         for r in readers[5:15]:  # 상장 후 유료 구매 → 신탁 계좌로 바로 분할 (공시 대사 시연)
             call(r, "post", f"/episodes/{b_eps[4]['id']}/unlock")
@@ -287,18 +291,18 @@ def main() -> None:
 
         # 추가 작품: 모집 중 펀딩 여러 개 (달성률·마감일·형식이 서로 다르게). 표지는 COVERS 에 있으면 쓴다
         extra = [
-            ("이세계 맛집 사장님", "요리 · 이세계", "WEBTOON", 10000, 13, 3, "이세계로 떨어진 동네 분식집 사장이 마왕군 단골을 만든다."),
-            ("죽은 줄 알았던 남편이 내 상사로 돌아왔다", "현대 로맨스", "WEBNOVEL", 10000, 9, 5, "장례식 1년 뒤, 새 본부장으로 나타난 남편."),
-            ("그날, 사건이 시작됐다", "미스터리 · 추리", "WEBTOON", 12000, 6, 12, "작은 섬마을 고등학교에서 사라진 졸업 앨범."),
-            ("황태자의 가짜 신부는 사실 살인자였다", "로판 · 스릴러", "WEBNOVEL", 10000, 11, 8, "가짜 신부로 들어간 암살자가 황태자에게 들킨다."),
-            ("우리 반은 전셜입니다", "학원 · 코미디", "WEBTOON", 10000, 14, 2, "전설의 영웅들이 같은 반 고등학생으로 환생했다."),
-            ("시골에선 슬로우라이프", "힐링 · 일상", "WEBTOON", 10000, 4, 10, "번아웃 직장인의 귀촌 1년 기록."),
+            ("이세계 맛집 사장님", "요리 · 이세계", "WEBTOON", 1000, 13, 3, "이세계로 떨어진 동네 분식집 사장이 마왕군 단골을 만든다."),
+            ("죽은 줄 알았던 남편이 내 상사로 돌아왔다", "현대 로맨스", "WEBNOVEL", 1000, 9, 5, "장례식 1년 뒤, 새 본부장으로 나타난 남편."),
+            ("그날, 사건이 시작됐다", "미스터리 · 추리", "WEBTOON", 1200, 6, 12, "작은 섬마을 고등학교에서 사라진 졸업 앨범."),
+            ("황태자의 가짜 신부는 사실 살인자였다", "로판 · 스릴러", "WEBNOVEL", 1000, 11, 8, "가짜 신부로 들어간 암살자가 황태자에게 들킨다."),
+            ("우리 반은 전셜입니다", "학원 · 코미디", "WEBTOON", 1000, 14, 2, "전설의 영웅들이 같은 반 고등학생으로 환생했다."),
+            ("시골에선 슬로우라이프", "힐링 · 일상", "WEBTOON", 1000, 4, 10, "번아웃 직장인의 귀촌 1년 기록."),
         ]
         for i, (title, genre, wtype, target, subscribers, days, syn) in enumerate(extra):
             wid = make_work(title, genre, 10, wtype, COVERS.get(title), syn)
             # 열람자 × 15% → 목표 금액 상한 안쪽. 두 작품은 파일럿을 늦게 공개해 하루 독자 데이터가 짧다 (4일·10일)
             span = {"시골에선 슬로우라이프": 4, "이세계 맛집 사장님": 10}.get(title, 27)
-            seed_pilot_events(wid, target * 3 + i * 500, 0.8, 0.5, span)
+            seed_pilot_events(wid, target * 30 + i * 500, 0.8, 0.5, span)  # 목표 1,000조각(1,000만 원) → 열람자 약 3만
             for r in readers[6 + i: 9 + i] + (["reader1"] if days <= 2 else []):  # reader1: 마감 임박 찜 알림 시연
                 call(r, "put", f"/works/{wid}/dib")
             now = clock.now()
@@ -309,13 +313,13 @@ def main() -> None:
             call("admin", "post", f"/admin/fundings/{f['id']}/review", json={"approve": True, "terms": {}})
             call("admin", "post", f"/admin/fundings/{f['id']}/open")
             for r in readers[10: 10 + subscribers]:
-                call(r, "post", f"/fundings/{f['id']}/subscriptions", json={**SUB, "units": 400})
+                call(r, "post", f"/fundings/{f['id']}/subscriptions", json={**SUB, "units": 40})
 
         UPCOMING = {"새벽 세시의 편의점 마법사": 4}
         # 토큰증권 탭 시연: 이미 상장해 거래 중인 종목을 몇 개 더 (마지막 체결가가 서로 다르게, 가격제한폭 ±30% 안)
-        LISTED_MORE = {"오늘도 너에게 반했어": 1_210, "풍운행": 960, "이혼 도장 찍자마자 S급 각성": 1_280,
-                       "회귀했더니 내 딸이 재벌 회장": 1_060, "천검": 1_120, "재벌가 막내딸이 살인 예고를 받았다": 890,
-                       "죽을 때마다 통장에 100억": 1_240, "파문당한 제자가 흑월검을 얻었다": 1_030}
+        LISTED_MORE = {"오늘도 너에게 반했어": 12_100, "풍운행": 9_600, "이혼 도장 찍자마자 S급 각성": 12_800,
+                       "회귀했더니 내 딸이 재벌 회장": 10_600, "천검": 11_200, "재벌가 막내딸이 살인 예고를 받았다": 8_900,
+                       "죽을 때마다 통장에 100억": 12_400, "파문당한 제자가 흑월검을 얻었다": 10_300}
         # 펀딩 탭 시연: 모집 중 펀딩을 더 (참여자 수 · 마감일이 서로 다르게)
         OPEN_MORE = {"고양이빵집": (9, 12), "금요일엔 유령 분식": (13, 8), "심야 편의점 냥알바": (15, 5), "화분 키우는 카피바라": (12, 19),
                      "내가 죽인 악역과 결혼해야 한다": (7, 10), "회귀했더니 원수의 아내가 되어 있었다": (11, 6),
@@ -324,20 +328,20 @@ def main() -> None:
         def open_now(wid: int, subscribers: int, days: int) -> None:
             now = clock.now()
             f = call("creator", "post", f"/works/{wid}/fundings", json={
-                "target_units": 10000, "open_at": (now - timedelta(days=max(0, 7 - days))).isoformat(),
+                "target_units": 1000, "open_at": (now - timedelta(days=max(0, 7 - days))).isoformat(),
                 "close_at": (now + timedelta(days=days)).isoformat(),
                 "use_of_funds": "채색 외주 50% · 연재 운영 30% · 작업 장비 20%", "reward_tiers": []})
             call("admin", "post", f"/admin/fundings/{f['id']}/review", json={"approve": True, "terms": {}})
             call("admin", "post", f"/admin/fundings/{f['id']}/open")
             for r in readers[12: 12 + subscribers]:
                 call(r, "post", "/wallet/deposit/charge", json={"amount": 400_000})
-                call(r, "post", f"/fundings/{f['id']}/subscriptions", json={**SUB, "units": 400})
+                call(r, "post", f"/fundings/{f['id']}/subscriptions", json={**SUB, "units": 40})
 
         def list_now(wid: int, price: int, k: int) -> None:
-            f = make_funding(wid, 10000, [])
-            for r in readers[5:30]:  # 25명 × 500조각 = 12,500조각 (1인 한도 = 발행액 5%). reader1~5 계정은 건드리지 않는다
+            f = make_funding(wid, 1000, [])
+            for r in readers[5:30]:  # 25명 × 50조각 = 1,250조각 (1인 한도 = 발행액 5%). reader1~5 계정은 건드리지 않는다
                 call(r, "post", "/wallet/deposit/charge", json={"amount": 500_000})
-                call(r, "post", f"/fundings/{f}/subscriptions", json={**SUB, "units": 500})
+                call(r, "post", f"/fundings/{f}/subscriptions", json={**SUB, "units": 50})
             call("admin", "post", f"/admin/fundings/{f}/close", params={"force": True})
             call("admin", "post", f"/admin/fundings/{f}/issuance", json={"broker_name": "제휴증권(모의)"})
             for step, extra_ in [("FILED", {}), ("ISSUED", {"security_code": f"KRDIBS{f:07d}", "trustee": "모의신탁"}),
@@ -346,9 +350,9 @@ def main() -> None:
             seller, buyer = readers[5 + k % 3], readers[9 + k % 3]
             o = {"funding_id": f, "agree_risk_notice": True}
             listed.append((f, price, readers[5:30]))
-            today_orders.extend([(seller, {**o, "side": "SELL", "price": price, "units": 40}),
-                                 (buyer, {**o, "side": "BUY", "price": price, "units": 25}),
-                                 (buyer, {**o, "side": "BUY", "price": price - 20, "units": 30})])
+            today_orders.extend([(seller, {**o, "side": "SELL", "price": price, "units": 4}),
+                                 (buyer, {**o, "side": "BUY", "price": price, "units": 3}),
+                                 (buyer, {**o, "side": "BUY", "price": price - 200, "units": 3})])
         # 나머지 카탈로그: 펀딩 없이 작품만 (탐색·랭킹용). 찜 수는 서로 다르게
         done = {"악녀인데 남주들이 나를 숭배한다", "청월도", *(t for t, *_ in extra)}
         rest = [row for row in CATALOG if row[1] not in done]
@@ -364,7 +368,7 @@ def main() -> None:
             if title in UPCOMING:  # 공모 예정 (승인 완료, 모집 시작 전)
                 now = clock.now()
                 f = call("creator", "post", f"/works/{wid}/fundings", json={
-                    "target_units": 10000, "open_at": (now + timedelta(days=UPCOMING[title])).isoformat(),
+                    "target_units": 1000, "open_at": (now + timedelta(days=UPCOMING[title])).isoformat(),
                     "close_at": (now + timedelta(days=UPCOMING[title] + 10)).isoformat(),
                     "use_of_funds": "작화 외주 60% · 편집 20% · 마케팅 20%", "reward_tiers": []})
                 call("admin", "post", f"/admin/fundings/{f['id']}/review", json={"approve": True, "terms": {}})

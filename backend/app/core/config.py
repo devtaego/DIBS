@@ -44,7 +44,7 @@ class Settings(BaseModel):
 
     # ── 펀딩(청약) 기본값 ──
     # v2.2 조정값 (docs/DECISIONS-v2.2.md): 1조각 = 1,000원. 펀딩은 1,000원 단위·최소 1,000원이라 소수 조각이 없다
-    default_unit_price: int = 1_000
+    default_unit_price: int = 10_000  # 1조각 = 1만 원 (청약·호가·한도 모두 이 단위)
     min_funding_days: int = 7
     max_funding_days: int = 60
     funding_retry_cooldown_days: int = 30  # 목표 미달 후 재신청 대기 (취소는 대기 없음)

@@ -115,7 +115,7 @@ export default function SubscribeScreen() {
   const tierObj = f.reward_tiers.find((r) => r.id === tier);
   const onKey = (k: string) => {
     setError(null);
-    // 청약은 조각 단위(1조각 = 공모가)라서 키패드는 '조각 수'를 입력하고 금액은 그 배수로만 만든다 (10,532원 같은 금액 없음)
+    // 청약은 조각 단위(1조각 = 공모가 1만 원)라서 키패드 숫자 = 조각 수, 금액은 1만 원 단위로만 만들어진다 (15,300원 같은 금액은 입력 불가)
     setAmountText((t) => {
       const n = Math.floor(Number(t || '0') / unit);
       const next = k === 'del' ? Math.floor(n / 10) : Number(`${n || ''}${k}`.slice(0, 6));
@@ -198,7 +198,7 @@ export default function SubscribeScreen() {
       gap={spacing.gapXl}>
       <Stack.Screen options={{ headerShown: false }} />
       <PageTitle title={existing ? '청약 금액을 바꿀까요?' : '얼마나 펀딩할까요?'}
-        sub={existing ? `지금 ${manwon(existing.units * unit)} 청약 중 · 마감 1시간 전까지 바꿀 수 있어요` : `1조각 ${unit.toLocaleString('ko-KR')}원 단위로 청약해요 · 사용 가능 ${manwon(wallet.deposit_available)}`} />
+        sub={existing ? `지금 ${manwon(existing.units * unit)} 청약 중 · 마감 1시간 전까지 바꿀 수 있어요` : `${manwon(unit)}(1조각) 단위로만 입력돼요 · 사용 가능 ${manwon(wallet.deposit_available)}`} />
       <View style={{ alignItems: 'center', gap: spacing.gapL, paddingVertical: spacing.inset2xl }}>
         <Txt v="display1" w="bold" c={raw ? color.labelStrong : color.labelDisable} tabular>{raw ? `${raw.toLocaleString('ko-KR')}원` : '0원'}</Txt>
         <View style={{ height: 28, paddingHorizontal: spacing.insetM, borderRadius: radius.chip, borderWidth: 1, borderColor: color.lineNormal, justifyContent: 'center' }}>

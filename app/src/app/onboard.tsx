@@ -6,7 +6,7 @@ import { BigBtn, Icon, SubHeader, Txt, V2Screen, color } from '@/ds';
 // 00 온보딩 (Screens – MVP v2): 시작 전에 알아 둘 세 가지 + 위험 고지
 const ITEMS = [
   ['search', '펀딩으로 좋은 작품 찾기', '미리보기 3화로 작가의 새 작품을 먼저 만나요'],
-  ['coin', '1,000원부터 펀딩', '목표를 넘기면 상장 때 IP토큰(토큰증권)으로 받아요'],
+  ['coin', '1만 원부터 펀딩', '목표를 넘기면 상장 때 IP토큰(토큰증권)으로 받아요'],
   ['trend', '분기마다 배당금', '작품 순매출의 30%를 조각 수만큼 나눠 받아요'],
 ] as const;
 

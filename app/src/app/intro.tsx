@@ -18,8 +18,8 @@ const SLIDES = [
   },
   {
     covers: ['covers/njs.jpg', 'covers/wrb.jpg', 'covers/ghb.jpg'],
-    bubble: '"1조각에 천 원이래"',
-    title: '1조각에 1천 원,\n부담 없이 시작해요',
+    bubble: '"1조각에 만 원이래"',
+    title: '1조각에 1만 원,\n부담 없이 시작해요',
     sub: '공모가 열리면 원하는 만큼 조각을 사요. 최소 1조각부터예요.',
   },
   {

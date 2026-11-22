@@ -1,9 +1,11 @@
 """기획서 v2.2 + 화면설계도 MVP v2 조정값 (docs/DECISIONS-v2.2.md).
 
-1조각 1,000원 · 모금액 80/12/5/3 · 창작자 토큰 5%(12개월 보호예수) · 배당 재원 60/30/10 · 만기 없음 ·
+1조각 1,000원(이 파일만, 서비스 기본값은 1만 원) · 모금액 80/12/5/3 · 창작자 토큰 5%(12개월 보호예수) · 배당 재원 60/30/10 · 만기 없음 ·
 보유 한도 10% · 시장가 주문 · 씨앗(100원) 묶음·환불·만료 · 회원 단계 · 19세 작품 · 출금 규칙.
 """
 from datetime import date, timedelta
+
+import pytest
 
 from app.core import clock
 from tests.conftest import open_funding
@@ -12,9 +14,17 @@ SUB = {"agree_risk_notice": True, "agree_termination_rule": True}
 ORDER = {"agree_risk_notice": True}
 
 
+@pytest.fixture(autouse=True)
+def unit_price_1000(monkeypatch):
+    """이 파일은 v2.2 분배·한도 규칙을 '1조각 1,000원' 숫자로 검증한다 (서비스 기본값은 1조각 1만 원).
+    규칙은 단가와 무관해서 숫자를 그대로 두고 단가만 고정한다."""
+    from app.core.config import settings
+    monkeypatch.setattr(settings, "default_unit_price", 1_000)
+
+
 def listed(api, wid, now, units_by_user: dict, target=1000):
     f = open_funding(api, wid, now, target_units=target)
-    assert f["unit_price"] == 1_000  # v2.2: 1조각 = 1,000원
+    assert f["unit_price"] == 1_000  # 이 파일만 1,000원으로 고정 (위 unit_price_1000)
     for who, units in units_by_user.items():
         api.ok(who, "post", f"/fundings/{f['id']}/subscriptions", json={**SUB, "units": units})
     api.ok("admin", "post", f"/admin/fundings/{f['id']}/close", params={"force": True})

@@ -122,8 +122,8 @@ export type WorkDetail = WorkCard & { is_dibbed: boolean; episode_count: number;
 export type Creator = { id: number; nickname: string; bio: string; avatar_url: string | null; works: WorkCard[] };
 export type Episode = { id: number; no: number; title: string; is_paid: boolean; paid_preview: boolean; price_coin: number; free_unlock_at: string | null; unlocked: boolean };
 export type FundingCard = { id: number; work_id: number; work_title: string; status: string; mode: string; unit_price: number; target_units: number; target_amount: number; close_at: string | null; days_left: number | null; progress: Progress; cover_url?: string | null; creator_nickname?: string; work_type?: string; genre?: string; pitch?: string;
-  readers_7d?: (number | null)[]; reader_change_1w?: number | null; readers_last_7d?: number; reader_tracked_days?: number };
-export type ReaderTrend = { work_id: number; days: { date: string; readers: number | null }[]; readers_last_7d: number; readers_prev_7d: number; reader_change_1w: number | null; tracked_days: number; episode_funnel: { no: number; starters: number; completes: number }[] };
+  readers_7d?: number[]; reader_change_1w?: number | null; readers_last_7d?: number; reader_tracked_days?: number };
+export type ReaderTrend = { work_id: number; days: { date: string; readers: number }[]; readers_last_7d: number; readers_prev_7d: number; reader_change_1w: number | null; tracked_days: number; episode_funnel: { no: number; starters: number; completes: number }[] };
 export type RewardTier = { id: number; title: string; description: string; min_units: number; limited_qty: number | null; requires_shipping: boolean };
 export type FundingDetail = FundingCard & {
   use_of_funds: string; risk_note: string; max_units_per_user: number | null; open_at: string | null; lock_at: string | null;

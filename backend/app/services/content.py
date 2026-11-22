@@ -1,3 +1,4 @@
+import math
 from datetime import timedelta
 
 from app.core import clock
@@ -191,12 +192,13 @@ def reader_change_1w(db: Session, work_id: int) -> dict:
     """v_work_metrics_pre.reader_change_1w (데이터팀 정의):
     직전 7일 대비 최근 7일 회차 뷰어(VIEW_START, 이벤트 코드 1102) 순독자 변화율 = (최근 − 직전) ÷ 직전.
     직전 7일 순독자가 0명이면 null. 기준 시각은 이벤트 발생 시각(occurred_at).
-    tracked_days = 첫 열람부터 오늘까지 일수 (데이터가 없으면 0). 14일이 안 되면 직전 7일이 다 차지 않은 것이라
+    tracked_days = 첫 열람부터 지금까지 24시간 구간 수 (데이터가 없으면 0). 14 이하면 직전 7일이 다 차지 않은 것이라
     화면은 증가율 대신 '비교 전'으로 보여 준다 (값 자체는 데이터팀 정의대로 계산)."""
     viewer = func.coalesce(literal("u") + cast(ContentEvent.user_id, String), literal("a") + ContentEvent.anon_id)
     now = clock.now()
     first = first_read_at(db, work_id)
-    tracked = (now.date() - first.date()).days + 1 if first else 0
+    # 첫 열람부터 지금까지 24시간 구간 수 (하루 독자 막대 개수와 같은 셈법)
+    tracked = math.ceil((now - first).total_seconds() / 86400) if first else 0
 
     def readers(start, end) -> int:
         return db.scalar(select(func.count(distinct(viewer))).where(
@@ -210,10 +212,10 @@ def reader_change_1w(db: Session, work_id: int) -> dict:
 
 
 def daily_readers(db: Session, work_ids: list[int], days: int = 7) -> dict[int, list[dict]]:
-    """작품별 하루 순독자 (VIEW_START 고유 독자). 오늘을 끝으로 `days`개 막대, 지금 시각부터 거꾸로 24시간씩 끊는다
-    (마지막 막대 = 최근 24시간 = '오늘'). 그래서 오전에 봐도 오늘 막대가 덜 찬 것처럼 낮아지지 않는다.
-    여러 작품을 구간마다 묶음 쿼리 한 번으로 센다 (펀딩 목록 카드용).
-    첫 열람 전 구간은 None (공개 전이라 데이터 없음), 공개 뒤 아무도 안 본 구간은 0 으로 구분한다."""
+    """작품별 하루 순독자 (VIEW_START 고유 독자). 오늘을 끝으로 최대 `days`일, 지금 시각부터 거꾸로 24시간씩 끊는다
+    (마지막 = 최근 24시간 = '오늘'). 그래서 오전에 봐도 오늘 막대가 덜 찬 것처럼 낮아지지 않는다.
+    공개한 지 3일이면 3일치만 준다 (첫 열람 전 구간은 빼고, 공개 뒤 아무도 안 본 날은 0).
+    여러 작품을 구간마다 묶음 쿼리 한 번으로 센다 (펀딩 목록 카드용)."""
     if not work_ids:
         return {}
     viewer = func.coalesce(literal("u") + cast(ContentEvent.user_id, String), literal("a") + ContentEvent.anon_id)
@@ -231,8 +233,8 @@ def daily_readers(db: Session, work_ids: list[int], days: int = 7) -> dict[int, 
                               .group_by(ContentEvent.work_id)).all())
         for w in work_ids:
             first = firsts.get(w)
-            value = None if first is None or first >= end else int(got.get(w, 0))
-            out[w].append({"date": end.date().isoformat(), "readers": value})
+            if first is not None and first < end:  # 첫 열람 전 구간은 넣지 않는다
+                out[w].append({"date": end.date().isoformat(), "readers": int(got.get(w, 0))})
     return out
 
 

@@ -109,13 +109,13 @@ function ReaderRow({ f }: { f: FundingCard }) {
   const days = f.readers_7d ?? [];
   const tracked = f.reader_tracked_days ?? 0;
   const weekly = weeklyText(f.reader_change_1w, tracked);
-  const num = tracked >= 14 && f.reader_change_1w != null;
+  const num = tracked > 14 && f.reader_change_1w != null;
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }} accessibilityLabel={`최근 7일 독자, 주간 증가율 ${weekly}`}>
       <MiniBars values={days} />
       <View style={{ flex: 1 }}>
         <Txt v="caption1" w="semibold" c={color.labelNeutral}>
-          {tracked ? `최근 7일 독자 ${(f.readers_last_7d ?? 0).toLocaleString('ko-KR')}명` : '아직 독자 데이터 없음'}
+          {tracked ? `${tracked < 7 ? '지금까지' : '최근 7일'} 독자 ${(f.readers_last_7d ?? 0).toLocaleString('ko-KR')}명` : '아직 독자 데이터 없음'}
           {tracked && tracked < 7 ? ` · 공개 ${tracked}일째` : ''}
         </Txt>
       </View>

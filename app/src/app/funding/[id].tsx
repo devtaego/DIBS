@@ -49,13 +49,13 @@ export default function FundingScreen() {
     );
   }
   const { f, ind, disc, ser, work, eps, creator, sub, trend } = data;
-  // 주간 독자 증가율: 공개 14일 전이면 직전 7일이 다 차지 않아 '비교 전'으로 (값은 데이터팀 정의 그대로 받음)
-  const tracked = trend?.tracked_days ?? (work.reader_change_1w != null ? 14 : 0);
+  // 주간 독자 증가율: 공개 2주가 안 되면 직전 7일이 다 차지 않아 '비교 전'으로 (값은 데이터팀 정의 그대로 받음)
+  const tracked = trend?.tracked_days ?? (work.reader_change_1w != null ? 15 : 0);
   const change = trend ? trend.reader_change_1w : work.reader_change_1w;
   const weekly = weeklyText(change, tracked);
-  const weeklyNum = tracked >= 14 && change != null;
+  const weeklyNum = tracked > 14 && change != null;
   const weeklyDesc = !tracked ? '아직 회차를 본 독자가 없어요.'
-    : tracked < 14 ? `파일럿 공개 ${tracked}일째예요. 직전 7일이 다 쌓이는 공개 14일째부터 주간 증가율을 보여 줘요.${trend ? ` 최근 7일 순독자 ${trend.readers_last_7d.toLocaleString('ko-KR')}명.` : ''}`
+    : tracked <= 14 ? `파일럿 공개 ${tracked}일째예요. 직전 7일이 다 쌓이는 공개 2주 뒤부터 주간 증가율을 보여 줘요.${trend ? ` ${tracked < 7 ? '지금까지' : '최근 7일'} 순독자 ${trend.readers_last_7d.toLocaleString('ko-KR')}명.` : ''}`
     : `직전 7일 대비 최근 7일 동안 회차를 본 순독자 수의 변화율이에요.${trend ? ` 최근 7일 ${trend.readers_last_7d.toLocaleString('ko-KR')}명 · 직전 7일 ${trend.readers_prev_7d.toLocaleString('ko-KR')}명.` : ''}`;
   const open = f.status === 'OPEN';
   const listed = f.status === 'LISTED' || f.status === 'SUSPENDED';
@@ -136,7 +136,7 @@ export default function FundingScreen() {
             </Metric>
             <Metric title="주간 독자 증가율" value={weekly}
               vc={weeklyNum ? ((change ?? 0) >= 0 ? color.rise : color.fall) : color.labelAlternative} desc={weeklyDesc}>
-              {trend ? <DailyReadersChart days={trend.days} trackedDays={trend.tracked_days} /> : null}
+              {trend ? <DailyReadersChart days={trend.days} /> : null}
             </Metric>
             {ind ? (
               <Metric title="관심 등록" value={`${ind.dibs_total.toLocaleString('ko-KR')}명`} desc={`최근 7일 ${ind.dibs_7d.toLocaleString('ko-KR')}명이 새로 찜했어요. 최근 4주 열람자 ${ind.pilot_readers_4w.toLocaleString('ko-KR')}명.`} />

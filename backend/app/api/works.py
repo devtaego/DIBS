@@ -231,7 +231,7 @@ def undib(work_id: int, db: Session = Depends(get_db), user: User = Depends(curr
 
 
 @router.get("/works/{work_id}/reader-trend", response_model=ReaderTrendOut,
-            summary="독자 추이 (오늘까지 7일 하루 순독자 · 주간 증가율 · 무료 회차별 시작/완독 독자)")
+            summary="독자 추이 (오늘까지 최대 7일 하루 순독자 · 주간 증가율 · 무료 회차별 시작/완독 독자)")
 def reader_trend(work_id: int, db: Session = Depends(get_db), user: User | None = Depends(optional_user)):
     return svc.reader_trend(db, svc.get_work(db, work_id, user))
 

@@ -139,7 +139,7 @@ class EpisodeMetric(BaseModel):
 
 class DailyReadersOut(BaseModel):
     date: str = Field(description="YYYY-MM-DD (KST). 마지막 = 오늘")
-    readers: int | None = Field(description="그 24시간 동안 회차를 연 순독자 (VIEW_START 고유 독자). 첫 열람 전이면 null")
+    readers: int = Field(description="그 24시간 동안 회차를 연 순독자 (VIEW_START 고유 독자)")
 
 
 class EpisodeFunnelOut(BaseModel):
@@ -152,11 +152,11 @@ class ReaderTrendOut(BaseModel):
     """펀딩 상세 차트용 독자 추이."""
 
     work_id: int
-    days: list[DailyReadersOut] = Field(description="오늘까지 7일 (6일 전 → 오늘, 지금 시각부터 24시간씩)")
+    days: list[DailyReadersOut] = Field(description="오늘까지 최대 7일 (오래된 날 → 오늘, 지금 시각부터 24시간씩). 공개 3일째면 3개")
     readers_last_7d: int
     readers_prev_7d: int
     reader_change_1w: float | None = Field(description="주간 독자 증가율 = (최근 7일 − 직전 7일) ÷ 직전 7일 (직전 0명이면 null)")
-    tracked_days: int = Field(description="첫 열람부터 오늘까지 일수 (0 = 데이터 없음). 14 미만이면 직전 7일이 다 차지 않음")
+    tracked_days: int = Field(description="첫 열람부터 지금까지 24시간 구간 수 (0 = 데이터 없음). 14 이하면 직전 7일이 다 차지 않음")
     episode_funnel: list[EpisodeFunnelOut] = Field(description="무료 공개 회차별 시작·완독 독자")
 
 

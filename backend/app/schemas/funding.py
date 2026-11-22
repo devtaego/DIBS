@@ -315,10 +315,10 @@ class FundingCardOut(FundingOut):
     work_type: str = Field(default="WEBTOON", description="WEBTOON | WEBNOVEL")
     genre: str = Field(default="")
     pitch: str = Field(default="", description="카드 한 줄 소개 (작품 소개 첫 문장)")
-    readers_7d: list[int | None] = Field(default_factory=list, description="오늘까지 7일 하루 순독자 (6일 전 → 오늘, 목록 카드 미니 차트). 공개 전이면 null")
+    readers_7d: list[int] = Field(default_factory=list, description="오늘까지 최대 7일 하루 순독자 (오래된 날 → 오늘, 목록 카드 미니 차트). 공개 3일째면 3개")
     reader_change_1w: float | None = Field(default=None, description="주간 독자 증가율 (직전 7일 대비 최근 7일)")
     readers_last_7d: int = Field(default=0, description="최근 7일 순독자 (중복 없이)")
-    reader_tracked_days: int = Field(default=0, description="첫 열람부터 오늘까지 일수. 14 미만이면 주간 비교 전")
+    reader_tracked_days: int = Field(default=0, description="첫 열람부터 지금까지 24시간 구간 수. 14 이하면 주간 비교 전")
 
 
 class StudioFundingOut(FundingCardOut):

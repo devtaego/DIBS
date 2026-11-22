@@ -2,58 +2,42 @@ import { View } from 'react-native';
 
 import { PINK, Txt, color } from '@/ds';
 
-// 펀딩 '미리보기 반응 지표' 차트들. 공개한 지 얼마 안 된 작품도 있어서 null(공개 전 · 데이터 없음)과 0(공개 뒤 아무도 안 봄)을 구분해 그린다.
-export type DayReaders = { date: string; readers: number | null };
+// 펀딩 '미리보기 반응 지표' 차트들. 하루 독자는 최근 최대 7일 — 공개한 지 3일이면 3일치만 온다.
+export type DayReaders = { date: string; readers: number };
 export type FunnelStep = { no: number; starters: number; completes: number };
 
 const md = (d: string) => `${Number(d.slice(5, 7))}/${Number(d.slice(8, 10))}`;
 const num = (n: number) => n.toLocaleString('ko-KR');
+const SLOT = `${100 / 7}%` as const; // 막대 칸 너비는 7일 기준으로 고정 → 며칠치만 있으면 왼쪽부터 채워진다
 
-/** 주간 독자 증가율 표시. 공개 14일 전이면 직전 7일이 다 차지 않아 비교하지 않는다. */
+/** 주간 독자 증가율 표시. 공개 2주가 안 되면 직전 7일이 다 차지 않아 비교하지 않는다. */
 export function weeklyText(change: number | null | undefined, trackedDays: number | undefined) {
   if (!trackedDays) return '-';
-  if (trackedDays < 14 || change == null) return '비교 전';
+  if (trackedDays <= 14 || change == null) return '비교 전'; // 14 이하: 직전 7일이 다 차지 않음
   return `${change > 0 ? '+' : ''}${(Math.round(change * 1000) / 10).toFixed(1)}%`;
 }
 
-/** 오늘까지 7일 하루 순독자: 막대 7개, 마지막이 오늘. 공개 전 날은 점선 칸. */
-export function DailyReadersChart({ days, trackedDays }: { days: DayReaders[]; trackedDays: number }) {
-  if (!trackedDays || days.every((d) => d.readers == null)) {
+/** 하루 순독자 막대 (최근 최대 7일, 마지막이 오늘). */
+export function DailyReadersChart({ days }: { days: DayReaders[] }) {
+  if (!days.length) {
     return <Txt v="label2" w="medium" c={color.labelAlternative} style={{ marginTop: 10 }}>아직 독자 데이터가 없어요. 1화가 공개되면 하루 독자가 쌓여요.</Txt>;
   }
-  const max = Math.max(1, ...days.map((d) => d.readers ?? 0));
+  const max = Math.max(1, ...days.map((d) => d.readers));
   const H = 88;
   return (
-    <View style={{ marginTop: 12 }} accessibilityLabel={`오늘까지 ${days.length}일 하루 독자 차트`}>
-      <View style={{ flexDirection: 'row', gap: 8 }}>
-        {days.map((d, i) => {
-          const today = i === days.length - 1;
-          return (
-            <View key={d.date} style={{ flex: 1, alignItems: 'center' }}>
-              <View style={{ height: H, width: '100%', justifyContent: 'flex-end' }}>
-                {d.readers == null ? (
-                  <View style={{ height: H * 0.2, borderRadius: 6, borderWidth: 1, borderStyle: 'dashed', borderColor: color.lineNormal }} />
-                ) : (
-                  <View style={{ height: Math.max(3, (d.readers / max) * H), borderRadius: 6, backgroundColor: today ? PINK : 'rgba(229,54,126,0.45)' }}
-                    accessibilityLabel={`${today ? '오늘' : md(d.date)} ${num(d.readers)}명`} />
-                )}
-              </View>
-              <Txt v="caption2" w={today ? 'bold' : 'medium'} c={today ? color.labelStrong : color.labelAssistive} style={{ marginTop: 6 }}>{today ? '오늘' : md(d.date)}</Txt>
+    <View style={{ marginTop: 12, flexDirection: 'row' }} accessibilityLabel={`최근 ${days.length}일 하루 독자 차트`}>
+      {days.map((d, i) => {
+        const today = i === days.length - 1;
+        return (
+          <View key={d.date} style={{ width: SLOT, paddingHorizontal: 4, alignItems: 'center' }}>
+            <View style={{ height: H, width: '100%', justifyContent: 'flex-end' }}>
+              <View style={{ height: Math.max(3, (d.readers / max) * H), borderRadius: 6, backgroundColor: today ? PINK : 'rgba(229,54,126,0.45)' }}
+                accessibilityLabel={`${today ? '오늘' : md(d.date)} ${num(d.readers)}명`} />
             </View>
-          );
-        })}
-      </View>
-      {days.some((d) => d.readers == null) ? <View style={{ marginTop: 8 }}><Legend dashed label="공개 전" /></View> : null}
-    </View>
-  );
-}
-
-function Legend({ c, label, dashed }: { c?: string; label: string; dashed?: boolean }) {
-  return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-      <View style={dashed ? { width: 10, height: 10, borderRadius: 2, borderWidth: 1, borderStyle: 'dashed', borderColor: color.labelAssistive }
-        : { width: 10, height: 10, borderRadius: 2, backgroundColor: c }} />
-      <Txt v="caption2" w="medium" c={color.labelAlternative}>{label}</Txt>
+            <Txt v="caption2" w={today ? 'bold' : 'medium'} c={today ? color.labelStrong : color.labelAssistive} style={{ marginTop: 6 }}>{today ? '오늘' : md(d.date)}</Txt>
+          </View>
+        );
+      })}
     </View>
   );
 }
@@ -81,14 +65,15 @@ export function EpisodeFunnelChart({ funnel }: { funnel: FunnelStep[] }) {
   );
 }
 
-/** 목록 카드용 7일 미니 막대. null 은 점으로. */
-export function MiniBars({ values, w = 64, h = 24 }: { values: (number | null)[]; w?: number; h?: number }) {
-  const max = Math.max(1, ...values.map((v) => v ?? 0));
+/** 목록 카드용 미니 막대 (최근 최대 7일, 칸 너비는 7일 기준). */
+export function MiniBars({ values, w = 64, h = 24 }: { values: number[]; w?: number; h?: number }) {
+  const max = Math.max(1, ...values);
   return (
-    <View style={{ width: w, height: h, flexDirection: 'row', alignItems: 'flex-end', gap: 2 }} accessibilityElementsHidden>
+    <View style={{ width: w, height: h, flexDirection: 'row', alignItems: 'flex-end' }} accessibilityElementsHidden>
       {values.map((v, i) => (
-        <View key={i} style={{ flex: 1, height: v == null ? 2 : Math.max(2, (v / max) * h), borderRadius: 2,
-          backgroundColor: v == null ? color.lineNormal : i === values.length - 1 ? PINK : 'rgba(229,54,126,0.45)' }} />
+        <View key={i} style={{ width: SLOT, paddingHorizontal: 1, height: '100%', justifyContent: 'flex-end' }}>
+          <View style={{ height: Math.max(2, (v / max) * h), borderRadius: 2, backgroundColor: i === values.length - 1 ? PINK : 'rgba(229,54,126,0.45)' }} />
+        </View>
       ))}
     </View>
   );

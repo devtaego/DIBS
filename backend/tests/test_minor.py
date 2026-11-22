@@ -63,3 +63,13 @@ def test_buy_seeds_with_deposit(api):
 def test_buy_seeds_with_deposit_insufficient(api):
     api.login("b")
     api.err("b", "post", "/wallet/coin/packages/buy", "INSUFFICIENT_BALANCE", json={"package_id": "seed10", "channel": "DEPOSIT"})
+
+
+def test_buy_seeds_with_exact_deposit(api):
+    """예치금이 결제 금액과 딱 같으면 결제되고 0원이 된다. 청약에 묶인 돈(deposit_locked)은 쓰지 않는다."""
+    api.login("c")
+    api.ok("c", "post", "/wallet/deposit/charge", json={"amount": 1000})
+    api.ok("c", "post", "/wallet/coin/packages/buy", json={"package_id": "seed10", "channel": "DEPOSIT"})
+    w = api.ok("c", "get", "/wallet")
+    assert w["deposit_available"] == 0 and w["coin"] == 1000
+    api.err("c", "post", "/wallet/coin/packages/buy", "INSUFFICIENT_BALANCE", json={"package_id": "seed10", "channel": "DEPOSIT"})

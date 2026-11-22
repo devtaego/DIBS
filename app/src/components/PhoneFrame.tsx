@@ -16,9 +16,13 @@ export function useScreenWidth() {
   return isFramed(width) ? FRAME_W : width;
 }
 
+// 시연 빌드(artifact_postprocess.py)는 index.html 의 CSS 로 이미 #root 를 휴대폰 틀(상태바 44px 포함)로 만든다.
+// 그 안에서 또 844px 틀을 그리면 남는 높이(800px)보다 커서 위아래가 22px씩 잘린다 → 그때는 틀을 그리지 않는다.
+const cssFramed = () => typeof document !== 'undefined' && !!document.getElementById('phone-frame');
+
 export function PhoneFrame({ children }: { children: ReactNode }) {
   const { width, height } = useWindowDimensions();
-  if (!isFramed(width)) return <>{children}</>;
+  if (!isFramed(width) || cssFramed()) return <>{children}</>;
   const h = Math.min(FRAME_H, height - 32);
   return (
     <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#E9EBEF' }}>

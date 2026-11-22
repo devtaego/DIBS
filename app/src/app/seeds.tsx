@@ -1,5 +1,5 @@
-import { router, useLocalSearchParams } from 'expo-router';
-import { useState } from 'react';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { useCallback, useRef, useState } from 'react';
 import { Pressable, View } from 'react-native';
 
 import { ConfirmSheet } from '@/components/ConfirmSheet';
@@ -33,6 +33,9 @@ export default function Seeds() {
     return { pkgs, w, pts };
   }, []);
 
+  // 예치금을 충전하고 돌아오면 잔액을 다시 읽는다 (첫 진입은 useApi 가 읽음)
+  const first = useRef(true);
+  useFocusEffect(useCallback(() => { if (first.current) { first.current = false; return; } reload(); }, [reload]));
   const p = data?.pkgs.find((x) => x.id === pick);
   const seeds = data ? Math.floor(data.w.coin / 100) : 0;
   const ptSeeds = Math.floor((data?.pts.balance ?? 0) / 100);
@@ -125,12 +128,16 @@ export default function Seeds() {
           rows={[
             { label: '상품', value: `씨앗 ${p.total_seeds}개${p.bonus_seeds ? ` (보너스 ${p.bonus_seeds}개 포함)` : ''}` },
             { label: '결제 수단', value: '키움 예치금' },
-            { label: '결제 후 예치금', value: `${dep.toLocaleString('ko-KR')}원 → ${(dep - p.price).toLocaleString('ko-KR')}원` },
+            dep < p.price
+              ? { label: '내 예치금', value: `${dep.toLocaleString('ko-KR')}원 (${(p.price - dep).toLocaleString('ko-KR')}원 부족)` }
+              : { label: '결제 후 예치금', value: `${dep.toLocaleString('ko-KR')}원 → ${(dep - p.price).toLocaleString('ko-KR')}원` },
             { label: '결제 후 내 씨앗', value: `${seeds.toLocaleString('ko-KR')}개 → ${(seeds + p.total_seeds).toLocaleString('ko-KR')}개` },
             { label: '결제 금액', value: `${p.price.toLocaleString('ko-KR')}원`, strong: true },
           ]}
           note={dep < p.price ? `예치금이 ${(p.price - dep).toLocaleString('ko-KR')}원 모자라요. 예치금을 충전하고 다시 시도해 주세요.` : '7일 안에 쓰지 않은 씨앗은 결제를 취소할 수 있고, 취소하면 예치금으로 돌아가요. 씨앗을 예치금으로 바꾸는 건 안 돼요.'}
-          confirmLabel={`${p.price.toLocaleString('ko-KR')}원 결제하기`} onConfirm={buy} disabled={dep < p.price} />
+          // 예치금이 모자라면 결제 대신 예치금 충전 화면으로 (서버도 모자라면 거절한다)
+          confirmLabel={dep < p.price ? '예치금 충전하러 가기' : `${p.price.toLocaleString('ko-KR')}원 결제하기`}
+          onConfirm={dep < p.price ? () => { setAsk(null); router.push({ pathname: '/transfer', params: { type: 'in' } }); } : buy} />
       ) : null}
       <ConfirmSheet visible={ask === 'convert'} onClose={() => setAsk(null)} busy={busy} title="포인트를 씨앗으로 바꿀까요?"
         rows={[

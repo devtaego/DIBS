@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState, type ComponentRef } from 'react';
 import { FlatList, Pressable, ScrollView, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 
@@ -42,12 +42,21 @@ export default function Home() {
   const tiles = GENRES.slice(1).map((g) => ({ g, list: pop.filter((w) => match(w.genre, g)) })).filter((t) => t.list.length);
   const funding = (data?.fundings ?? []).filter((f) => (f.work_type ?? 'WEBTOON') === type);
   const heroRef = useRef<FlatList>(null);
+  const pageRef = useRef<ComponentRef<typeof ScrollView>>(null);
+  // 로고 = 홈 처음 상태로: 웹툰 탭 · 장르 전체 · 맨 위 (다른 화면에서 로고를 누르면 홈으로 온다)
+  const goHomeTop = () => {
+    setFmt('웹툰'); setGenre('전체'); setMore(false); setSlide(0);
+    heroRef.current?.scrollToOffset({ offset: 0, animated: false });
+    pageRef.current?.scrollTo({ y: 0, animated: true });
+  };
   const HW = W - 32;
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: color.bgNormal }} edges={['top']}>
       <View style={{ height: 56, flexDirection: 'row', alignItems: 'center', paddingLeft: 20, paddingRight: 8 }}>
-        <Logo size={28} />
+        <Pressable onPress={goHomeTop} accessibilityRole="link" accessibilityLabel="홈 처음으로" hitSlop={8}>
+          <Logo size={28} />
+        </Pressable>
         <View style={{ flexDirection: 'row', gap: 14, alignItems: 'baseline', marginLeft: 14 }} accessibilityRole="tablist">
           {(['웹툰', '웹소설'] as Fmt[]).map((k) => (
             <Pressable key={k} onPress={() => { setFmt(k); setGenre('전체'); setMore(false); setSlide(0); heroRef.current?.scrollToOffset({ offset: 0, animated: false }); }}
@@ -61,7 +70,7 @@ export default function Home() {
         <HeadBtn icon="bell" label="알림" onPress={() => router.push('/notifications')} />
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 120 }}>
+      <ScrollView ref={pageRef} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 120 }}>
         <ErrorBox error={error} onRetry={reload} />
         {loading && !data ? <Loading /> : null}
 

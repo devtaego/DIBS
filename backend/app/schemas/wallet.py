@@ -54,7 +54,7 @@ class CoinPackageOut(BaseModel):
 
 class BuyPackageIn(BaseModel):
     package_id: str = Field(examples=["seed30"])
-    channel: str = Field(default="PG", pattern="^(IAP|PG)$", description="IAP = 인앱결제 / PG = 카드·계좌 (모의)")
+    channel: str = Field(default="PG", pattern="^(IAP|PG|DEPOSIT)$", description="IAP = 인앱결제 / PG = 카드·계좌 / DEPOSIT = 키움 예치금")
 
 
 class CoinLotOut(BaseModel):

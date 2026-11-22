@@ -39,3 +39,27 @@ def test_reader_trend_partial_history(api, published_work, now):
     assert t["days"][-1]["date"] == now.date().isoformat()
     assert t["tracked_days"] == 4 and t["reader_change_1w"] is None  # 직전 7일 0명
     assert [x["no"] for x in t["episode_funnel"]] == sorted(x["no"] for x in t["episode_funnel"])
+
+
+def test_buy_seeds_with_deposit(api):
+    """씨앗 묶음을 키움 예치금으로 결제: 예치금이 결제 금액만큼 줄고 씨앗이 들어온다. 7일 안 미사용이면 예치금으로 환불."""
+    api.login("a")
+    api.ok("a", "post", "/wallet/deposit/charge", json={"amount": 100_000})
+    before = api.ok("a", "get", "/wallet")
+    r = api.ok("a", "post", "/wallet/coin/packages/buy", json={"package_id": "seed30", "channel": "DEPOSIT"})
+    after = api.ok("a", "get", "/wallet")
+    assert before["deposit_available"] - after["deposit_available"] == r["paid_amount"] == 3000
+    assert after["coin"] - before["coin"] == 3000
+    lot = next(l for l in api.ok("a", "get", "/wallet/coin/lots") if l["source"] == "DEPOSIT")
+    api.ok("a", "post", f"/wallet/coin/lots/{lot['id']}/refund")
+    back = api.ok("a", "get", "/wallet")
+    assert back["deposit_available"] == before["deposit_available"] and back["coin"] == before["coin"]
+    api.login("admin", "ADMIN")
+    lines = api.ok("admin", "get", "/admin/ledger/trial-balance")
+    for mode in {line["mode"] for line in lines}:
+        assert sum(line["balance"] for line in lines if line["mode"] == mode) == 0
+
+
+def test_buy_seeds_with_deposit_insufficient(api):
+    api.login("b")
+    api.err("b", "post", "/wallet/coin/packages/buy", "INSUFFICIENT_BALANCE", json={"package_id": "seed10", "channel": "DEPOSIT"})

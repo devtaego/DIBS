@@ -10,7 +10,7 @@ import { useKiwoomLink } from '@/lib/prefs';
 import { useApi } from '@/lib/useApi';
 
 const KIND: Record<string, string> = {
-  COIN_CHARGE: '씨앗 충전', EPISODE_UNLOCK: '회차 열람', DEPOSIT_IN: '예치금 충전', SUBSCRIPTION_LOCK: '청약 증거금',
+  COIN_CHARGE: '씨앗 충전', SEED_PAY_DEPOSIT: '씨앗 결제', SEED_REFUND_DEPOSIT: '씨앗 결제 취소', EPISODE_UNLOCK: '회차 열람', DEPOSIT_IN: '예치금 충전', SUBSCRIPTION_LOCK: '청약 증거금',
   SUBSCRIPTION_UNLOCK: '청약 변경 환급', FUNDING_ALLOCATION: '배정 · 환불', FUNDING_FAILED_RELEASE: '펀딩 미성립 환불',
   ISSUE_FAILED_REFUND: '발행 실패 환불', TRADE: '조각 체결', ORDER_LOCK: '주문', ORDER_UNLOCK: '주문 취소',
   DIVIDEND_PAYOUT: '분기 정산금', DISCONTINUE_DISTRIBUTION: '연재 중단 분배', WITHDRAWAL_LOCK: '출금 신청', WITHDRAWAL_OUT: '출금',

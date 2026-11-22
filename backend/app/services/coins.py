@@ -21,7 +21,7 @@ from app.services import ledger
 from app.services.ledger import Leg
 
 COIN_MODE = Mode.LIVE
-SOURCES = ("BONUS", "CONVERTED", "PG", "IAP")  # 차감 순서
+SOURCES = ("BONUS", "CONVERTED", "DEPOSIT", "PG", "IAP")  # 차감 순서 (DEPOSIT = 키움 예치금으로 결제한 묶음)
 
 
 def seeds(won: int) -> float:
@@ -81,14 +81,22 @@ def packages() -> list[dict]:
 
 
 def buy_package(db: Session, user: User, package_id: str, channel: str) -> dict:
-    """씨앗 묶음 구매 (결제는 모의). IAP는 스토어 수수료 보전분(10%)을 더한 값을 결제한다."""
+    """씨앗 묶음 구매. IAP는 스토어 수수료 보전분(10%)을 더한 값을 결제한다.
+    DEPOSIT = 키움 예치금에서 결제: 예치금에서 결제 금액만큼 빠져나가고(증권사 계좌에서 출금해 결제한 것으로 기록),
+    씨앗은 PG 결제와 같은 방식으로 들어온다. 예치금이 모자라면 서버가 거절한다."""
     pkg = next((p for p in packages() if p["id"] == package_id), None)
     if pkg is None:
         raise NotFound("PACKAGE_NOT_FOUND", "씨앗 묶음을 찾을 수 없어요")
-    if channel not in ("IAP", "PG"):
-        raise DomainError("BAD_CHANNEL", "결제 수단은 IAP 또는 PG예요")
+    if channel not in ("IAP", "PG", "DEPOSIT"):
+        raise DomainError("BAD_CHANNEL", "결제 수단은 IAP, PG, DEPOSIT 중 하나예요")
     coin = ledger.get_account(db, AccountKind.COIN, COIN_MODE, user.id)
     paid = pkg["iap_price"] if channel == "IAP" else pkg["price"]
+    if channel == "DEPOSIT":
+        from app.services.policy import current_mode
+        mode = current_mode()
+        dep = ledger.user_accounts(db, user.id, mode).deposit
+        ledger.post(db, "SEED_PAY_DEPOSIT", [Leg(dep, -paid), Leg(ledger.sys(db, AccountKind.SYS_BANK, mode), paid)],
+                    mode, "user", user.id, memo=f"씨앗 {pkg['seeds']}개 결제 (키움 예치금)")
     j = ledger.post(db, "COIN_CHARGE", [Leg(ledger.sys(db, AccountKind.SYS_PG, COIN_MODE), -pkg["coin"]), Leg(coin, pkg["coin"])],
                     COIN_MODE, "user", user.id, memo=f"씨앗 {pkg['seeds']}개 ({channel})")
     lots = [credit(db, user.id, channel, pkg["coin"], j, paid_amount=paid, package_id=package_id)]
@@ -128,8 +136,8 @@ def refund_lot(db: Session, user: User, lot_id: int) -> CoinLot:
     lot = db.get(CoinLot, lot_id)
     if lot is None or lot.user_id != user.id:
         raise NotFound("COIN_LOT_NOT_FOUND", "충전 내역을 찾을 수 없어요")
-    if lot.source != "PG":
-        raise Conflict("NOT_REFUNDABLE", "카드·계좌 결제(PG)로 충전한 씨앗만 환불할 수 있어요. 인앱결제는 스토어에서 환불해요")
+    if lot.source not in ("PG", "DEPOSIT"):
+        raise Conflict("NOT_REFUNDABLE", "카드·계좌나 키움 예치금으로 결제한 씨앗만 환불할 수 있어요. 인앱결제는 스토어에서 환불해요")
     if lot.status != "ACTIVE" or lot.remaining <= 0:
         raise Conflict("NOT_REFUNDABLE", "환불할 씨앗이 남아 있지 않아요")
     coin = ledger.get_account(db, AccountKind.COIN, COIN_MODE, user.id)
@@ -142,6 +150,13 @@ def refund_lot(db: Session, user: User, lot_id: int) -> CoinLot:
     ledger.post(db, "COIN_REFUND" if full_cancel else "COIN_REFUND_REMAINING",
                 [Leg(coin, -amt), Leg(ledger.sys(db, AccountKind.SYS_PG, COIN_MODE), amt)],
                 COIN_MODE, "coin_lot", lot.id, memo="씨앗 결제 취소" if full_cancel else "남은 씨앗 계좌 환불")
+    if lot.source == "DEPOSIT":  # 예치금으로 결제한 묶음은 키움 예치금으로 돌려준다
+        from app.services.policy import current_mode
+        mode = current_mode()
+        back = lot.paid_amount if full_cancel else amt
+        ledger.post(db, "SEED_REFUND_DEPOSIT", [Leg(ledger.sys(db, AccountKind.SYS_BANK, mode), -back),
+                                                Leg(ledger.user_accounts(db, user.id, mode).deposit, back)],
+                    mode, "coin_lot", lot.id, memo="씨앗 환불 → 키움 예치금")
     lot.remaining, lot.status = 0, "REFUNDED"
     return lot
 

@@ -2,10 +2,11 @@
 // 탭 화면 머리말, 알약 칩, 표지 이미지, 미니 차트, 바텀시트처럼 여러 화면이 같은 모양을 쓰는 것만 모았다.
 import { router } from 'expo-router';
 import type { ReactNode } from 'react';
-import { Image, Modal, Platform, Pressable, ScrollView, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import { Image, Platform, Pressable, ScrollView, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Path } from 'react-native-svg';
 
+import { Overlay } from '@/components/Overlay';
 import { imageSource } from '@/lib/media';
 
 import { Icon, Txt } from './base';
@@ -161,7 +162,7 @@ export function Spark({ values, up, w = 64, h = 26, area = false, stroke = 2.2 }
 /** 바텀시트 */
 export function Sheet({ visible, onClose, title, children }: { visible: boolean; onClose: () => void; title?: string; children: ReactNode }) {
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+    <Overlay visible={visible} animationType="slide" onRequestClose={onClose}>
       <View style={{ flex: 1, justifyContent: 'flex-end' }}>
         <Pressable accessibilityLabel="닫기" onPress={onClose} style={[StyleSheet.absoluteFill, { backgroundColor: color.dimmer }]} />
         <View style={sh.sheet}>
@@ -170,7 +171,7 @@ export function Sheet({ visible, onClose, title, children }: { visible: boolean;
           {children}
         </View>
       </View>
-    </Modal>
+    </Overlay>
   );
 }
 

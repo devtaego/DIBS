@@ -4,9 +4,10 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { imageSource } from '@/lib/media';
-import { Animated, Easing, Image, Modal, Pressable, StyleSheet, View, type ImageSourcePropType, type StyleProp, type ViewStyle } from 'react-native';
+import { Animated, Easing, Image, Pressable, StyleSheet, View, type ImageSourcePropType, type StyleProp, type ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { Overlay } from '@/components/Overlay';
 import { Button, T } from '@/components/ui';
 import { colors, radii, space, type as ts } from '@/lib/theme';
 
@@ -200,7 +201,7 @@ export function CtaBar({ children }: { children: ReactNode }) {
 /** 결제·청약·주문 로딩: 디비가 진행 막대 위를 달린다 */
 export function DibbyLoading({ visible, title, step, pct }: { visible: boolean; title: string; step: string; pct: number }) {
   return (
-    <Modal visible={visible} transparent animationType="fade" statusBarTranslucent>
+    <Overlay visible={visible} animationType="fade">
       <View style={s.dl}>
         <View style={{ width: '78%' }}>
           <Ride pct={pct} />
@@ -212,7 +213,7 @@ export function DibbyLoading({ visible, title, step, pct }: { visible: boolean; 
           <T size={12} weight="500" color={colors.labelAssistive}>원금 손실 가능 · 예금자 보호 대상 아님</T>
         </View>
       </View>
-    </Modal>
+    </Overlay>
   );
 }
 

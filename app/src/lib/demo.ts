@@ -216,9 +216,16 @@ async function demoRequestInner(method: string, path: string, body?: unknown, qu
     const id = (body as { package_id?: string })?.package_id;
     const pk = ((F['/wallet/coin/packages'] ?? []) as { id: string; coin: number; bonus_coin: number; price: number }[]).find((x) => x.id === id);
     if (!pk) throw Object.assign(new Error('씨앗 묶음을 찾을 수 없어요'), { status: 404, code: 'PACKAGE_NOT_FOUND' });
+    const ch = (body as { channel?: string })?.channel ?? 'PG';
+    if (ch === 'DEPOSIT') { // 서버와 같게: 키움 예치금에서 결제 금액만큼 빠진다
+      const w0 = wallet() as unknown as W;
+      if (pk.price > w0.deposit_available) throw err(409, 'INSUFFICIENT_BALANCE', '예치금이 부족해요');
+      setW((w) => { w.deposit_available -= pk.price; });
+      line('SEED_PAY_DEPOSIT', 'DEPOSIT', -pk.price, undefined, '씨앗 결제 (키움 예치금)');
+    }
     addCoin(pk.coin + pk.bonus_coin);
-    line('COIN_CHARGE', 'COIN', pk.coin + pk.bonus_coin, undefined, `씨앗 묶음 (카드)`);
-    return { package: pk, channel: 'PG', paid_amount: pk.price, lots: [], wallet: wallet() };
+    line('COIN_CHARGE', 'COIN', pk.coin + pk.bonus_coin, undefined, ch === 'DEPOSIT' ? '씨앗 묶음 (키움 예치금)' : '씨앗 묶음 (카드)');
+    return { package: pk, channel: ch, paid_amount: pk.price, lots: [], wallet: wallet() };
   }
   if (path === '/me/partner-points/convert') {
     const n = Number((body as { points?: number })?.points ?? 0);

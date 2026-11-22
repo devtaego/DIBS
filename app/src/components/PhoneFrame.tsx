@@ -22,9 +22,9 @@ export function PhoneFrame({ children }: { children: ReactNode }) {
   const h = Math.min(FRAME_H, height - 32);
   return (
     <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#E9EBEF' }}>
-      <View style={{ width: FRAME_W, height: h, borderRadius: 28, overflow: 'hidden', backgroundColor: '#FFFFFF',
+      <View nativeID="phone-root" style={{ width: FRAME_W, height: h, borderRadius: 28, overflow: 'hidden', backgroundColor: '#FFFFFF',
         shadowColor: '#191F28', shadowOpacity: 0.18, shadowRadius: 40, shadowOffset: { width: 0, height: 16 },
-        // 틀 안에서 position: fixed·absolute 요소(하단 탭 등)가 틀을 기준으로 놓이게 한다
+        // 틀 안에서 position: fixed·absolute 요소(하단 탭 등)가 틀을 기준으로 놓이게 한다. 팝업(Overlay)은 #phone-root 안으로 포털
         transform: [{ translateZ: 0 }] as never }}>
         {children}
       </View>

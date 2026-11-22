@@ -10,7 +10,7 @@ import { api, type ApiError, type Wallet } from '@/lib/api';
 import { useApi } from '@/lib/useApi';
 
 // 08 씨앗 구매 (Screens – MVP v2): 씨앗 묶음 10 · 30 · 55(+5), 키움 포인트 전환
-// 결제: 모의 모드에서는 카드·계좌(PG). 예치금으로 사기(예치금 → 씨앗 전환)는 실거래 모드에서만 열린다 (기획서 3-4-2)
+// 결제: 키움 예치금에서 결제 금액만큼 빠진다 (DEPOSIT). 7일 안에 안 쓴 묶음은 결제 취소하면 예치금으로 돌아간다
 type Pkg = { id: string; seeds: number; bonus_seeds: number; price: number; iap_price: number; total_seeds: number };
 type Points = { balance: number };
 
@@ -36,12 +36,13 @@ export default function Seeds() {
   const p = data?.pkgs.find((x) => x.id === pick);
   const seeds = data ? Math.floor(data.w.coin / 100) : 0;
   const ptSeeds = Math.floor((data?.pts.balance ?? 0) / 100);
+  const dep = data?.w.deposit_available ?? 0;
 
   const buy = async () => {
     if (!p) return;
     setBusy(true);
     try {
-      await api.post('/wallet/coin/packages/buy', { package_id: p.id, channel: 'PG' });
+      await api.post('/wallet/coin/packages/buy', { package_id: p.id, channel: 'DEPOSIT' });
       setAsk(null);
       if (back) router.back();
       else { await reload(); setNotice({ ok: true, text: `결제했어요 · 씨앗 ${p.total_seeds}개가 들어왔어요 (${p.price.toLocaleString('ko-KR')}원)` }); }
@@ -117,19 +118,19 @@ export default function Seeds() {
         );
       })}
       <Txt v="caption1" w="medium" c={color.labelAssistive} style={{ marginTop: 6, marginHorizontal: 2 }}>
-        씨앗은 회차 미리보기·굿즈·이벤트에만 쓰고 현금이나 예치금으로 바꿀 수 없어요. 카드·계좌로 산 씨앗은 7일 안에 쓰지 않았으면 결제를 취소할 수 있어요. 보너스 씨앗은 90일 뒤 사라져요.
+        씨앗 값은 키움 예치금에서 결제돼요. 씨앗은 회차 미리보기·굿즈·이벤트에만 쓰고 현금이나 예치금으로 바꿀 수 없어요. 7일 안에 쓰지 않은 씨앗은 결제를 취소할 수 있어요. 보너스 씨앗은 90일 뒤 사라져요.
       </Txt>
       {p ? (
         <ConfirmSheet visible={ask === 'buy'} onClose={() => setAsk(null)} busy={busy} title="결제할까요?"
           rows={[
             { label: '상품', value: `씨앗 ${p.total_seeds}개${p.bonus_seeds ? ` (보너스 ${p.bonus_seeds}개 포함)` : ''}` },
-            { label: '결제 수단', value: '카드·계좌 (모의 결제)' },
-            { label: '내 키움 계좌 예치금', value: `${(data?.w.deposit_available ?? 0).toLocaleString('ko-KR')}원 (그대로)` },
+            { label: '결제 수단', value: '키움 예치금' },
+            { label: '결제 후 예치금', value: `${dep.toLocaleString('ko-KR')}원 → ${(dep - p.price).toLocaleString('ko-KR')}원` },
             { label: '결제 후 내 씨앗', value: `${seeds.toLocaleString('ko-KR')}개 → ${(seeds + p.total_seeds).toLocaleString('ko-KR')}개` },
             { label: '결제 금액', value: `${p.price.toLocaleString('ko-KR')}원`, strong: true },
           ]}
-          note="씨앗 값은 카드·계좌에서 따로 나가고, 투자용 키움 예치금에서는 빠지지 않아요. 7일 안에 쓰지 않은 씨앗은 결제를 취소할 수 있고, 씨앗은 현금이나 예치금으로 바꿀 수 없어요."
-          confirmLabel={`${p.price.toLocaleString('ko-KR')}원 결제하기`} onConfirm={buy} />
+          note={dep < p.price ? `예치금이 ${(p.price - dep).toLocaleString('ko-KR')}원 모자라요. 예치금을 충전하고 다시 시도해 주세요.` : '7일 안에 쓰지 않은 씨앗은 결제를 취소할 수 있고, 취소하면 예치금으로 돌아가요. 씨앗을 예치금으로 바꾸는 건 안 돼요.'}
+          confirmLabel={`${p.price.toLocaleString('ko-KR')}원 결제하기`} onConfirm={buy} disabled={dep < p.price} />
       ) : null}
       <ConfirmSheet visible={ask === 'convert'} onClose={() => setAsk(null)} busy={busy} title="포인트를 씨앗으로 바꿀까요?"
         rows={[

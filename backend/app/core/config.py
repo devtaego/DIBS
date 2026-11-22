@@ -55,8 +55,9 @@ class Settings(BaseModel):
     max_subscription_bps: int = 500
     subscription_lock_minutes: int = 60  # 마감 N분 전부터 감액·취소 불가
 
-    # 모금액 배분 (bps, 1bps = 0.01%) — v2.2 조정값: 작가 80 / 발행 실비 12 / 최소 유보금 5 / DIBS 운영비 3
-    # 기획서 0-4의 '작가 80 · 발행 측 20'과 1-3의 'DIBS 펀딩 운영비 3%'를 함께 만족한다. 유보금은 신탁 보관
+    # 모금액 배분 (bps, 1bps = 0.01%) — 확정은 DIBS 운영비 3%뿐이다 (수익구조 설계 v1.8).
+    # 작가 80 / 발행 실비 12 / 최소 유보금 5는 시연용 임시값 (v2.2 조정값). 발행비·유보금·작가 지원 비율이
+    # 작품별 제작 계획으로 확정되면 이 값과 '작가 지원' 칸을 바꾼다. 유보금은 신탁 보관
     creator_bps: int = 8000
     issuance_cost_bps: int = 1200
     reserve_bps: int = 500
@@ -147,6 +148,11 @@ class Settings(BaseModel):
     royalty_holder_bps: int = 3000
     # 회수 후 배분: v2.2는 회수 전후 전환 없음 (같은 값). 펀딩별로 다르게 심사할 때만 바꾼다
     royalty_platform_after_bps: int = 1000
+    # 2차 IP·해외 순수익 (판권·단행본·굿즈·캐릭터·해외 연재) — 수익구조 설계 v1.8: 작가 40 / 투자자 25 / DIBS·에이전시 35
+    # (DIBS 35 = 정산 10 + 에이전시 20 + 2차 외주비 5). 순수익 = 수입 − 외부 직접비. 회수 전후 같은 비율
+    royalty_secondary_creator_bps: int = 4000
+    royalty_secondary_holder_bps: int = 2500
+    royalty_secondary_platform_bps: int = 3500
     royalty_creator_after_bps: int = 6000
     royalty_holder_after_bps: int = 3000
 

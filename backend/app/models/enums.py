@@ -148,13 +148,14 @@ class PayoutStatus(StrEnum):
 
 
 class RevenueSource(StrEnum):
-    # 모두 순매출 → 작가 / 투자자 / DIBS 로 나뉜다 (v4.0)
+    # 1차(연재) 매출: 유료 회차 · 광고 · 외부 연재 → 작가 60 / 투자자 30 / DIBS 10
+    # 2차 IP·해외: 굿즈 · 판권 등 → 작가 40 / 투자자 25 / DIBS·에이전시 35 (수익구조 설계 v1.8)
     PAID_EPISODE = "PAID_EPISODE"
     AD = "AD"
-    GOODS = "GOODS"
+    GOODS = "GOODS"  # 굿즈·캐릭터 상품 순매출 (2차 IP 비율)
     EXTERNAL_SERIAL = "EXTERNAL_SERIAL"  # 독점 종료 후 외부 플랫폼 연재 정산금 (v2.3: 전액, 실비 공제 후 60/30/10)
-    # v2.3: 2차·해외 IP (판권·출판·캐릭터 라이선스·해외 연재). Dibs가 에이전시로 받은 금액에서 실비만 빼고
-    # 1차 매출과 같은 비율(작가 60 / 투자자 30 / Dibs 10)로 나눈다. Dibs 에이전시 몫은 이 10%뿐
+    # 2차·해외 IP (판권·출판·캐릭터 라이선스·해외 연재). Dibs가 에이전시로 받은 금액에서 외부 직접비를 빼고
+    # 작가 40 / 투자자 25 / Dibs·에이전시 35로 나눈다 (수익구조 설계 v1.8). 계약서·정산서 증빙 필수
     SECONDARY_IP = "SECONDARY_IP"
 
 

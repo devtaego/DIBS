@@ -35,7 +35,8 @@ class DividendRun(Base):
     period: Mapped[str] = mapped_column(String(7))
     record_date: Mapped[date] = mapped_column(Date)  # 기준일 = 분기 말일
     pay_date: Mapped[date] = mapped_column(Date)  # 다음 달 10일
-    net_revenue: Mapped[int] = mapped_column(BigInteger)  # 순매출 (작가·투자자·DIBS 로 나눔)
+    net_revenue: Mapped[int] = mapped_column(BigInteger)  # 순매출 합계 (1차 + 2차)
+    secondary_revenue: Mapped[int] = mapped_column(BigInteger, default=0)  # 그중 2차 IP·해외 (40 / 25 / 35로 나눈 몫)
     phase: Mapped[str] = mapped_column(String(20), default="BEFORE_RECOUP")  # BEFORE_RECOUP | AFTER_RECOUP
     recouped_now: Mapped[bool] = mapped_column(Boolean, default=False)  # 이 분기로 원금 회수 달성
     holder_pool: Mapped[int] = mapped_column(BigInteger)

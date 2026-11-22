@@ -239,8 +239,8 @@ def test_dividend_metrics_use_confirmed_quarters_only(api, published_work, now):
     assert s["annual_dist_yield"] == round(300 / 1_000, 6)  # 확정 분기 합 ÷ 현재가(공모가 1,000원)
 
 
-def test_secondary_ip_revenue_split_like_primary(api, published_work, now):
-    """2차·해외 IP 수익은 실비만 빼고 1차 매출과 같은 60/30/10 (증빙 필수)."""
+def test_secondary_ip_revenue_split_40_25_35(api, published_work, now):
+    """2차·해외 IP 순수익(외부 직접비 공제 후)은 작가 40 / 투자자 25 / DIBS·에이전시 35 (수익구조 설계 v1.8, 증빙 필수)."""
     api.login("a")
     api.ok("a", "post", "/wallet/deposit/charge", json={"amount": 2_000_000})
     fid = listed(api, published_work["id"], now, {"a": 1000})
@@ -248,8 +248,25 @@ def test_secondary_ip_revenue_split_like_primary(api, published_work, now):
     api.err("admin", "post", "/admin/revenues", "EVIDENCE_REQUIRED", json=ip)
     api.ok("admin", "post", "/admin/revenues", json={**ip, "evidence_url": "s3://dibs/contracts/drama-license.pdf"})
     run = api.ok("admin", "post", f"/admin/fundings/{fid}/dividends", params={"force": True}, json={"period": "2027Q2"})
-    assert (run["net_revenue"], run["holder_pool"], run["creator_amount"], run["platform_amount"]) == (
-        4_000_000, 1_200_000, 2_400_000, 400_000)
+    assert (run["net_revenue"], run["secondary_revenue"]) == (4_000_000, 4_000_000)
+    assert (run["holder_pool"], run["creator_amount"], run["platform_amount"]) == (1_000_000, 1_600_000, 1_400_000)
+
+
+def test_primary_and_secondary_revenue_split_separately(api, published_work, now):
+    """한 분기에 1차·2차가 함께 있으면 따로 나눠 더한다: 광고 1,000,000(60/30/10) + 판권 2,000,000(40/25/35)."""
+    api.login("a")
+    api.ok("a", "post", "/wallet/deposit/charge", json={"amount": 2_000_000})
+    fid = listed(api, published_work["id"], now, {"a": 1000})
+    base = {"funding_id": fid, "period": "2027Q2"}
+    api.ok("admin", "post", "/admin/revenues", json={**base, "source": "AD", "gross": 1_000_000})
+    api.ok("admin", "post", "/admin/revenues", json={**base, "source": "SECONDARY_IP", "gross": 2_500_000,
+                                                     "deductions": 500_000, "evidence_url": "s3://dibs/contracts/a.pdf"})
+    run = api.ok("admin", "post", f"/admin/fundings/{fid}/dividends", params={"force": True}, json={"period": "2027Q2"})
+    assert (run["net_revenue"], run["secondary_revenue"]) == (3_000_000, 2_000_000)
+    # 투자자 300,000 + 500,000 · 작가 600,000 + 800,000 · DIBS 100,000 + 700,000
+    assert (run["holder_pool"], run["creator_amount"], run["platform_amount"]) == (800_000, 1_400_000, 800_000)
+    d = api.ok(None, "get", f"/fundings/{fid}/disclosure")["revenue_split"]["secondary_ip"]
+    assert (d["creator"], d["holder"], d["dibs"]) == (40, 25, 35)
 
 
 def test_paid_preview_opens_only_after_listing(api, published_work, now):

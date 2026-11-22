@@ -1,10 +1,10 @@
-"""저작권료 분기 배당.
+"""저작권료 분기 배당 (수익구조 설계 v1.8 · 기획서 v2.3).
 
-재원 (v4.0): 순매출 = 유료 미리보기·광고·굿즈 − 인앱 수수료 − 굿즈 원가
-            + 선공개 독점 12개월 뒤 외부 연재·영상화 수익 중 작가 몫 × 20%
-배분 (회수 우선): 회수 전 작가 30 / 투자자 45 / DIBS 25
-                → 원천징수 후 누적 분배금 ≥ 발행액이 된 분기의 다음 분기부터 40 / 35 / 25 (모든 보유자 동시)
-거래 수수료는 거래소·증권사 몫이라 배당 재원에 넣지 않는다.
+재원 두 갈래 (순매출 = 수입 − 공제):
+  1차 연재 매출 = 유료 회차(인앱 수수료 30% 공제) · 광고 · 독점 종료 후 외부 연재 → 작가 60 / 투자자 30 / DIBS 10
+                  (비율은 펀딩별 royalty_* 값. 회수 전후 비율을 달리 둘 수 있지만 v2.3 기본은 같다)
+  2차 IP·해외   = 판권·단행본·굿즈·캐릭터·해외 연재 (외부 직접비 공제) → 작가 40 / 투자자 25 / DIBS·에이전시 35
+거래 수수료는 거래소·증권사 몫이라 배당 재원에도, DIBS 수입에도 넣지 않는다.
 주주 몫: 기준일(분기 말일 24:00) 보유 조각 수 비례, 원 단위 절사 → 잔여는 플랫폼 귀속
 지급: 다음 달 10일 예치금, 배당소득세 15.4% 원천징수
 """
@@ -102,6 +102,16 @@ def holdings_at(db: Session, f: Funding, cutoff: datetime) -> dict[int, int]:
     return {u: n for u, n in units.items() if n > 0}
 
 
+SECONDARY_SOURCES = (RevenueSource.SECONDARY_IP, RevenueSource.GOODS)
+
+
+def split_amounts(primary_net: int, secondary_net: int, holder_bps: int, creator_bps: int) -> tuple[int, int, int]:
+    """(투자자 몫, 작가 몫, DIBS 몫). 1차·2차를 따로 나눈 뒤 더한다. 원 단위 절사분은 DIBS 몫으로."""
+    holder = primary_net * holder_bps // 10000 + secondary_net * settings.royalty_secondary_holder_bps // 10000
+    creator = primary_net * creator_bps // 10000 + secondary_net * settings.royalty_secondary_creator_bps // 10000
+    return holder, creator, primary_net + secondary_net - holder - creator
+
+
 def calculate(db: Session, f: Funding, period: str, force: bool = False) -> DividendRun:
     _listed(f)
     if db.scalar(select(DividendRun.id).where(DividendRun.funding_id == f.id, DividendRun.period == period)):
@@ -115,11 +125,11 @@ def calculate(db: Session, f: Funding, period: str, force: bool = False) -> Divi
 
     records = list(db.scalars(select(RevenueRecord).where(RevenueRecord.funding_id == f.id,
                                                           RevenueRecord.period == period)))
+    secondary_net = sum(r.net for r in records if r.source in SECONDARY_SOURCES)
     net = sum(r.net for r in records)
     phase, holder_bps, creator_bps, _ = product.split_for(f, period)
-    holder_pool = net * holder_bps // 10000
-    creator_amount = net * creator_bps // 10000
-    platform_amount = net - holder_pool - creator_amount
+    holder_pool, creator_amount, platform_amount = split_amounts(net - secondary_net, secondary_net,
+                                                                 holder_bps, creator_bps)
     # 연재 위험 장치: 귀책 중단이면 반환 청구액을 채울 때까지 작가 몫을 투자자에게,
     # 그 밖에는 회수 전 작가 몫의 50%를 유보 (회수·종료 때 작가에게, 귀책 시 투자자에게)
     clawback_applied = creator_escrow = 0
@@ -139,7 +149,8 @@ def calculate(db: Session, f: Funding, period: str, force: bool = False) -> Divi
         raise Conflict("NO_HOLDERS", "기준일 보유자가 없어요")
 
     run = DividendRun(funding_id=f.id, period=period, record_date=record_date, pay_date=default_pay_date(record_date),
-                      net_revenue=net, phase=phase, holder_pool=holder_pool, creator_amount=creator_amount,
+                      net_revenue=net, secondary_revenue=secondary_net, phase=phase,
+                      holder_pool=holder_pool, creator_amount=creator_amount,
                       platform_amount=platform_amount, total_units=total_units,
                       per_unit_gross=round(holder_pool / total_units, 2), creator_escrow=creator_escrow,
                       clawback_applied=clawback_applied)

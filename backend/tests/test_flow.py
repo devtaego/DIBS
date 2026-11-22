@@ -151,8 +151,10 @@ def test_full_flow(api, published_work, now):
     clock.set_now(datetime(2027, 4, 1, 9, 0))
     run = api.ok("admin", "post", f"/admin/fundings/{fid}/dividends", json=period)
     assert run["net_revenue"] == 130_700 and run["phase"] == "BEFORE_RECOUP"
-    # 회수 전 투자자 45 / 작가 30 / DIBS 25. 거래 수수료는 배당 재원이 아니다 (v4.0)
-    assert (run["holder_pool"], run["creator_amount"], run["platform_amount"]) == (58_815, 39_210, 32_675)
+    # 1차(유료 회차 700 + 광고 100,000) 투자자 45 / 작가 30 / DIBS 25 (이 테스트의 v4 정책),
+    # 2차(굿즈 순매출 30,000) 투자자 25 / 작가 40 / DIBS 35. 거래 수수료는 배당 재원이 아니다
+    assert run["secondary_revenue"] == 30_000
+    assert (run["holder_pool"], run["creator_amount"], run["platform_amount"]) == (52_815, 42_210, 35_675)
     assert run["total_units"] == 100 and run["residual"] == 2 and not run["recouped_now"]
     assert run["record_date"] == "2027-03-31" and run["pay_date"] == "2027-04-10"
 
@@ -162,11 +164,11 @@ def test_full_flow(api, published_work, now):
     api.ok("admin", "post", f"/admin/dividends/{run['id']}/pay")
 
     mine = api.ok("a", "get", "/me/dividends")[0]
-    assert (mine["units"], mine["gross"], mine["tax"], mine["net"]) == (42, 24_702, 3_804, 20_898)
-    assert wallet(api, "a")["deposit_available"] == before + 20_898
+    assert (mine["units"], mine["gross"], mine["tax"], mine["net"]) == (42, 22_182, 3_416, 18_766)
+    assert wallet(api, "a")["deposit_available"] == before + 18_766
     # 회수 전 작가 몫의 50%는 신탁에 유보 (회수·종료 때 작가에게)
-    assert run["creator_escrow"] == 19_605
-    assert wallet(api, "creator")["deposit_available"] == 340_000 + 39_210 - 19_605
+    assert run["creator_escrow"] == 21_105
+    assert wallet(api, "creator")["deposit_available"] == 340_000 + 42_210 - 21_105
     assert api.ok("a", "get", "/me/notifications")[0]["type"] == "DIVIDEND_PAID"
     assert_books_balance(api)
 

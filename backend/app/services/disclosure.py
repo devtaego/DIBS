@@ -88,6 +88,10 @@ def disclosure(db: Session, f: Funding, now: datetime) -> dict:
             "after_recoup": {"holder": f.royalty_holder_after_bps / 100, "creator": f.royalty_creator_after_bps / 100,
                              "dibs": f.royalty_platform_after_bps / 100},
             "recoup_rule": "원천징수 후 누적 분배금이 발행액에 닿은 분기의 다음 분기부터 회수 후 비율",
+            "secondary_ip": {"holder": product.settings.royalty_secondary_holder_bps / 100,
+                             "creator": product.settings.royalty_secondary_creator_bps / 100,
+                             "dibs": product.settings.royalty_secondary_platform_bps / 100,
+                             "sources": "판권 · 단행본 · 굿즈 · 캐릭터 · 해외 연재 (외부 직접비 공제 후)"},
         },
         "term": {"fixed_term": product.settings.fixed_term_enabled,  # v2.2: 고정 운용 기간·만기 없음
                  "season_months": product.settings.season_months if product.settings.fixed_term_enabled else None,

@@ -115,8 +115,9 @@ class DividendRunOut(ORM):
     period: str
     record_date: date
     pay_date: date
-    net_revenue: int
-    phase: str = Field(description="BEFORE_RECOUP(투자자 45%) | AFTER_RECOUP(35%)")
+    net_revenue: int = Field(description="순매출 합계 (1차 연재 + 2차 IP·해외)")
+    secondary_revenue: int = Field(default=0, description="그중 2차 IP·해외 순매출 (작가 40 / 투자자 25 / DIBS 35)")
+    phase: str = Field(description="BEFORE_RECOUP | AFTER_RECOUP (v2.3 기본은 두 단계 모두 1차 60 / 30 / 10)")
     recouped_now: bool = Field(description="이 분기로 원금 회수 달성 → 다음 분기부터 회수 후 비율")
     holder_pool: int
     creator_amount: int

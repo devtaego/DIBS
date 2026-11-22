@@ -80,7 +80,7 @@ export default function Login() {
 
   const valid = validPhone(phone);
   return (
-    <V2Screen header={<SubHeader />} pad={24} footer={<BigBtn label={busy ? '보내는 중…' : '인증번호 받기'} disabled={!valid || busy} onPress={requestOtp} h={52} />}>
+    <V2Screen header={<SubHeader entry />} pad={24} footer={<BigBtn label={busy ? '보내는 중…' : '인증번호 받기'} disabled={!valid || busy} onPress={requestOtp} h={52} />}>
       <View style={{ gap: 8, marginTop: 4, marginBottom: 24 }}>
         {/* 첫 방문·로그아웃 뒤·'이미 계정이 있나요'에서 모두 오는 화면이라 인사 대신 할 일을 말한다 */}
         <Txt v="title3" w="bold" c={color.labelStrong}>{out === '1' ? '로그아웃했어요' : '휴대폰 번호로\n시작해요'}</Txt>

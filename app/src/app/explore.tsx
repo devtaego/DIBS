@@ -84,7 +84,13 @@ export default function Explore() {
     return router.push(w.funding_status === 'LISTED' ? `/security/${w.funding_id}` : `/funding/${w.funding_id}`);
   };
 
-  const closeSearch = () => { setQ(''); setShowSearch(false); router.setParams({ search: '' }); };
+  // 탐색은 탭이 아니라 쌓이는 화면이라, 뒤로가기가 없으면 빠져나갈 길이 없다
+  const leave = () => (router.canGoBack() ? router.back() : router.replace('/'));
+  // 검색 닫기: 상단 검색 아이콘으로 바로 들어왔으면 이전 화면으로, 탐색 안에서 연 검색이면 추천 화면으로
+  const closeSearch = () => {
+    if (params.search === '1') return leave();
+    setQ(''); setShowSearch(false); router.setParams({ search: '' });
+  };
   const header = showSearch || searching ? (
     // 검색 중: 뒤로가기 + 검색창 (뒤로가기를 누르면 검색을 닫고 추천 화면으로)
     <View style={{ height: 56, flexDirection: 'row', alignItems: 'center', gap: spacing.gapS, paddingLeft: spacing.insetXs, paddingRight: spacing.screen }}>
@@ -105,7 +111,8 @@ export default function Explore() {
       </View>
     </View>
   ) : (
-    <View style={{ height: 56, flexDirection: 'row', alignItems: 'center', gap: spacing.gapL, paddingLeft: spacing.screen, paddingRight: spacing.insetXs }}>
+    <View style={{ height: 56, flexDirection: 'row', alignItems: 'center', gap: spacing.gapL, paddingLeft: spacing.insetXs, paddingRight: spacing.insetXs }}>
+      <IconButton icon="back" label="뒤로" onPress={leave} />
       {(['recommend', 'rank'] as const).map((k, i) => (
         <View key={k} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.gapL }}>
           {i > 0 ? <View style={{ width: 1.5, height: 16, borderRadius: 1, backgroundColor: color.lineNormal }} /> : null}

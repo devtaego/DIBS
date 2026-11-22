@@ -12,7 +12,7 @@ const ITEMS = [
 
 export default function Onboard() {
   return (
-    <V2Screen header={<SubHeader />} pad={24}
+    <V2Screen header={<SubHeader entry />} pad={24}
       footer={
         <View style={{ gap: 8 }}>
           <BigBtn label="휴대폰으로 시작하기" onPress={() => router.replace('/login')} h={52} />

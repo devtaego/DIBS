@@ -60,9 +60,10 @@ export function HeadBtn({ icon, label, onPress, c = color.labelStrong }: { icon:
 }
 
 /** 하위 화면 머리말: 뒤로 + 가운데 제목 + 오른쪽 버튼 */
-export function SubHeader({ title, right, onBack, close }: { title?: string; right?: ReactNode; onBack?: () => void; close?: boolean }) {
+export function SubHeader({ title, right, onBack, close, entry }: { title?: string; right?: ReactNode; onBack?: () => void; close?: boolean; entry?: boolean }) {
   const back = onBack ?? (() => (router.canGoBack() ? router.back() : router.replace('/')));
-  const showBack = !close && (!!onBack || router.canGoBack());
+  // 뒤로가기는 늘 보인다 (주소로 바로 열었거나 새로고침해 이전 화면이 없으면 홈으로). 로그인·온보딩 같은 첫 화면(entry)만 이전 화면이 있을 때 보인다
+  const showBack = !close && (!!onBack || !entry || router.canGoBack());
   return (
     <View style={sh.sub}>
       <View style={{ width: 88, flexDirection: 'row' }}>{showBack ? <HeadBtn icon="back" label="뒤로" onPress={back} /> : null}</View>

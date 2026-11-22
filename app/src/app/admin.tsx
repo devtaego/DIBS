@@ -113,6 +113,16 @@ export default function AdminPanel() {
     ]);
 
   if (loading && !data) return <Screen><Loading /></Screen>;
+  if (error?.code === 'FORBIDDEN_ROLE') {
+    return (
+      <Screen>
+        <Card style={{ alignItems: 'center', paddingVertical: space(10) }}>
+          <T weight="700">운영자 계정으로만 볼 수 있어요</T>
+          <Muted style={{ marginTop: space(2), textAlign: 'center' }}>지금 계정에는 운영자 권한이 없어요.</Muted>
+        </Card>
+      </Screen>
+    );
+  }
   return (
     <Screen onRefresh={reload}>
       <Muted>발표 시연용이에요. 실제 운영에서는 웹 어드민과 스케줄러가 처리해요.</Muted>

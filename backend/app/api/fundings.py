@@ -79,10 +79,12 @@ def list_fundings(status: FundingStatus | None = Query(default=FundingStatus.OPE
         stmt = stmt.where(Funding.offering_round == offering_round)
     fs = list(db.scalars(stmt.order_by(Funding.close_at).limit(limit).offset(offset)))
     # 카드 미니 차트: 작품들의 최근 7일 하루 순독자를 한 번에 센다
-    daily = content_svc.daily_readers(db, [f.work_id for f in fs], 7)
+    work_ids = [f.work_id for f in fs]
+    daily = content_svc.daily_readers(db, work_ids, 7)
+    changes = content_svc.reader_change_many(db, work_ids)
     out = []
     for f in fs:
-        ch = content_svc.reader_change_1w(db, f.work_id)
+        ch = changes[f.work_id]
         out.append(FundingCardOut(**card(db, f), readers_7d=[d["readers"] for d in daily[f.work_id]],
                                   reader_change_1w=ch["reader_change_1w"], readers_last_7d=ch["readers_last_7d"],
                                   reader_tracked_days=ch["tracked_days"]))

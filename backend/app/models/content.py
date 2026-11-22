@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import JSON, Boolean, DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint
+from sqlalchemy import JSON, Boolean, DateTime, Float, ForeignKey, Index, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core import clock
@@ -106,6 +106,8 @@ class ContentEvent(Base):
     """
 
     __tablename__ = "content_events"
+    # 작품별 기간 순독자 집계(펀딩 카드 막대·주간 증가율·연독률): 앞 세 칸으로 거르고 독자 칸까지 인덱스만 읽는다
+    __table_args__ = (Index("ix_content_events_work_type_time", "work_id", "event_type", "occurred_at", "user_id", "anon_id"),)
 
     id: Mapped[int] = mapped_column(primary_key=True)
     user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), index=True)

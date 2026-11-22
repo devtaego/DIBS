@@ -134,8 +134,8 @@ export function ErrorBox({ error, onRetry }: { error: ApiError | null; onRetry?:
   if (!error) return null;
   return (
     <Card style={{ borderColor: colors.danger, borderWidth: 1 }}>
-      <T size={14} color={colors.danger} weight="700">{error.code}</T>
-      <T size={14}>{error.message}</T>
+      <T size={14} color={colors.danger} weight="700">{error.message || '잠시 문제가 생겼어요'}</T>
+      {error.code ? <T size={11} color={colors.faint} style={{ marginTop: space(1) }}>오류 코드 {error.code}</T> : null}
       {onRetry ? <Button title="다시 시도" kind="ghost" onPress={onRetry} style={{ marginTop: space(3) }} /> : null}
     </Card>
   );

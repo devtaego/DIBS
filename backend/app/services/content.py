@@ -211,6 +211,33 @@ def reader_change_1w(db: Session, work_id: int) -> dict:
             "reader_change_1w": round((recent - prev) / prev, 3) if prev else None}
 
 
+def reader_change_many(db: Session, work_ids: list[int]) -> dict[int, dict]:
+    """reader_change_1w 을 여러 작품에 한 번에 (펀딩 목록용). 정의·반환값은 reader_change_1w 와 같다."""
+    if not work_ids:
+        return {}
+    viewer = func.coalesce(literal("u") + cast(ContentEvent.user_id, String), literal("a") + ContentEvent.anon_id)
+    now = clock.now()
+    base = (ContentEvent.work_id.in_(work_ids), ContentEvent.event_type == EventType.VIEW_START)
+    firsts = dict(db.execute(select(ContentEvent.work_id, func.min(ContentEvent.occurred_at))
+                             .where(*base).group_by(ContentEvent.work_id)).all())
+
+    def readers(start, end) -> dict:
+        return dict(db.execute(select(ContentEvent.work_id, func.count(distinct(viewer)))
+                               .where(*base, ContentEvent.occurred_at >= start, ContentEvent.occurred_at < end)
+                               .group_by(ContentEvent.work_id)).all())
+
+    recent_all = readers(now - timedelta(days=7), now)
+    prev_all = readers(now - timedelta(days=14), now - timedelta(days=7))
+    out = {}
+    for w in work_ids:
+        first = firsts.get(w)
+        recent, prev = int(recent_all.get(w, 0)), int(prev_all.get(w, 0))
+        out[w] = {"readers_last_7d": recent, "readers_prev_7d": prev,
+                  "tracked_days": math.ceil((now - first).total_seconds() / 86400) if first else 0,
+                  "reader_change_1w": round((recent - prev) / prev, 3) if prev else None}
+    return out
+
+
 def daily_readers(db: Session, work_ids: list[int], days: int = 7) -> dict[int, list[dict]]:
     """작품별 하루 순독자 (VIEW_START 고유 독자). 오늘을 끝으로 최대 `days`일, 지금 시각부터 거꾸로 24시간씩 끊는다
     (마지막 = 최근 24시간 = '오늘'). 그래서 오전에 봐도 오늘 막대가 덜 찬 것처럼 낮아지지 않는다.

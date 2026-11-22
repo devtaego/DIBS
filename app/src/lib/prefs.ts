@@ -19,7 +19,8 @@ export function usePref<T>(key: string, init: T): [T, (v: T) => void] {
 }
 
 export type KiwoomLink = { linked: boolean; account?: string; at?: string };
-export const useKiwoomLink = () => usePref<KiwoomLink>('kiwoom', { linked: false });
+// 체험 계정은 키움 예치금·보유 조각이 이미 있으니 계좌가 연결된 상태로 시작한다 (MY > 연결 계좌에서 해지·재연결 가능)
+export const useKiwoomLink = () => usePref<KiwoomLink>('kiwoom', { linked: true, account: '5012-****-31', at: '2027-02-15' });
 
 /** 연속 접속 일수: 앱을 연 날짜를 기기에 남기고, 오늘까지 이어진 날 수를 센다 */
 export function useVisitStreak(todayMs: number): number {

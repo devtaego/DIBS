@@ -1,12 +1,21 @@
 import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { Platform } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { PhoneFrame } from '@/components/PhoneFrame';
 import { StackHeader } from '@/components/StackHeader';
 import { SessionProvider } from '@/lib/session';
 import { colors, MODE } from '@/lib/theme';
+
+// 웹: 입력칸을 누르면 브라우저 기본 검은 테두리가 생겨서 끈다 (앱에는 없는 모양)
+if (Platform.OS === 'web' && typeof document !== 'undefined' && !document.getElementById('dibs-input-css')) {
+  const s = document.createElement('style');
+  s.id = 'dibs-input-css';
+  s.textContent = 'input:focus, textarea:focus { outline: none; }';
+  document.head.appendChild(s);
+}
 
 export default function RootLayout() {
   // Pretendard (v2.0 글꼴). 웹에서도 동작하도록 런타임 로딩

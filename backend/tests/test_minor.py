@@ -74,3 +74,24 @@ def test_buy_seeds_with_exact_deposit(api):
     assert w["deposit_available"] == 0 and w["coin"] == 1000
     api.err("c", "post", "/wallet/coin/packages/buy", "INSUFFICIENT_BALANCE", json={"package_id": "seed10", "channel": "DEPOSIT"})
 
+
+
+def test_reader_change_many_matches_single(api, published_work, now, db_session_factory):
+    """펀딩 목록용 묶음 계산(reader_change_many)은 작품 하나씩 센 값(reader_change_1w)과 같다. 데이터 없는 작품도."""
+    from datetime import timedelta
+
+    from app.services import content as content_svc
+    wid = published_work["id"]
+    ep = api.ok(None, "get", f"/works/{wid}/episodes")[0]["id"]
+
+    def view(anon, days_ago):
+        return {"event_type": "VIEW_START", "anon_id": anon, "work_id": wid, "episode_id": ep,
+                "occurred_at": (now - timedelta(days=days_ago)).isoformat()}
+
+    api.ok(None, "post", "/events", json={"events": [view("p1", 10), view("p2", 9), view("p2", 8),
+                                                     view("r1", 3), view("r2", 2), view("r1", 1)]})
+    db = db_session_factory()
+    many = content_svc.reader_change_many(db, [wid, 99_999])
+    assert many[wid] == content_svc.reader_change_1w(db, wid)
+    assert (many[wid]["readers_prev_7d"], many[wid]["readers_last_7d"], many[wid]["reader_change_1w"]) == (2, 2, 0.0)
+    assert many[99_999] == {"readers_last_7d": 0, "readers_prev_7d": 0, "tracked_days": 0, "reader_change_1w": None}

@@ -1,6 +1,6 @@
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Alert, Image, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Image, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -41,7 +41,7 @@ export default function WorkScreen() {
       else await api.del(`/works/${id}/dib`);
       if (on) { setNote('찜했어요 · 펀딩이 열리면 알려 드릴게요'); setTimeout(() => setNote(''), 1800); }
     } catch (e) {
-      Alert.alert('찜 실패', (e as ApiError).message);
+      setNote(`찜하지 못했어요 · ${(e as ApiError).message}`); setTimeout(() => setNote(''), 2600);
       reload();
     }
   };

@@ -91,7 +91,7 @@ export default function My() {
           <Txt v="label2" w="semibold" c={color.labelStrong}>키움증권 예치금</Txt>
           <View style={{ height: 20, paddingHorizontal: 8, borderRadius: 999, backgroundColor: '#FDEBF1', flexDirection: 'row', alignItems: 'center', gap: 3 }}>
             <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: kiwoom.linked ? '#2EBD85' : color.labelAssistive }} />
-            <Txt v="caption2" w="bold" c="#C4426F">{kiwoom.linked ? `연결됨${kiwoom.account ? ` ··${kiwoom.account.slice(-4)}` : ''}` : '연결 전'}</Txt>
+            <Txt v="caption2" w="bold" c="#C4426F">{kiwoom.linked ? `연결됨${kiwoom.account ? ` ··${kiwoom.account.slice(-2)}` : ''}` : '연결 전'}</Txt>
           </View>
         </View>
         <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' }}>

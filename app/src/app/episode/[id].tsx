@@ -1,7 +1,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { Alert, Image, Pressable, View } from 'react-native';
+import { Image, Pressable, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ConfirmSheet } from '@/components/ConfirmSheet';
 import { ShortVideo } from '@/components/ShortVideo';
@@ -24,6 +24,7 @@ export default function EpisodeScreen() {
   // 열기 전 확인 시트 ('seed' 씨앗으로 / 'points' 키움 포인트로)와 잠금 화면 안 오류 문구 (웹은 Alert 가 안 뜸)
   const [ask, setAsk] = useState<'seed' | 'points' | null>(null);
   const [lockMsg, setLockMsg] = useState<string | null>(null);
+  const [fail, setFail] = useState<string | null>(null);
 
   const load = async () => {
     try {
@@ -35,7 +36,7 @@ export default function EpisodeScreen() {
       const err = e as ApiError;
       // 가격은 서버가 data로 준 숫자를 쓴다 (문구는 바뀔 수 있어서 파싱하지 않음). 옛 서버라 data가 없으면 회차 정보의 가격으로
       if (err.code === 'PAYMENT_REQUIRED') setLocked({ message: err.message, price: Number(err.data?.price_coin ?? ep?.price_coin ?? 300) });
-      else Alert.alert('열 수 없어요', err.message);
+      else setFail(err.message || '이 회차를 열 수 없어요');
     }
   };
 
@@ -127,6 +128,17 @@ export default function EpisodeScreen() {
       </Screen>
     );
   }
+  if (fail && !ep) {
+    return (
+      <Screen>
+        <Card style={{ alignItems: 'center', paddingVertical: space(10) }}>
+          <T weight="700">이 회차를 열 수 없어요</T>
+          <Muted style={{ marginTop: space(2), textAlign: 'center' }}>{fail}</Muted>
+          <Button title="돌아가기" kind="ghost" onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))} style={{ marginTop: space(6), alignSelf: 'stretch' }} />
+        </Card>
+      </Screen>
+    );
+  }
   if (!ep) return <Screen><Loading /></Screen>;
 
   return (
@@ -155,7 +167,7 @@ export default function EpisodeScreen() {
         <>
           {[1, 2, 3].map((n) => (
             <View key={n} style={{ height: 360, backgroundColor: n % 2 ? colors.card : colors.cardAlt, borderRadius: 12, marginTop: space(3), alignItems: 'center', justifyContent: 'center' }}>
-              <Muted>{n === 1 ? '이 회차 원고는 곧 올라와요' : `웹툰 컷 ${n}`}</Muted>
+              <Muted>{n === 1 ? '시연용 샘플 회차라 원고 이미지가 없어요' : `컷 ${n}`}</Muted>
             </View>
           ))}
         </>

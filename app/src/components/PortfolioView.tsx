@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { Alert, View } from 'react-native';
+import { View } from 'react-native';
 import { useState, type ReactNode } from 'react';
 
 import { Badge, Button, Card, Empty, ErrorBox, KV, Loading, MockBadge, Muted, Row, Screen, Segmented, T, changeColor } from '@/components/ui';
@@ -13,6 +13,7 @@ type Tab = 'holdings' | 'subs' | 'orders';
 // 증권 탭의 '내 자산' 화면 (예전 portfolio 탭)
 export function PortfolioView({ header, initialTab = 'holdings' }: { header?: ReactNode; initialTab?: Tab }) {
   const [tab, setTab] = useState<Tab>(initialTab);
+  const [cancelErr, setCancelErr] = useState<ApiError | null>(null);
   const { data, error, loading, reload } = useApi(async () => {
     const [wallet, holdings, subs, orders] = await Promise.all([
       api.get<Wallet>('/wallet'),
@@ -25,10 +26,11 @@ export function PortfolioView({ header, initialTab = 'holdings' }: { header?: Re
 
   const cancel = async (id: number) => {
     try {
+      setCancelErr(null);
       await api.del(`/market/orders/${id}`);
       reload();
     } catch (e) {
-      Alert.alert('취소 실패', (e as ApiError).message);
+      setCancelErr(e as ApiError);
     }
   };
 
@@ -39,6 +41,7 @@ export function PortfolioView({ header, initialTab = 'holdings' }: { header?: Re
     <Screen onRefresh={reload}>
       {header}
       <ErrorBox error={error} onRetry={reload} />
+      <ErrorBox error={cancelErr} />
       {data ? (
         <Card style={{ backgroundColor: colors.cardAlt }}>
           <Row style={{ justifyContent: 'space-between' }}>

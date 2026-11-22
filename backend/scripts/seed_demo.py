@@ -153,7 +153,7 @@ SHORT_VIDEOS: dict[str, tuple[str, int]] = {
 def seed_price_history(call, listed: list[tuple[int, int, list[str]]], days: int = 40) -> None:
     """상장 종목마다 지난 `days`일 동안의 체결을 만든다 (차트 시연용 합성 데이터).
 
-    공모가(1조각 1만 원)에서 시작해 오늘 가격보다 4~12% 낮은 값까지 무작위로 걷는다. 하루 2~4건을
+    공모가(1조각 1만 원)에서 시작해 오늘 가격의 −9%~+6% 근처까지 무작위로 걷는다 (오늘 등락이 종목마다 오르고 내리게). 하루 2~4건을
     매도·매수 주문을 같은 가격·수량으로 넣어 바로 체결시키고, 하루가 끝나면 기준가를 갱신한다.
     매일 가격은 그날 기준가 ±30% 안, 10원 단위. 판 사람은 그만큼 들고 있는지 따져서 고른다.
     """
@@ -163,7 +163,7 @@ def seed_price_history(call, listed: list[tuple[int, int, list[str]]], days: int
     for fid, today, holders in listed:
         rnd = random.Random(7_000 + fid)
         unit = settings.default_unit_price
-        state[fid] = {"rnd": rnd, "p": unit, "ref": unit, "target": tick(today / (1 + rnd.uniform(0.04, 0.12))),
+        state[fid] = {"rnd": rnd, "p": unit, "ref": unit, "target": tick(today / (1 + rnd.uniform(-0.06, 0.10))),
                       "hold": {h: 40 for h in holders}}  # 균등 20 + 비례 80 배정 결과: 1인 40조각
     for i, d in enumerate(range(days, 0, -1)):
         day = (base - timedelta(days=d)).replace(hour=10, minute=0, second=0)

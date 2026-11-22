@@ -9,7 +9,14 @@ import { useSession } from '@/lib/session';
 import { useApi } from '@/lib/useApi';
 
 type Limits = { mode: string; annual_limit: number | null; annual_remaining: number | null; security_limit: number | null; security_remaining: number | null };
-const won = (n: number) => (n >= 10_000 ? `${(n / 10_000).toLocaleString('ko-KR')}만 원` : `${n.toLocaleString('ko-KR')}원`);
+/** 억·만 단위로 읽기 쉽게: 98,682,250 → '9,868만 2,250원', 100,000,000 → '1억 원' */
+const won = (n: number) => {
+  const v = Math.round(n);
+  const eok = Math.floor(v / 1e8), man = Math.floor((v % 1e8) / 1e4), rest = v % 1e4;
+  const parts = [eok ? `${eok.toLocaleString('ko-KR')}억` : '', man ? `${man.toLocaleString('ko-KR')}만` : ''].filter(Boolean);
+  if (rest || !parts.length) return [...parts, `${rest.toLocaleString('ko-KR')}원`].join(' ');
+  return `${parts.join(' ')} 원`;
+};
 const TYPE: Record<string, string> = { GENERAL: '일반 투자자', QUALIFIED: '소득 적격 투자자', PROFESSIONAL: '전문 투자자' };
 
 export default function Limits() {

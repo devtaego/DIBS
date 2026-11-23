@@ -21,6 +21,17 @@ const RISK_CHIP: Record<string, [string, string, string]> = {
   ACTIVE: ['해바라기 성장형', '#FFF3D4', '#9A6A00'], AGGRESSIVE: ['로켓 도전형', '#FDE8EC', '#C4314F'],
 };
 
+/** 웹에서 첫 화면 주소.
+ *  - GitHub Pages(/DIBS/ 아래, 주소창도 /DIBS/…): 앱 폴더 주소(/DIBS/)로. index.html 로 가면 라우터가 '/index.html' 화면을 찾다가 Unmatched 가 뜬다
+ *  - Claude 아티팩트(<base>는 문서 폴더, 주소창은 '/'): 문서 폴더의 index.html 로
+ *  - 개발 서버·일반 배포(<base> 없음): 사이트 루트로 */
+function webStartUrl(): string {
+  const d = globalThis.document;
+  if (!d?.querySelector('base')) return '/';
+  const folder = new URL('.', d.baseURI);
+  return globalThis.location?.pathname.startsWith(folder.pathname) ? folder.href : new URL('index.html', d.baseURI).href;
+}
+
 export default function My() {
   const { me, logout, baseUrl, refreshMe } = useSession();
   const [resetArm, setResetArm] = useState(false);
@@ -133,7 +144,7 @@ export default function My() {
           onPress={async () => {
             if (!resetArm) { setResetArm(true); setTimeout(() => setResetArm(false), 3000); return; }
             await resetDemoState(); clearPrefMemory();
-            if (Platform.OS === 'web') { const d = globalThis.document; globalThis.location?.replace(d?.querySelector('base') ? new URL('index.html', d.baseURI).href : '/'); } else { await loadConfig(); await refreshMe(); router.replace('/intro'); }
+            if (Platform.OS === 'web') { globalThis.location?.replace(webStartUrl()); } else { await loadConfig(); await refreshMe(); router.replace('/intro'); }
           }} />
       ) : <Txt v="caption2" c={color.labelAssistive}>{`서버: ${baseUrl}`}</Txt>}
       <Button label="로그아웃" variant="Outlined" tone="Assistive" size="Medium" onPress={async () => { await logout(); router.replace({ pathname: '/login', params: { out: '1' } }); }} />

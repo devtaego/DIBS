@@ -29,7 +29,14 @@ export default function Done() {
   } catch {
     rows = [];
   }
-  const go = (href?: string) => router.replace((href || '/') as Href);
+  // 청약·주문은 모달(조각 청약 → 키움증권) 위에서 끝난다. 완료 화면만 바꿔 끼우면 그 모달들이 스택에 남아
+  // 'DIBS로 돌아가기' 뒤에 청약·키움 창이 다시 올라온다. 그래서 남은 화면을 모두 닫고 홈부터 다시 세운 뒤 이동한다.
+  const go = (href?: string) => {
+    const target = (href || '/') as Href;
+    if (router.canDismiss()) router.dismissAll();
+    router.replace('/');
+    if (target !== '/') router.push(target);
+  };
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }}>

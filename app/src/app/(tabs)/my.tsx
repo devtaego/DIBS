@@ -49,7 +49,6 @@ export default function My() {
   const active = (data?.subs ?? []).filter((x) => x.status === 'ACTIVE');
   const deposit = data?.wallet.deposit_available ?? 0;
   const units = (data?.holdings ?? []).reduce((a, h) => a + h.units, 0);
-  const activeAmt = active.reduce((a, x) => a + x.units * x.unit_price, 0);
 
   return (
     <DScreen header={<TopAppBar type="Main" />} onRefresh={reload} tabBar gap={spacing.gapXl} padTop={spacing.insetS}>
@@ -75,7 +74,7 @@ export default function My() {
       <View style={{ flexDirection: 'row', paddingVertical: spacing.insetS }}>
         {[
           [`${data?.holdings.length ?? 0}종목`, '보유 조각'],
-          [activeAmt ? `${(activeAmt / 10000).toLocaleString('ko-KR', { maximumFractionDigits: 1 })}만` : '0', '진행 중 펀딩'],
+          [`${active.length}건`, '진행 중 펀딩'],
           [`${data?.dibs.length ?? 0}`, '관심 작품'],
         ].map(([v, l], i) => (
           <Pressable key={l} onPress={() => router.push(i === 2 ? '/me/dibs' : i === 1 ? { pathname: '/portfolio', params: { tab: 'subs' } } : '/portfolio')} style={[{ flex: 1, alignItems: 'center', gap: spacing.gap2xs }, i > 0 && { borderLeftWidth: 1, borderLeftColor: color.lineAlternative }]}>

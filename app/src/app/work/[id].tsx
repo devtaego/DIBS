@@ -60,7 +60,7 @@ export default function WorkScreen() {
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 120 }}>
         <View style={{ height: 352, overflow: 'hidden' }}>
           {imageSource(work.cover_url) ? (
-            <Image source={imageSource(work.cover_url)} blurRadius={26} resizeMode="cover" style={{ position: 'absolute', top: -30, left: -30, right: -30, bottom: -30, opacity: 0.9 }} />
+            <Image source={imageSource(work.cover_url)} blurRadius={26} resizeMode="cover" style={{ position: 'absolute', top: '-10%', left: '-10%', width: '120%', height: '120%', opacity: 0.9 }} />
           ) : <View style={[StyleSheet.absoluteFill, { backgroundColor: '#3A2A33' }]} />}
           <LinearGradient colors={['rgba(10,8,14,0.35)', 'rgba(10,8,14,0.15)', color.bgNormal]} locations={[0, 0.5, 1]} style={StyleSheet.absoluteFill} />
           <SafeAreaView edges={['top']}>

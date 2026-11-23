@@ -103,7 +103,7 @@ export function Cover({ id, title, genre, coverUrl, small, style }: { id: number
   return (
     <View style={[{ overflow: 'hidden', backgroundColor: g[1] }, style]}>
       {imageSource(coverUrl) ? (
-        <Image source={imageSource(coverUrl)} style={StyleSheet.absoluteFill} resizeMode="cover" accessibilityLabel={`${title} 표지`} />
+        <Image source={imageSource(coverUrl)} style={[StyleSheet.absoluteFill, { width: '100%', height: '100%' }]} resizeMode="cover" accessibilityLabel={`${title} 표지`} />
       ) : (
         <>
           <LinearGradient colors={g} locations={[0, 0.55, 1]} start={{ x: 0.2, y: 0 }} end={{ x: 0.8, y: 1 }} style={StyleSheet.absoluteFill} />

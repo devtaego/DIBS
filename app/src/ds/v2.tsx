@@ -28,7 +28,8 @@ export function CoverImg({ id = 0, url, title, w, h, r = 12, style, shadow = tru
   return (
     <View style={[{ width: w, height: h, aspectRatio: h ? undefined : 2 / 3, borderRadius: r, overflow: 'hidden', backgroundColor: bg }, shadow && sh.cover, style]}
       accessibilityLabel={title ? `${title} 표지` : undefined}>
-      {src ? <Image source={src} style={StyleSheet.absoluteFill} resizeMode="cover" /> : title ? (
+      {/* 너비·높이를 꼭 준다: 위치만 주면 iOS는 번들 이미지의 원래 크기로 그려서 표지가 확대돼 보인다 */}
+      {src ? <Image source={src} style={[StyleSheet.absoluteFill, { width: '100%', height: '100%' }]} resizeMode="cover" /> : title ? (
         <View style={{ flex: 1, padding: 8, justifyContent: 'flex-end' }}><Txt v="caption1" w="bold" c={fg} lines={4}>{title}</Txt></View>
       ) : null}
     </View>

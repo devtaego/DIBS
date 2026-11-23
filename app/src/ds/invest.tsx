@@ -20,7 +20,7 @@ export function Cover({ id, title, url, size = 'Medium', dim, badge, style }: {
   return (
     <View style={[{ width: '100%', aspectRatio: 2 / 3, borderRadius: r, overflow: 'hidden', backgroundColor: bg }, style]} accessibilityLabel={title ? `${title} 표지` : undefined}>
       {imageSource(url) ? (
-        <Image source={imageSource(url)} style={StyleSheet.absoluteFill} resizeMode="cover" />
+        <Image source={imageSource(url)} style={[StyleSheet.absoluteFill, { width: '100%', height: '100%' }]} resizeMode="cover" />
       ) : title ? (
         <View style={{ flex: 1, padding: size === 'Small' ? 6 : 12, justifyContent: 'flex-end' }}>
           <Txt v={size === 'Large' ? 'heading2' : size === 'Medium' ? 'label1' : 'caption2'} w="bold" c={fg} lines={size === 'Small' ? 3 : 4}>{title}</Txt>

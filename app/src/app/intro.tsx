@@ -96,7 +96,7 @@ export default function Intro() {
 function Tile({ src, style }: { src: string; style: object }) {
   return (
     <View style={[{ overflow: 'hidden', backgroundColor: '#222' }, style]}>
-      <Image source={imageSource(src)} style={StyleSheet.absoluteFill} resizeMode="cover" />
+      <Image source={imageSource(src)} style={[StyleSheet.absoluteFill, { width: '100%', height: '100%' }]} resizeMode="cover" />
     </View>
   );
 }

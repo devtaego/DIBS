@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <base href="/DIBS/">
+    <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
+    <title>DIBS 앱 데모</title>
+    <!-- The `react-native-web` recommended style reset: https://necolas.github.io/react-native-web/docs/setup/#root-element -->
+    <style id="expo-reset">
+      /* These styles make the body full-height */
+      html,
+      body {
+        height: 100%;
+      }
+      /* These styles disable body scrolling if you are using <ScrollView> */
+      body {
+        overflow: hidden;
+      }
+      /* These styles make the root element full-height */
+      #root {
+        display: flex;
+        height: 100%;
+        flex: 1;
+      }
+    </style>
+  <link rel="icon" href="/DIBS/favicon.ico"/><style id="phone-frame">
+@media (min-width: 480px) and (min-height: 560px) {
+  html, body { background: #E9EBF0; }
+  body { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; min-height: 100vh; overflow: hidden; }
+  #root {
+    flex: none; position: relative;
+    width: 390px; height: 844px; zoom: var(--phone-zoom, 1); /* 창이 작으면 틀째로 줄인다 (레이아웃은 그대로) */
+    border-radius: 46px; overflow: hidden; background: #fff;
+    box-shadow: 0 0 0 11px #15161c, 0 0 0 12px #3a3b44, 0 28px 70px rgba(20, 22, 30, 0.35);
+    transform: translateZ(0); /* 안쪽 fixed 요소를 틀 기준으로 */
+    box-sizing: border-box; padding-top: 44px; /* 휴대폰 상태바 자리: 상단바가 틀 천장에 붙지 않게 */
+  }
+  #root > div { height: 100%; }
+  #root::before { content: "9:41"; position: absolute; top: 0; left: 0; right: 0; height: 44px; padding: 0 0 0 34px; box-sizing: border-box;
+    display: flex; align-items: center; font: 600 15px/1 Pretendard, -apple-system, sans-serif; color: #15161c; background: #fff; z-index: 2147483647; }
+  #root::after { content: ""; position: absolute; top: 17px; right: 30px; width: 25px; height: 11px; border: 1.5px solid #15161c; border-radius: 3.5px;
+    box-sizing: border-box; background: linear-gradient(90deg, #15161c 72%, transparent 72%) 2px 2px / calc(100% - 4px) calc(100% - 4px) no-repeat; z-index: 2147483647; }
+  body::after { content: "DIBS 앱 데모 · 휴대폰에서 열면 전체 화면"; font: 500 12px/1 Pretendard, -apple-system, sans-serif; color: #8a8f9c; }
+}
+</style>
+<script>(function(){function fit(){var z=Math.min(1,(innerHeight-64)/844,(innerWidth-48)/414);document.documentElement.style.setProperty('--phone-zoom',String(Math.max(0.5,z)))}fit();addEventListener('resize',fit)})();</script>
+</head>
+
+  <body>
+    <!-- Use static rendering with Expo Router to support running without JavaScript. -->
+    <noscript> You need to enable JavaScript to run this app. </noscript>
+    <!-- The root element for your Expo app. -->
+    <div id="root"></div>
+  <script src="/DIBS/_expo/static/js/web/__expo-metro-runtime-8c088df87a31e4e6accd81c554ec290d.js" defer></script><script src="/DIBS/_expo/static/js/web/__common-79f37d72c3997e56603e4735c30fe84a.js" defer></script><script src="/DIBS/_expo/static/js/web/entry-81ea6283f4c3f46eecd2df94e0d16d2f.js" defer></script>
+</body>
+</html>

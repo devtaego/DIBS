@@ -67,7 +67,8 @@ export default function RootLayout() {
           <Stack.Screen name="notifications" options={{ title: '알림' }} />
           <Stack.Screen name="admin" options={{ title: '운영자 패널' }} />
           <Stack.Screen name="portfolio" options={{ title: '내 자산' }} />
-          <Stack.Screen name="done" options={{ headerShown: false, gestureEnabled: false, animation: 'fade' }} />
+          {/* 완료 화면은 청약·주문 모달 위에서도 뜨므로 표시 방식을 정해 둔다 (정하지 않으면 아래 모달을 따라 모달로 뜬다는 경고) */}
+          <Stack.Screen name="done" options={{ headerShown: false, gestureEnabled: false, animation: 'fade', presentation: 'fullScreenModal' }} />
         </Stack>
       </SessionProvider>
       </PhoneFrame>

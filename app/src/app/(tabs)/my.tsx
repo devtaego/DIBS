@@ -75,7 +75,7 @@ export default function My() {
         {[
           [`${data?.holdings.length ?? 0}종목`, '보유 조각'],
           [`${active.length}건`, '진행 중 펀딩'],
-          [`${data?.dibs.length ?? 0}`, '관심 작품'],
+          [`${data?.dibs.length ?? 0}건`, '관심 작품'],
         ].map(([v, l], i) => (
           <Pressable key={l} onPress={() => router.push(i === 2 ? '/me/dibs' : i === 1 ? { pathname: '/portfolio', params: { tab: 'subs' } } : '/portfolio')} style={[{ flex: 1, alignItems: 'center', gap: spacing.gap2xs }, i > 0 && { borderLeftWidth: 1, borderLeftColor: color.lineAlternative }]}>
             <Txt v="body1" w="bold" c={color.labelStrong} tabular>{v}</Txt>
